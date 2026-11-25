@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"],
+    "paths": {
+      "#doc-model": ["./packages/doc-model/src/index.ts"],
+      "#doc-model/*": ["./packages/doc-model/src/*"],
+      "#canvas-format": ["./packages/canvas-format/src/index.ts"],
+      "#canvas-format/*": ["./packages/canvas-format/src/*"]
+    }
+  },
+  "include": ["**/*.ts"]
+}

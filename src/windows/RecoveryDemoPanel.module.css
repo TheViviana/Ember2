@@ -1,0 +1,198 @@
+/* 设置壳「开发 / 恢复检测演示」页（DEV only）。外框由 SettingsShell 提供。 */
+
+.body {
+  font-family: var(--font-body);
+}
+
+.note {
+  margin: 0;
+  color: var(--ember-text-muted);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-normal);
+}
+
+.scenarios {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-md);
+}
+
+.scenario {
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-full);
+  background: var(--ember-control-bg);
+  color: var(--ember-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-2xs);
+  cursor: pointer;
+}
+
+.scenario:hover:not(:disabled) {
+  background: var(--ember-bg-hover);
+  border-color: var(--ember-border-strong);
+  color: var(--ember-text-primary);
+}
+
+.scenarioActive {
+  border-color: var(--ember-border-input);
+  background: var(--ember-bg-selected);
+  color: var(--ember-text-primary);
+}
+
+.hint {
+  margin: var(--space-sm) 0 0;
+  color: var(--ember-text-secondary);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-normal);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+}
+
+.primary,
+.quiet {
+  min-height: var(--control-height);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-sm);
+  background: var(--ember-control-bg);
+  box-shadow: var(--ember-control-inset);
+  font-family: var(--font-body);
+  font-size: var(--text-2xs);
+  cursor: pointer;
+}
+
+.primary {
+  border-color: var(--ember-border-strong);
+  color: var(--ember-text-primary);
+}
+
+.quiet {
+  color: var(--ember-text-secondary);
+}
+
+.primary:hover:not(:disabled),
+.quiet:hover:not(:disabled) {
+  background: var(--ember-bg-hover);
+  border-color: var(--ember-border-strong);
+  color: var(--ember-text-primary);
+}
+
+.primary:active:not(:disabled),
+.quiet:active:not(:disabled) {
+  background: var(--ember-bg-pressed);
+}
+
+.primary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.primary:focus-visible,
+.quiet:focus-visible,
+.scenario:focus-visible,
+.iconButton:focus-visible {
+  outline: var(--focus-ring-width) solid var(--ember-border-focus);
+  outline-offset: var(--focus-ring-gap);
+}
+
+.message,
+.messageWarning {
+  margin: var(--space-sm) 0 0;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  background: var(--ember-bg-surface);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-normal);
+}
+
+.message {
+  color: var(--ember-text-secondary);
+}
+
+.messageWarning {
+  border: 1px solid var(--ember-warning-border);
+  background: var(--ember-warning-tint);
+  color: var(--ember-warning);
+}
+
+.candidates,
+.excludedList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.candidates {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.candidate {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border: 1px solid var(--ember-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--ember-bg-surface);
+}
+
+.candidateMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.docId {
+  overflow-wrap: anywhere;
+  color: var(--ember-text-primary);
+  font-size: var(--text-2xs);
+}
+
+.hash {
+  color: var(--ember-text-muted);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.rowActions {
+  display: flex;
+  flex: none;
+  gap: var(--space-xs);
+}
+
+.decision {
+  flex: none;
+  color: var(--ember-text-secondary);
+  font-size: var(--text-2xs);
+}
+
+.excluded {
+  margin-top: var(--space-sm);
+  padding: var(--space-sm);
+  border: 1px solid var(--ember-border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.excludedTitle {
+  margin: 0 0 var(--space-xs);
+  color: var(--ember-text-muted);
+  font-size: var(--text-2xs);
+}
+
+.excludedList {
+  color: var(--ember-text-muted);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-normal);
+}

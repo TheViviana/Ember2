@@ -1,0 +1,29 @@
+/* 设置壳「工具与维护 / 收集箱」页。外框由 SettingsShell 提供。 */
+.body { display: flex; flex-direction: column; color: var(--ember-text-primary); font-family: var(--font-body); }
+.toolbar button, .itemActions button, .composer button { min-height: var(--control-height); padding: 5px 9px; color: var(--ember-text-secondary); background: var(--ember-control-bg); border: 1px solid var(--ember-border); border-radius: var(--radius-sm); box-shadow: var(--ember-control-inset); cursor: pointer; }
+.toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
+.composer { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; margin-bottom: 12px; }
+.composer input, .composer textarea { box-sizing: border-box; min-width: 0; padding: 8px; color: var(--ember-text-primary); background: var(--ember-bg-input); border: 1px solid var(--ember-border-input); border-radius: var(--radius-sm); font: inherit; }
+.composer input::placeholder, .composer textarea::placeholder { color: var(--ember-text-muted); opacity: 1; }
+.composer input:hover:not(:disabled), .composer textarea:hover:not(:disabled) { border-color: var(--ember-border-strong); }
+.composer input:focus-visible, .composer textarea:focus-visible { outline: none; border-color: var(--ember-border-focus); box-shadow: 0 0 0 var(--focus-ring-width) var(--ember-border-focus); }
+.composer textarea { grid-column: 1 / 3; min-height: 58px; resize: vertical; }
+.items { min-height: 120px; overflow-y: auto; border-top: 1px solid var(--ember-border-subtle); }
+.item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 10px 4px; border-bottom: 1px solid var(--ember-border-subtle); cursor: grab; touch-action: none; }
+.item:hover { background: var(--ember-bg-hover); }
+.item:active { cursor: grabbing; }
+.itemMain { min-width: 0; }
+.itemTitle { overflow: hidden; margin: 0 0 3px; font-size: var(--text-sm); text-overflow: ellipsis; white-space: nowrap; }
+.itemMeta { overflow: hidden; margin: 0; color: var(--ember-text-secondary); font-size: var(--text-xs); text-overflow: ellipsis; white-space: nowrap; }
+.itemActions { display: flex; gap: 4px; }
+.empty { padding: 28px 8px; color: var(--ember-text-secondary); text-align: center; font-size: var(--text-sm); }
+.error, .warning { margin: 8px 0; padding: 8px 10px; border-radius: var(--radius-sm); font-size: var(--text-sm); }
+.error { color: var(--ember-danger); background: var(--ember-danger-tint); border: 1px solid var(--ember-danger-border); }
+.warning { color: var(--ember-warning); background: var(--ember-warning-tint); border: 1px solid var(--ember-warning-border); }
+.hint { color: var(--ember-text-secondary); font-size: var(--text-xs); }
+.toolbar button:hover:not(:disabled), .itemActions button:hover:not(:disabled), .composer button:hover:not(:disabled) { color: var(--ember-text-primary); background: var(--ember-bg-hover); border-color: var(--ember-border-strong); }
+.toolbar button:active:not(:disabled), .itemActions button:active:not(:disabled), .composer button:active:not(:disabled) { background: var(--ember-bg-pressed); }
+.toolbar button:focus-visible, .itemActions button:focus-visible, .composer button:focus-visible { outline: var(--focus-ring-width) solid var(--ember-border-focus); outline-offset: var(--focus-ring-gap); }
+.toolbar button:disabled, .itemActions button:disabled, .composer button:disabled { color: var(--ember-text-muted); cursor: default; }
+.ghost { position: fixed; z-index: 10000; max-width: 260px; padding: 6px 10px; pointer-events: none; color: var(--ember-text-primary); background: var(--ember-float-bg); border: var(--ember-hairline) solid var(--ember-border); border-radius: var(--radius-sm); box-shadow: var(--ember-panel-shadow); font-size: var(--text-sm); }
+@media (max-width: 560px) { .composer { grid-template-columns: 1fr auto; } .composer input:first-child, .composer textarea { grid-column: 1 / -1; } }

@@ -1,0 +1,296 @@
+/* CR-20261120-34：Markdown 安全预览样式。只引用 token，不写裸色值。 */
+
+.preview {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: auto;
+  /* 宽度随浮窗自适应；字号只影响文字大小，不再改变正文列宽。 */
+  padding: var(--space-xl);
+  background: var(--ember-bg-deep);
+  color: var(--ember-article-body);
+  font-family: var(--font-body);
+  font-size: calc(var(--text-base) * var(--article-font-scale));
+  line-height: var(--leading-article-zh);
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.empty {
+  color: var(--ember-text-muted);
+  font-size: var(--text-sm);
+}
+
+/* CR-20261121-43：对照翻译内联——每段译文直接附在该段原文下方，不集中成块。 */
+.translationInline {
+  /* 默认正文为无衬线 → 译文用衬线；正文切到衬线时由 .translationSans 反转。 */
+  font-family: var(--font-serif);
+  margin: 0 0 var(--space-md);
+  color: var(--ember-text-secondary);
+  line-height: var(--leading-normal);
+  white-space: pre-line;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* 正文切到衬线时，译文反转为无衬线，始终与正文保持字族对比。 */
+.translationSans {
+  font-family: var(--font-body);
+}
+
+
+.heading {
+  margin: var(--space-lg) 0 var(--space-sm);
+  color: var(--ember-article-ink);
+  font-family: var(--font-serif);
+  font-weight: 600;
+  line-height: var(--leading-tight);
+}
+
+.heading:first-child {
+  margin-top: 0;
+}
+
+/* 2026-11-24 对齐 cinematic mock：衬线标题、无左侧色条，靠字号与留白分层。 */
+h1.heading {
+  margin: var(--space-2xl) 0 var(--space-md);
+  font-size: calc(var(--text-2xl) * var(--article-font-scale));
+  letter-spacing: -0.015em;
+}
+
+h2.heading {
+  margin: var(--space-xl) 0 var(--space-sm);
+  font-size: calc(var(--text-xl) * var(--article-font-scale));
+  letter-spacing: -0.005em;
+}
+
+h3.heading {
+  margin: var(--space-lg) 0 var(--space-sm);
+  font-size: calc(var(--text-lg) * var(--article-font-scale));
+}
+
+h4.heading {
+  margin: var(--space-lg) 0 var(--space-xs);
+  font-size: calc(var(--text-base) * var(--article-font-scale));
+}
+
+h5.heading {
+  margin: var(--space-md) 0 var(--space-xs);
+  font-size: calc(var(--text-md) * var(--article-font-scale));
+}
+
+h6.heading {
+  margin: var(--space-md) 0 var(--space-xs);
+  color: var(--ember-article-2nd);
+  font-size: calc(var(--text-sm) * var(--article-font-scale));
+}
+
+.paragraph {
+  margin: 0 0 1em;
+  overflow-wrap: anywhere;
+  text-align: justify;
+  line-height: inherit;
+}
+
+.paragraph:last-child {
+  margin-bottom: 0;
+}
+
+.blockquote {
+  margin: var(--space-md) 0;
+  padding: var(--space-xs) 0 var(--space-xs) var(--space-md);
+  border-left: 2px solid var(--ember-primary);
+  color: var(--ember-article-quote);
+  font-family: var(--font-serif);
+}
+
+.list {
+  margin: 0 0 var(--space-md);
+  padding-left: var(--space-xl);
+}
+
+.list li {
+  margin: var(--space-xs) 0;
+}
+
+.list li::marker {
+  color: var(--ember-primary);
+}
+
+.rule {
+  margin: var(--space-lg) 0;
+  border: none;
+  border-top: 1px solid var(--ember-article-rule);
+}
+
+.inlineCode {
+  padding: 0 var(--space-xs);
+  border-radius: var(--radius-sm);
+  background: var(--ember-bg-elevated);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.codeBlock {
+  margin: 0 0 var(--space-md);
+  padding: var(--space-md);
+  overflow-x: auto;
+  border: 1px solid var(--ember-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--ember-bg-elevated);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  white-space: pre;
+}
+
+.codeBlock code {
+  font-family: inherit;
+}
+
+/* raw HTML：按纯文本整块展示，视觉上明确是「未渲染的源码」。 */
+.rawHtmlBlock {
+  margin: 0 0 var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  overflow-x: auto;
+  border: 1px dashed var(--ember-border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--ember-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  white-space: pre-wrap;
+}
+
+.rawHtml {
+  color: var(--ember-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.literal {
+  color: var(--ember-text-muted);
+  font-size: var(--text-sm);
+}
+
+.textLink {
+  color: var(--ember-primary);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+
+.internalLink {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ember-primary);
+  font-family: inherit;
+  font-size: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.internalLink:hover {
+  background: var(--ember-primary-tint-soft);
+}
+
+.media {
+  display: inline-flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-width: 100%;
+  margin: var(--space-xs) 0;
+  padding: var(--space-sm);
+  vertical-align: middle;
+  border: 1px solid var(--ember-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--ember-bg-elevated);
+}
+
+.mediaElement {
+  display: block;
+  max-width: 100%;
+  max-height: 24rem;
+  object-fit: contain;
+}
+
+.audioElement {
+  width: min(28rem, 100%);
+}
+
+.mediaLabel {
+  overflow-wrap: anywhere;
+  color: var(--ember-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.tableWrap {
+  margin: var(--space-md) 0 var(--space-lg);
+  overflow-x: auto;
+}
+
+/* 2026-11-24 编辑式表格（对齐 cinematic mock 的语言）：
+   去掉竖线与整格底色，只保留水平细线；表头为等宽小号大写标签。 */
+.table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: calc(var(--text-sm) * var(--article-font-scale));
+  line-height: var(--leading-normal);
+}
+
+.table th,
+.table td {
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  border-bottom: 1px solid var(--ember-article-rule);
+  text-align: left;
+  vertical-align: top;
+}
+
+/* 列宽均分（fixed）避免 CJK 首列被压成一字一行；表头允许换行。 */
+.table th {
+  color: var(--ember-article-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: normal;
+}
+
+.table td {
+  color: var(--ember-article-body);
+  overflow-wrap: anywhere;
+}
+
+.table td:first-child {
+  color: var(--ember-article-ink);
+  font-weight: 500;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.mathInline {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+.mathBlock {
+  margin: 0 0 var(--space-md);
+  overflow-x: auto;
+  text-align: center;
+}
+
+.taskItem {
+  list-style: none;
+}
+
+.taskCheckbox {
+  margin: 0 var(--space-xs) 0 0;
+  vertical-align: middle;
+  accent-color: var(--ember-primary);
+}

@@ -1,0 +1,177 @@
+/* CR-20261121-49：选中文本 AI 浮层 / 结果卡片。全部使用 --ember-* tokens。 */
+
+.menu {
+  position: fixed;
+  z-index: var(--layer-sidebar-overlay);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  max-width: 300px;
+  padding: var(--menu-padding);
+  background: var(--ember-float-bg);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--ember-panel-shadow);
+}
+
+.menuItem {
+  min-height: var(--menu-item-height);
+  padding: 5px 10px;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--ember-text-primary);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-item);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.menuItem:hover {
+  background: var(--ember-menu-hover);
+  color: var(--ember-text-primary);
+}
+
+.menuItem:active {
+  background: var(--ember-menu-active);
+}
+
+.menuItem:focus-visible {
+  outline: var(--focus-ring-width) solid var(--ember-border-focus);
+  outline-offset: calc(-1 * var(--focus-ring-gap));
+}
+
+.card {
+  position: fixed;
+  z-index: var(--layer-sidebar-overlay);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 380px;
+  max-height: 46vh;
+  padding: 14px 16px;
+  box-sizing: border-box;
+  background: var(--ember-float-bg);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--ember-panel-shadow);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.cardTitle {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 650;
+  color: var(--ember-text-primary);
+  letter-spacing: var(--tracking-wide);
+}
+
+.cardState {
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  color: var(--ember-text-secondary);
+}
+
+.cardBody {
+  flex: 1;
+  min-height: 48px;
+  max-height: 30vh;
+  overflow-y: auto;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--ember-text-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  background: var(--ember-primary);
+  animation: aiCaretBlink 1s steps(2, start) infinite;
+}
+
+@keyframes aiCaretBlink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.cardError {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  color: var(--ember-danger);
+}
+
+.cardActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+.ghostBtn,
+.primaryBtn {
+  min-height: var(--control-height);
+  padding: 5px 12px;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.ghostBtn {
+  color: var(--ember-text-secondary);
+  background: var(--ember-control-bg);
+  border: 1px solid var(--ember-border);
+  box-shadow: var(--ember-control-inset);
+}
+
+.ghostBtn:hover {
+  border-color: var(--ember-border-strong);
+  background: var(--ember-bg-hover);
+  color: var(--ember-text-primary);
+}
+
+.ghostBtn:active {
+  background: var(--ember-bg-pressed);
+}
+
+.primaryBtn {
+  color: var(--ember-text-on-accent);
+  background: var(--ember-primary);
+  border: 1px solid var(--ember-primary);
+}
+
+.primaryBtn:hover:not(:disabled) {
+  border-color: var(--ember-primary-hover);
+  background: var(--ember-primary-hover);
+}
+
+.primaryBtn:active:not(:disabled) {
+  border-color: var(--ember-primary-pressed);
+  background: var(--ember-primary-pressed);
+}
+
+.primaryBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ghostBtn:focus-visible,
+.primaryBtn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--ember-border-focus);
+  outline-offset: var(--focus-ring-gap);
+}

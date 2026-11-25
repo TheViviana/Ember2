@@ -1,0 +1,223 @@
+/* 顶栏：透明覆盖层（用户 2026-11-21 裁定：不用玻璃底），浮在画布之上；整条可拖动。
+ * §8.2：中部模式切换，右侧搜索 → 连接状态 → 设置，统一 32px 控件与 8px 间距。
+ * reduced-transparency 无需降级——无半透明层。 */
+
+.topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--layer-sidebar-overlay);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  box-sizing: border-box;
+  min-width: 0;
+  height: var(--topbar-height);
+  /* 左侧仍让出系统交通灯（titleBarStyle:'Overlay'，三灯约占 72px）。 */
+  padding: 0 var(--space-md) 0 calc(72px + var(--space-lg));
+  background: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  /* 顶栏本体不再拦截内容：只有中部模式、右侧操作簇与顶部拖拽带可交互。 */
+  pointer-events: none;
+  transition: opacity var(--duration-fast) ease-out;
+}
+
+.dragHandle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: calc(72px + var(--space-lg));
+  height: 24px;
+  pointer-events: auto;
+}
+
+/* 中部模式切换：绝对居中，不随左右两侧内容宽度漂移。 */
+.center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  pointer-events: auto;
+  transform: translate(-50%, -50%);
+}
+
+/* 右侧操作簇：搜索 → 连接状态 → 设置，间距统一 8px。 */
+.trailing {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-left: auto;
+  min-width: 0;
+  flex-shrink: 0;
+  pointer-events: auto;
+}
+
+/* 滑动式面板切换：指示块随当前模式平移，两枚图标间距与右侧一致。 */
+.modeSwitch {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+}
+
+/* §8.2-4：指示块只用中性半透明底 + 1px 边框，橙色留给内容选中。 */
+.modeIndicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--topbar-control-size);
+  height: var(--topbar-control-size);
+  border: 1px solid var(--ember-mode-indicator-border);
+  border-radius: var(--radius-sm);
+  background: var(--ember-mode-indicator-bg);
+  transition: transform var(--duration-base) var(--ease-out);
+}
+
+.modeSwitch[data-active='docs'] .modeIndicator {
+  transform: translateX(calc(var(--topbar-control-size) + var(--space-sm)));
+}
+
+.iconButton {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--topbar-control-size);
+  height: var(--topbar-control-size);
+  padding: 0;
+  color: var(--ember-text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.iconButton:hover {
+  color: var(--ember-text-primary);
+  border-color: var(--ember-border-subtle);
+  background: var(--ember-bg-hover);
+}
+
+.iconButtonActive,
+.modeSwitch .iconButton[aria-pressed='true'] {
+  color: var(--ember-text-primary);
+}
+
+/* 悬停 350ms 后浮现：第一行名称，第二行快捷键；宽度上限 220px。 */
+.tooltip {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  max-width: 220px;
+  padding: 4px var(--space-sm);
+  border: 1px solid var(--ember-menu-border);
+  border-radius: var(--radius-sm);
+  background: var(--ember-menu-bg);
+  box-shadow: var(--ember-menu-shadow);
+  color: var(--ember-text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate(-50%, -2px);
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out),
+    visibility 0s linear 0s;
+}
+
+.tooltipShortcut {
+  color: var(--ember-text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.iconButton:hover .tooltip,
+.iconButton:focus-visible .tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+  transition-delay: 350ms, 350ms, 350ms;
+}
+
+/* 最右侧设置按钮的提示向左对齐，避免超出窗口。 */
+.trailing > .iconButton:last-child .tooltip {
+  right: 0;
+  left: auto;
+  transform: translateY(-2px);
+}
+
+.trailing > .iconButton:last-child:hover .tooltip,
+.trailing > .iconButton:last-child:focus-visible .tooltip {
+  transform: translateY(0);
+}
+
+.readonly {
+  flex-shrink: 0;
+  color: var(--ember-warning);
+  font-size: var(--text-2xs);
+}
+
+/* 连接状态是信息不是按钮：无 hover、无指针光标。 */
+.connection {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  height: var(--topbar-control-size);
+  padding: 0 var(--space-xs);
+  color: var(--ember-text-secondary);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wide);
+  white-space: nowrap;
+}
+
+.connectionDot {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-full);
+  background: var(--ember-text-muted);
+}
+
+.connection[data-tone='ok'] .connectionDot {
+  background: var(--ember-success);
+}
+
+.connection[data-tone='wait'] .connectionDot {
+  background: var(--ember-warning);
+}
+
+.connection[data-tone='bad'] .connectionDot {
+  background: var(--ember-danger);
+}
+
+/* 聚焦环走 global.css 全局 :focus-visible（离边 2px 灰色描边环），组件不再覆写。 */
+
+/* 专注模式（CR-20261121-45 项6）：chrome 淡出 30%，悬停恢复；reduced-motion 由全局 transition 类管 */
+.focusFade {
+  opacity: 0.3;
+}
+
+.focusFade:hover {
+  opacity: 1;
+}

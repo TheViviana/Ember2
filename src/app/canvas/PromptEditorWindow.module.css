@@ -1,0 +1,105 @@
+/* 提示词编辑浮窗：可缩放（右下角原生 resize 手柄），关闭按钮在其左侧。 */
+
+.window {
+  position: absolute;
+  inset: 0;
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  width: min(520px, 78%);
+  height: min(380px, 70%);
+  min-width: 320px;
+  min-height: 240px;
+  max-width: calc(100% - 48px);
+  max-height: calc(100% - 48px);
+  margin: auto;
+  overflow: hidden;
+  resize: both;
+  border: 1px solid var(--ember-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--ember-bg-elevated);
+  box-shadow: var(--ember-panel-shadow);
+}
+
+.header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--ember-border-subtle);
+}
+
+.title {
+  color: var(--ember-text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.hint {
+  color: var(--ember-text-muted);
+  font-family: var(--font-body);
+  font-size: var(--text-2xs);
+}
+
+.body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: var(--space-md) var(--space-lg);
+}
+
+.textarea {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  padding: var(--space-md);
+  resize: none;
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-md);
+  background: var(--ember-bg-input);
+  color: var(--ember-text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  line-height: 1.7;
+  outline: none;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.textarea::placeholder {
+  color: var(--ember-text-muted);
+}
+
+.textarea:focus {
+  border-color: var(--ember-border-focus);
+}
+
+.footer {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  /* 给右下角的原生 resize 手柄留出热区。 */
+  padding: var(--space-sm) 22px var(--space-md) var(--space-lg);
+  border-top: 1px solid var(--ember-border-subtle);
+}
+
+.close {
+  min-height: var(--control-height);
+  padding: 0 var(--space-lg);
+  border: 1px solid var(--ember-primary);
+  border-radius: var(--radius-sm);
+  background: var(--ember-primary);
+  color: var(--ember-text-on-accent);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.close:hover {
+  background: var(--ember-primary-hover);
+  border-color: var(--ember-primary-hover);
+}

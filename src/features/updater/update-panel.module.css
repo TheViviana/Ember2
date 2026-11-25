@@ -1,0 +1,117 @@
+/* 设置壳「关于」页：版本与检查更新。外框由 SettingsShell 提供。 */
+
+.root {
+  display: flex;
+  flex-direction: column;
+}
+
+.current {
+  margin: 0 0 var(--space-md);
+  color: var(--ember-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+  color: var(--ember-text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+}
+
+.body {
+  min-height: 120px;
+  padding: var(--space-md) 0;
+  border-top: 1px solid var(--ember-border-subtle);
+  border-bottom: 1px solid var(--ember-border-subtle);
+}
+
+.hint {
+  margin: 0;
+  color: var(--ember-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.notice {
+  margin: 0;
+  color: var(--ember-primary);
+  font-size: var(--text-sm);
+}
+
+.version {
+  margin: 0;
+  color: var(--ember-text-primary);
+  font-size: var(--text-base);
+}
+
+.meta {
+  margin: 4px 0 0;
+  color: var(--ember-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.notes {
+  max-height: 180px;
+  margin: 10px 0 0;
+  overflow: auto;
+  color: var(--ember-text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.error {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  overflow-wrap: anywhere;
+  color: var(--ember-danger);
+  background: var(--ember-danger-tint);
+  border: 1px solid var(--ember-danger-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.footer button {
+  min-height: var(--control-height);
+  padding: 5px 10px;
+  color: var(--ember-text-primary);
+  background: transparent;
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  cursor: pointer;
+}
+
+.footer .primaryButton {
+  color: var(--ember-text-on-accent);
+  background: var(--ember-primary);
+  border-color: var(--ember-primary);
+}
+
+.footer button:hover:not(:disabled) {
+  background: var(--ember-bg-hover);
+}
+
+.footer .primaryButton:hover:not(:disabled) {
+  background: var(--ember-primary-hover);
+}
+
+.footer button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

@@ -1,0 +1,93 @@
+/* P0 骨架占位样式：只引用 token，不引入裸色值/间距/字号（PLAN.md §1.1 / DESIGN.md 约束）。 */
+.boot-shell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: var(--space-sm);
+  color: var(--ember-text-primary);
+  font-family: var(--font-display);
+}
+
+.boot-shell__title {
+  font-size: var(--text-xl);
+  letter-spacing: var(--tracking-display);
+}
+
+.boot-shell__hint {
+  color: var(--ember-text-secondary);
+  font-size: var(--text-sm);
+}
+
+/* 关窗兜底提示与应用通知（CR-20261121-45 项7）：三态=基类（公共壳）+ --info/--warning/--error。
+ * v2.0 彩色语义态：成功/错误使用同色系浅底深字，警告使用浅底 + 描边块；
+ * 图标轮廓 + 前缀文字仍为主通道（ui-spec §10），颜色不作为唯一信息载体。 */
+.app-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: var(--space-sm) var(--space-md);
+  border: var(--ember-hairline) solid transparent;
+  border-radius: var(--radius-md);
+  box-shadow: var(--ember-float-shadow);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+}
+
+.app-notice-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-self: center;
+}
+
+.app-notice-message {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.app-notice-dismiss {
+  flex-shrink: 0;
+  padding: 0 var(--space-xs);
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: var(--text-sm);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.app-notice--info {
+  background: var(--ember-success-tint);
+  color: var(--ember-success);
+}
+
+.app-notice--warning {
+  background: var(--ember-warning-tint);
+  border: 1.5px solid var(--ember-warning-border);
+  color: var(--ember-warning);
+}
+
+.app-notice--error {
+  background: var(--ember-danger-tint);
+  border: none;
+  color: var(--ember-danger);
+}
+
+/* §8.7：阻断横幅（只读 / 冲突 / 关窗失败）与普通通知不同款：
+ * 中性表面 + 左侧 3px 红条，文字回到主文字色，强调“需要处理”而不是整块告警色。 */
+.app-notice--blocking {
+  background: var(--ember-bg-menu);
+  border: 1px solid var(--ember-danger-border);
+  border-left-width: 3px;
+  color: var(--ember-text-primary);
+}
+
+.app-notice--blocking .app-notice-icon {
+  color: var(--ember-danger);
+}

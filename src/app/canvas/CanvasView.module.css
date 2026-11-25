@@ -1,0 +1,446 @@
+/* C0-C 画布模式主区：铺满中央列，位于 #window-layer 之下。 */
+.root {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  /* Cinematic Ember §2.3：L0 纯色兜底；氛围、暗角、颗粒作为独立底层叠在上面，
+     网格、连线、节点始终位于其上方。 */
+  background-color: var(--ember-canvas-base);
+  isolation: isolate;
+}
+
+/* 动态背景栈（L1 / L5 / L6）：位于画布根容器内、网格与连线之下，不拦截指针。 */
+.ambient {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* L1 默认氛围：预模糊暖色静帧的 CSS 等价物；90s 缓慢推近，只动 transform。 */
+.ambientWash {
+  position: absolute;
+  inset: -6%;
+  background-image: var(--ember-canvas-wash);
+  background-size: cover;
+  transform: scale(1.06);
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ambient[data-mode='dynamic'] .ambientWash {
+    animation: ambient-drift 90s ease-in-out infinite alternate;
+  }
+}
+
+/* 关掉动态背景后不再展示 L1 静帧，但 L0 底色、点阵、暗角与颗粒仍在。 */
+.ambient[data-mode='off'] .ambientWash {
+  display: none;
+}
+
+/* 窗口失焦或标签页隐藏时暂停，避免后台空转。 */
+.ambient[data-paused='true'] .ambientWash {
+  animation-play-state: paused;
+}
+
+@keyframes ambient-drift {
+  from {
+    transform: scale(1.06) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.1) translate3d(1.2%, -0.8%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambientWash {
+    animation: none;
+  }
+}
+
+/* L2 内容驱动层：两层交叉淡入；整栈失选后 1.2s 淡出。 */
+.ambientPhotos {
+  position: absolute;
+  inset: 0;
+  opacity: 1;
+  transition: opacity 1200ms var(--ease-out);
+}
+
+.ambientPhotos[data-active='false'] {
+  opacity: 0;
+}
+
+.ambientPhoto {
+  position: absolute;
+  inset: -4%;
+  background-position: center;
+  background-size: cover;
+  opacity: 0;
+  animation: ambient-photo-in 600ms var(--ease-out) forwards;
+}
+
+@keyframes ambient-photo-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: var(--ember-canvas-photo-opacity);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambientPhoto {
+    animation-duration: 1ms;
+  }
+
+  .ambientPhotos {
+    transition-duration: 1ms;
+  }
+}
+
+/* L5 暗角：四边与底部压暗，保证中央节点对比度。 */
+.ambientVignette {
+  position: absolute;
+  inset: 0;
+  background-image: var(--ember-canvas-vignette);
+}
+
+/* L6 颗粒：128px 噪点平铺，3% 柔光；只在最底层，不覆盖节点与文字。 */
+.ambientGrain {
+  position: absolute;
+  inset: 0;
+  background-image: var(--ember-canvas-grain);
+  background-size: 128px 128px;
+  opacity: 0.03;
+  mix-blend-mode: soft-light;
+}
+
+.inactive {
+  display: none;
+}
+
+.host {
+  position: absolute;
+  inset: 0;
+}
+
+/*
+ * 端口圆点只在 canvas.module.css `.node::before/::after` 定义一份（对齐修复：
+ * 双份伪元素规则叠加会重复纵向居中）。本文件只负责让节点放开溢出，
+ * 否则外置圆点会被 `.node { overflow: hidden }` 裁掉。
+ */
+.host [data-node-id] {
+  overflow: visible;
+}
+
+.empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-2xl);
+  text-align: center;
+  pointer-events: none;
+}
+
+.emptyMark {
+  width: var(--space-2xl);
+  height: 1px;
+  background: var(--ember-border-strong);
+}
+
+.emptyTitle {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--ember-text-primary);
+}
+
+.emptyHint {
+  margin: 0;
+  max-width: 26em;
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  color: var(--ember-text-muted);
+}
+
+.readonlyBanner {
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+  margin: 0;
+  max-width: 22em;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--ember-warning-border);
+  border-radius: var(--radius-md);
+  background: var(--ember-warning-tint);
+  color: var(--ember-warning);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  pointer-events: none;
+}
+
+.conflictPanel {
+  position: absolute;
+  z-index: 60;
+  top: var(--space-md);
+  right: var(--space-md);
+  max-width: 26em;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--ember-warning-border);
+  border-radius: var(--radius-md);
+  background: var(--ember-bg-elevated);
+  color: var(--ember-warning);
+  box-shadow: var(--shadow-lg);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+}
+
+.conflictPanel p {
+  margin: 0;
+}
+
+.conflictActions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.conflictButton {
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--ember-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--ember-bg-base);
+  color: var(--ember-text-primary);
+  cursor: pointer;
+  font: inherit;
+}
+
+.conflictButton:disabled {
+  color: var(--ember-text-muted);
+  cursor: default;
+}
+
+/* C0-D 右键菜单（Cinematic Ember §8.1：单色哑光底 + 1px 半透明描边 + 12px 圆角，
+ * 无 blur；行高 / 字号 / 内边距走菜单令牌） */
+.contextMenu {
+  position: absolute;
+  /* 2026-11-23：菜单必须高于浮窗层（Z_WINDOW=1000）与侧栏（1500）；
+   * 否则拖线在编辑浮窗/左侧面板下方松手时，菜单会被浮窗盖住而“看不见”。 */
+  z-index: calc(var(--layer-sidebar-overlay) + 1);
+  min-width: var(--menu-width);
+  padding: var(--menu-padding);
+  margin: 0;
+  border: 1px solid var(--ember-menu-border);
+  border-radius: var(--radius-menu);
+  background: var(--ember-menu-bg);
+  box-shadow: var(--ember-menu-shadow);
+  list-style: none;
+  font-size: var(--menu-font-size);
+}
+
+.contextMenuItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  height: var(--menu-item-height);
+  padding: 0 var(--menu-item-padding-x);
+  border: none;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--ember-text-primary);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+/* 键盘焦点内缩，避免被菜单容器裁掉。 */
+.contextMenuItem:focus-visible {
+  outline: var(--focus-ring-width) solid var(--ember-border-focus);
+  outline-offset: calc(-1 * var(--focus-ring-gap));
+}
+/* 悬停高亮由 JS pointermove 托管（data-menu-hover），避免 WKWebView 残留 :hover；
+ * CR-20261121-58：悬停=极淡灰白半透明，文字保持亮色（撤反色填充）。 */
+.contextMenuItem[data-menu-hover='true']:not(:disabled) {
+  background: var(--ember-menu-hover);
+}
+/* 危险项单独置底：文字取 danger，悬停只给极淡红底。 */
+.contextMenuItem[data-variant='danger'] {
+  color: var(--ember-danger);
+}
+.contextMenuItem[data-variant='danger'][data-menu-hover='true']:not(:disabled) {
+  background: var(--menu-danger-hover);
+  color: var(--ember-danger);
+}
+.contextMenuItem:disabled {
+  color: var(--ember-text-muted);
+  opacity: 0.4;
+  cursor: default;
+}
+.contextMenuDivider {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--ember-menu-divider);
+}
+
+/* CR-20261121-58：菜单图标（12px 细线）与快捷键加速器（12px 灰，右侧） */
+/* 菜单图标槽固定 20px，内部图形 14px；图标缺失时文字仍从同一列起排。 */
+.menuIcon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--menu-icon-slot);
+  height: var(--menu-icon-slot);
+  color: var(--ember-text-secondary);
+}
+
+.menuIcon svg {
+  width: var(--menu-icon-size);
+  height: var(--menu-icon-size);
+}
+
+.menuAccelerator {
+  margin-left: auto;
+  padding-left: var(--menu-accelerator-gap);
+  color: var(--ember-menu-accelerator);
+  font-family: var(--font-mono);
+  font-size: var(--menu-accelerator-size);
+  white-space: nowrap;
+}
+
+/* §8.1：只读等禁用原因，占位与快捷键一致但走更弱的文案语气。 */
+.menuNote {
+  margin-left: auto;
+  padding-left: var(--menu-accelerator-gap);
+  color: var(--ember-menu-accelerator);
+  font-family: var(--font-mono);
+  font-size: var(--menu-accelerator-size);
+  white-space: nowrap;
+}
+
+.menuArrow {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  color: var(--ember-text-muted);
+}
+
+/*
+ * C0-D 文本编辑输入框：inline style 的 left/top 只对定位元素生效。
+ * CR-20261121-52 修复：原 .editOverlay 包装层（定位与描边底色所在）自 C0-D 起
+ * 从未被 TSX 使用，裸 .editInput 没有 position——编辑框掉进文档流、停在画布
+ * 左上角（透明无边框，视觉上不存在），即建即编与双击改名全部不可用。
+ * 此处把包装层样式合并进 .editInput 本体（含 CR-45 项H 意图的贴边环与浅底），
+ * 并删除死类防回潮。
+ */
+.editInput {
+  position: absolute;
+  z-index: 40;
+  min-width: 8em;
+  padding: 0 var(--space-lg);
+  border: 1px solid var(--ember-primary);
+  border-radius: var(--ember-node-radius);
+  background: var(--ember-bg-elevated);
+  color: var(--ember-text-primary);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  outline: none;
+}
+
+/* CR-20261121-53：提示词多行编辑浮层与 AI 模型选择下拉（定位口径同 .editInput） */
+.editTextarea {
+  position: absolute;
+  z-index: 40;
+  padding: var(--space-md) var(--space-lg);
+  border: 1px solid var(--ember-primary);
+  border-radius: var(--ember-node-radius);
+  background: var(--ember-bg-elevated);
+  color: var(--ember-text-primary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  font-family: inherit;
+  resize: none;
+  outline: none;
+  white-space: pre-wrap;
+}
+
+/* 2026-11-25：AI 模型原位下拉——参考稿的「浮动面板 + 行内勾选」样式。 */
+.modelMenu {
+  position: absolute;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-sizing: border-box;
+  padding: 6px;
+  overflow-y: auto;
+  border: 1px solid var(--ember-menu-border);
+  border-radius: 14px;
+  background: var(--ember-menu-bg);
+  box-shadow: var(--ember-menu-shadow);
+  outline: none;
+  font-size: var(--menu-font-size);
+}
+
+.modelOption {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 34px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ember-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--menu-font-size);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.modelOption:hover,
+.modelOption:focus-visible {
+  background: var(--ember-primary-tint-strong);
+  color: var(--ember-primary);
+}
+
+.modelOption[data-selected='true'] {
+  background: var(--ember-primary-tint-weak);
+  color: var(--ember-text-primary);
+}
+
+/* 勾选位常驻，未选中时透明占位，保证多行标签对齐。 */
+.modelCheck {
+  flex: 0 0 auto;
+  color: var(--ember-primary);
+  font-size: var(--text-base);
+  line-height: 1;
+}
+
+.modelOption:not([data-selected='true']) .modelCheck {
+  opacity: 0;
+}
+
+.modelHint {
+  margin: 0;
+  padding: var(--space-sm);
+  color: var(--ember-text-muted);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}

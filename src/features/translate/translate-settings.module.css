@@ -1,0 +1,120 @@
+/* 设置壳「AI / 翻译设置」页。外框由 SettingsShell 提供。 */
+
+.root {
+  display: flex;
+  flex-direction: column;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.legend {
+  padding: 0;
+  color: var(--ember-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  background: var(--ember-bg-surface);
+  border: 1px solid var(--ember-border-subtle);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.optionActive {
+  border-color: var(--ember-primary);
+}
+
+.option input {
+  margin-top: 2px;
+  accent-color: var(--ember-primary);
+}
+
+.optionTitle {
+  display: block;
+  color: var(--ember-text-primary);
+  font-size: var(--text-xs);
+}
+
+.optionDesc {
+  display: block;
+  margin-top: 2px;
+  color: var(--ember-text-muted);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-normal);
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.fieldLabel {
+  color: var(--ember-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.select {
+  padding: var(--space-xs) var(--space-sm);
+  color: var(--ember-text-primary);
+  background: var(--ember-bg-surface);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--ember-border-subtle);
+}
+
+.saved {
+  color: var(--ember-success);
+  font-size: var(--text-xs);
+}
+
+.primaryButton {
+  min-height: var(--control-height);
+  padding: var(--space-xs) var(--space-md);
+  color: var(--ember-text-on-accent);
+  background: var(--ember-primary);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: var(--ember-primary-hover);
+}
+
+.primaryButton:active:not(:disabled) {
+  background: var(--ember-primary-pressed);
+}

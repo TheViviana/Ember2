@@ -1,0 +1,73 @@
+/* 设置壳「外观」页：仅保留分段控件与说明，外框由 SettingsShell 提供。 */
+
+.body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 凹槽底槽 + 浮起选中项 */
+.segmented {
+  display: flex;
+  gap: var(--space-xs);
+  padding: var(--space-xs);
+  background: var(--ember-bg-input);
+  border: 1px solid var(--ember-border-input);
+  border-radius: var(--radius-md);
+}
+
+.option {
+  flex: 1;
+  height: var(--control-height);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ember-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.option:hover {
+  background: var(--ember-bg-hover);
+  color: var(--ember-text-primary);
+}
+
+.option:active {
+  background: var(--ember-bg-pressed);
+}
+
+.optionActive {
+  background: var(--ember-bg-elevated);
+  color: var(--ember-text-primary);
+  font-weight: 500;
+  box-shadow: var(--ember-control-raised), 0 0 0 var(--ember-hairline) var(--ember-border-strong);
+}
+
+.hint {
+  margin-top: var(--space-md);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  color: var(--ember-text-muted);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--space-xl);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--ember-border-subtle);
+}
+
+.groupLabel {
+  margin-bottom: var(--space-sm);
+  color: var(--ember-text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+
+.group .hint {
+  margin-top: var(--space-sm);
+}

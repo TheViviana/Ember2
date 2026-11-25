@@ -1,0 +1,113 @@
+.root {
+  position: relative;
+}
+
+.panel {
+  position: fixed;
+  /* CR-20261122-64：定位由 layout effect 量测后写入，未定位前保持隐藏避免首帧跳动 */
+  visibility: hidden;
+  /* CR-20261121-58：子面板必须盖住父菜单，避免半透明层叠出「残影」暗块 */
+  z-index: 51;
+  /* S5：宽随最长条目自适应，220px 起、400px 封顶；翻转/顶对齐在 JS 中按实测计算。 */
+  width: max-content;
+  min-width: var(--menu-width);
+  max-width: min(400px, calc(100vw - var(--space-md)));
+  max-height: calc(100vh - var(--space-md));
+  overflow-y: auto;
+  padding: var(--menu-padding);
+  margin: 0;
+  border: 1px solid var(--ember-menu-border);
+  border-radius: var(--radius-menu);
+  background: var(--ember-menu-bg);
+  box-shadow: var(--ember-menu-shadow);
+  list-style: none;
+  font-size: var(--menu-font-size);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  width: 100%;
+  height: var(--menu-item-height);
+  padding: 0 var(--menu-item-padding-x);
+  border: none;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--ember-text-primary);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+/* 键盘焦点内缩，避免被面板 overflow 裁掉。 */
+.item:focus-visible {
+  outline: var(--focus-ring-width) solid var(--ember-border-focus);
+  outline-offset: calc(-1 * var(--focus-ring-gap));
+}
+
+/* 展开项在指针移入子菜单、JS 清除 data-menu-hover 后仍保持选中底，
+   用内描边补边界；橙色只给箭头，不做整块填充。 */
+.item[aria-expanded='true'] {
+  background: var(--ember-menu-active);
+  box-shadow: inset 0 0 0 1px var(--ember-border-subtle);
+}
+
+.item[aria-expanded='true'] .arrow {
+  color: var(--ember-primary);
+}
+
+/* CR-20261121-58：悬停=极淡灰白半透明，文字保持亮色（撤反色填充）。
+ * 悬停高亮仍由 CanvasView 的 pointermove 托管（data-menu-hover），
+ * 不复用 :hover：WKWebView 在菜单重排后会残留 :hover 造成多行同时变色。 */
+.item[data-menu-hover='true']:not(:disabled) {
+  background: var(--ember-menu-hover);
+  box-shadow: none;
+}
+
+.item:disabled {
+  color: var(--ember-text-muted);
+  opacity: 0.4;
+  cursor: default;
+}
+
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arrow {
+  flex-shrink: 0;
+  color: var(--ember-text-muted);
+}
+
+.empty {
+  display: block;
+  padding: var(--space-xs) var(--space-sm);
+  color: var(--ember-text-muted);
+}
+
+/* §8.1：禁用项右侧原因；颜色继承父项，40% 透明度由 :disabled 统一给出。 */
+.reason {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: var(--menu-accelerator-gap);
+  font-family: var(--font-mono);
+  font-size: var(--menu-accelerator-size);
+  white-space: nowrap;
+}
+
+/* §8.1：父项到子面板的 8px 隐形 hover 桥。位于面板与父菜单之下，
+ * 只在 4px 间隙里接住指针，不遮挡父菜单可点击区域。 */
+.bridge {
+  position: fixed;
+  z-index: 50;
+  width: 8px;
+  visibility: hidden;
+  background: transparent;
+  pointer-events: auto;
+}

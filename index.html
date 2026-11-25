@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ember</title>
+    <style>
+      /* 双主题首帧兜底（theme-v1.1.md §8，跟随系统；手动偏好由 public/theme-init.js 恢复
+         data-theme）：窗口透明（tauri.conf transparent），body 圆角铺底——圆角外露透明窗口区，
+         与 --ember-window-radius 对齐（2026-11-25 统一为 18px，与节点圆角同档）。
+         本块内容由 tests/csp.test.ts 现算 sha256 与 tauri.conf.json 对账，改后必须同步哈希。 */
+      html {
+        color-scheme: light dark;
+        background: transparent;
+      }
+      body {
+        background: light-dark(#f6f3ee, #100e0d);
+        border-radius: 18px;
+        overflow: hidden;
+      }
+    </style>
+    <script src="/theme-init.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/app/main.tsx"></script>
+  </body>
+</html>

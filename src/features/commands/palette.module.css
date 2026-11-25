@@ -1,0 +1,166 @@
+/* ─── CR-20261119-13：⌘K 命令面板 ─────────────────────────── */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 3000; /* Z_MODAL：高于浮窗 1000、高于拖拽预览 2000（src/windows/layer-z.ts 对齐） */
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 18vh;
+  background-color: var(--ember-overlay-scrim);
+  backdrop-filter: blur(var(--ember-glass-blur));
+}
+
+.panel {
+  width: min(640px, 92vw);
+  max-height: 60vh;
+  /* 背景已由 scrim 模糊，面板本身用不透明二级表面，避免嵌套 backdrop-filter。 */
+  background-color: var(--ember-float-bg);
+  border: var(--ember-hairline) solid var(--ember-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--ember-panel-shadow);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.input {
+  width: 100%;
+  padding: var(--space-lg);
+  font-size: var(--text-lg);
+  font-family: var(--font-body);
+  color: var(--ember-text-primary);
+  background-color: transparent;
+  border: none;
+  border-bottom: 1px solid var(--ember-border);
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--ember-text-muted);
+  opacity: 1;
+}
+
+.input:focus-visible {
+  border-bottom-color: var(--ember-border-focus);
+  box-shadow: inset 0 calc(-1 * var(--focus-ring-width)) 0 var(--ember-border-focus);
+}
+
+.list {
+  overflow-y: auto;
+  flex: 1;
+  padding: 4px 0;
+}
+
+/* §8.5：结果分组，组标题只做弱提示，不抢行内容。 */
+.group {
+  padding: 2px 0;
+}
+
+.group + .group {
+  margin-top: 4px;
+  border-top: 1px solid var(--ember-border-subtle);
+  padding-top: 6px;
+}
+
+.groupLabel {
+  padding: var(--space-xs) var(--space-lg);
+  color: var(--ember-text-muted);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  letter-spacing: var(--tracking-wide);
+}
+
+/* 收起时的「查看全部」入口。 */
+.more {
+  display: block;
+  width: 100%;
+  padding: var(--space-xs) var(--space-lg);
+  border: 0;
+  background: transparent;
+  color: var(--ember-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  text-align: left;
+  cursor: pointer;
+}
+
+.more:hover {
+  background-color: var(--ember-menu-hover);
+  color: var(--ember-text-primary);
+}
+
+.empty {
+  padding: var(--space-xl);
+  text-align: center;
+  color: var(--ember-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  cursor: pointer;
+  color: var(--ember-text-primary);
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+/* §8.5：选中行用 1px 橙边 + 8% 橙底，不用整行实心橙；inset 阴影避免布局位移。 */
+.itemActive {
+  background-color: var(--ember-primary-tint-soft);
+  box-shadow: inset 0 0 0 1px var(--ember-primary);
+}
+
+.item:hover {
+  background-color: var(--ember-menu-hover);
+}
+
+.itemActive:hover {
+  background-color: var(--ember-primary-tint-soft);
+}
+
+.item:focus-visible {
+  outline: var(--focus-ring-width) solid var(--ember-border-focus);
+  outline-offset: calc(-1 * var(--focus-ring-gap));
+}
+
+.itemDisabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+/* 文档行的右侧路径：弱化、可截断，不影响名称扫视。 */
+.itemMeta {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ember-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+}
+
+.kbd {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ember-text-secondary);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--ember-border);
+  background-color: var(--ember-control-bg);
+  box-shadow: var(--ember-control-inset);
+}

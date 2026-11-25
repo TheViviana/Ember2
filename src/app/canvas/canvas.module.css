@@ -1,0 +1,1426 @@
+/* C1 画布视口：网格 canvas 垫底，DOM 世界层承载 C2/C3，HUD 由上层负责。 */
+.viewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--ember-canvas-bg);
+  touch-action: none;
+  outline: none;
+  cursor: grab;
+}
+
+.viewport:active {
+  cursor: grabbing;
+}
+
+/* 2026-11-23：焦点环画在整个画布上会像给 app 套一圈边框（用户截图 #3）；
+ * 画布是整窗大面积焦点目标，改为不显示外框。 */
+.viewport:focus-visible {
+  outline: none;
+}
+
+.grid {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  /* Cinematic Ember §3.9：点阵只在中央约 70% 区域显现，边缘径向淡出。 */
+  -webkit-mask-image: radial-gradient(ellipse 72% 72% at 50% 50%, currentColor 52%, transparent 100%);
+  mask-image: radial-gradient(ellipse 72% 72% at 50% 50%, currentColor 52%, transparent 100%);
+}
+
+/* C3 连线层：屏幕空间 Canvas，位于网格之上、世界层之下（节点盖住连线）。 */
+.edges {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* 动态短光段：静态连线之上、节点之下，由独立 RAF 绘制。 */
+.edgePulse {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* C3 选中高亮层：位于世界层之上，选中连线不被节点卡片截断。 */
+.highlight {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.world {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+/* C2 节点层：坐标用 local（absolute - origin），交互归 C3，不抢平移缩放。 */
+.nodeLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* 2026-11-24：选中节点的环境光斑。固定 1200px 一层、只改 transform/opacity，
+ * 不跟随每帧重绘渐变；未选中时淡出，避免画布出现无来源的亮块。 */
+.ambientGlow {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1200px;
+  height: 1200px;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(circle at 50% 50%, var(--ember-ambient-glow), transparent 68%);
+  transition: opacity 420ms ease-out;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambientGlow {
+    transition: none;
+  }
+}
+
+/* C3 端点契约（§13.1 方案 C）：盒尺寸固定 160×96，与 node-layout.ts 常量同源；
+   edge-layout.test.ts 读本文件源码断言，禁止静默改尺寸。溢出截断，滚动待节点交互阶段。 */
+.node {
+  position: absolute;
+  box-sizing: border-box;
+  width: 160px;
+  height: 96px;
+  padding: 8px 12px;
+  overflow: hidden;
+  border: 1px solid var(--ember-node-border);
+  border-radius: var(--ember-node-radius);
+  background: var(--ember-node-bg);
+  color: var(--ember-text-primary);
+  font-size: var(--text-md);
+  line-height: var(--leading-normal);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  /* v2.0：节点卡片常驻柔和双层投影（深色哑光悬浮感，不参与选中环） */
+  box-shadow: var(--ember-node-shadow);
+}
+
+/* C4 节点选中：边框加深（灰系描边，非发亮环），不占布局，不改变端点使用的 160×96 盒尺寸。
+   去发光：撤销原贴边 2px primary 环，改用对比充足的灰色描边（用户 2026-11-23 要求去掉高亮外环）。 */
+.node.selected {
+  border-color: var(--ember-border-focus);
+}
+
+/* CR-20261122-63：编辑浮层自身已有边框；底层保留状态数据，但不叠加视觉装饰。 */
+.node[data-editing='true'],
+.node[data-editing='true'].selected,
+.node[data-node-type='ai'][data-editing='true'][data-ai-running='true'],
+.node[data-node-type='ai'][data-editing='true'][data-ai-flash] {
+  border-color: transparent;
+  outline: none;
+  box-shadow: none;
+  animation: none;
+}
+
+/* CR-20261119-11：撤可见 resize handle，热区由 engine.resolveResizeZone 纯函数判定。 */
+
+/* 2026-11-25：媒体与文章共用「半透明外壳 + 顶部信息 + 内表面 + 页脚」结构。 */
+.node[data-node-type='media'] {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-sm);
+  border-color: var(--ember-doc-shell-border);
+  background-color: var(--ember-doc-shell);
+  -webkit-line-clamp: unset;
+}
+
+.mediaSurface {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--ember-doc-content-border);
+  border-radius: calc(var(--ember-node-radius) - var(--space-sm));
+  background: var(--ember-doc-content-bg);
+}
+
+.mediaImage {
+  display: block;
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: contain;
+  background: var(--ember-bg-base);
+}
+
+.mediaPlaceholder {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: var(--space-sm);
+  color: var(--ember-text-muted);
+  text-align: center;
+}
+
+.mediaDocument {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  min-height: 0;
+  color: var(--ember-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
+}
+
+.mediaDocument::before {
+  content: '▤';
+  color: var(--ember-text-accent);
+  font-family: var(--font-body);
+  font-size: 28px;
+  line-height: 1;
+}
+
+.mediaLabel {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ember-text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-2xs);
+  letter-spacing: 0;
+  line-height: 1.4;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mediaFooter::after {
+  content: '媒体库';
+  flex: 0 0 auto;
+  opacity: 0.75;
+}
+
+.mediaLabel:empty {
+  display: none;
+}
+
+/* C4 框选按需挂载；静止时 viewport 仍只有 grid/edges/world/highlight 四层。 */
+.marquee {
+  position: absolute;
+  pointer-events: none;
+  border: 1px solid var(--ember-marquee-border);
+  background: var(--ember-marquee-fill);
+}
+
+/* R2：连线草稿贝塞尔虚线；颜色复用交互高亮 token，不新增 token。 */
+.draftCurve {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.draftCurve path {
+  fill: none;
+  stroke: var(--ember-primary);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+  stroke-linecap: round;
+}
+
+/* CR-20261119-05：文档节点内容模式与卡片三件套。
+   高度 > 96px 由 engine/node-layer 切换；本文件只负责两种形态的排版，
+   user-select 继承 body 禁选，不在此新增声明。
+   CR-20261119-12：autoH 撑高卡片 + tags 自然换行 + 简介空态占位。 */
+.node[data-node-type='document'] {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-sm);
+  border-color: var(--ember-doc-shell-border);
+  background-color: var(--ember-doc-shell);
+  -webkit-line-clamp: unset;
+  height: auto;  /* CR-20261119-12：无显式 h 时由内容撑高；显式 h 由 inline style 覆盖 */
+}
+
+/* 2026-11-25：顶部固定信息条 / 底部固定页脚，落在半透明外壳上；
+   与外层 18px 圆角同心（8px 壳内缩，内表面 10px），形成精致双层材质。 */
+.docKicker,
+.docFooter,
+.mediaKicker,
+.mediaFooter {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  min-width: 0;
+  color: var(--ember-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
+  line-height: 1.35;
+}
+
+.docKicker,
+.mediaKicker {
+  padding: 1px 5px 0;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.docKicker > span:first-child,
+.mediaKicker > span:first-child {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.docKickerBadge,
+.mediaKickerBadge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border: 1px solid color-mix(in srgb, var(--ember-primary) 40%, transparent);
+  border-radius: var(--radius-full);
+  color: var(--ember-text-accent);
+  font-size: 8.5px;
+  letter-spacing: 0.08em;
+}
+
+.docKickerBadge::before,
+.mediaKickerBadge::before {
+  content: '';
+  width: 4px;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: currentColor;
+}
+
+.docFooter,
+.mediaFooter {
+  min-height: 22px;
+  padding: 0 5px;
+}
+
+/* 内容模式底部「展开」完整落在外壳页脚内，页脚文字提前让位。 */
+.node[data-overflow='true'] .docFooter {
+  padding-right: 64px;
+}
+
+.node.selected[data-node-type='document'] {
+  border-color: var(--ember-border-focus);
+}
+
+.docBody {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  padding: 7px 10px 8px;
+  overflow: hidden;
+  border: 1px solid var(--ember-doc-content-border);
+  border-radius: calc(var(--ember-node-radius) - var(--space-sm));
+  background: var(--ember-doc-content-bg);
+}
+
+/* CR-20261119-12：简介 4 行截断；空态保留 2 行占位、无文案。
+   2026-11-24 对齐 cinematic mock：卡片摘要行高放松、字号贴小号正文。 */
+.docSummary {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--ember-text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+/* 无摘要且无正文回退时：「暂无简介」muted 且小于外标题（11px < 13px） */
+.node[data-no-summary='true'] .docSummary {
+  color: var(--ember-text-muted);
+  font-size: var(--text-xs);
+}
+
+/* CR-20261119-12：tags 自然换行，不裁行 */
+.docTags {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+  overflow: hidden;
+  flex-wrap: wrap;
+}
+
+.docTags:empty {
+  display: none;
+}
+
+/* 卡内元信息行：正文字数（muted 等宽小号大写标签，对齐 mock 的元信息样式） */
+.docMeta {
+  flex: 0 0 auto;
+  color: var(--ember-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+}
+
+.docMeta:empty {
+  display: none;
+}
+
+.docTag {
+  flex: 0 0 auto;
+  padding: 0 7px;
+  color: var(--ember-text-secondary);
+  font-size: var(--text-2xs);
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  border: 1px solid var(--ember-border-subtle);
+  border-radius: var(--radius-full);
+}
+
+/* 内容模式滚动区：禁用钢性滚动链，滚轮消费在 engine 中判定。
+   真机反馈修复四：边距加大（原 6/10/8 文本贴边），标题上下间距分级。 */
+.docClip {
+  /* 节点 overflow:visible 仅为了外置端口圆点；正文/滚动条在这层按内表面圆角裁切。 */
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--ember-doc-content-border);
+  border-radius: calc(var(--ember-node-radius) - var(--space-sm));
+  background: var(--ember-doc-content-bg);
+}
+
+.docContent {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 10px 14px 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  pointer-events: auto;
+  outline: none;
+}
+
+/* 2026-11-24 对齐 cinematic mock：文章正文走衬线暖墨，段落两端对齐。 */
+.docText {
+  color: var(--ember-article-body);
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+/* CR-20261120-34：内容模式是只读 Markdown 预览，不是编辑态。 */
+.docText > :first-child {
+  margin-top: 0;
+}
+
+/* 标题与上下文间距：上大下小（标题归属后文），h1 分级再加大。 */
+.docText h1,
+.docText h2,
+.docText h3,
+.docText h4,
+.docText h5,
+.docText h6 {
+  margin: 12px 0 4px;
+  color: var(--ember-article-ink);
+  font-family: var(--font-serif);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.005em;
+}
+
+.docText h1 {
+  margin-top: 12px;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+.docText p {
+  margin: 0 0 6px;
+  text-align: justify;
+}
+
+.docText ul,
+.docText ol {
+  margin: 0 0 5px;
+  padding-left: 16px;
+}
+
+.docText li {
+  margin: 1px 0;
+}
+
+.docText li::marker {
+  color: var(--ember-primary);
+}
+
+.docText li[data-md='task-item'] {
+  list-style: none;
+  margin-left: -14px;
+}
+
+.docText input[type='checkbox'] {
+  margin: 0 4px 0 0;
+  vertical-align: middle;
+}
+
+.docText blockquote {
+  margin: 0 0 6px;
+  padding-left: 8px;
+  color: var(--ember-article-quote);
+  border-left: 2px solid var(--ember-primary);
+}
+
+.docText pre {
+  margin: 0 0 5px;
+  padding: 5px 7px;
+  overflow-x: auto;
+  font-size: 10px;
+  line-height: 1.45;
+  background: var(--ember-bg-hover);
+  border-radius: 4px;
+}
+
+.docText code {
+  font-family: var(--font-mono);
+}
+
+.docText :not(pre) > code {
+  padding: 0 3px;
+  background: var(--ember-bg-hover);
+  border-radius: 3px;
+}
+
+/* 编辑式表格（对齐 mock）：水平细线 + 等宽小号大写表头，去除整格底色。
+   列宽均分避免 CJK 首列被压成一字一行。 */
+.docText table {
+  width: 100%;
+  margin: 0 0 6px;
+  table-layout: fixed;
+  font-size: 10px;
+  line-height: 1.55;
+  border-collapse: collapse;
+}
+
+.docText th,
+.docText td {
+  padding: 4px 6px;
+  border: none;
+  border-bottom: 1px solid var(--ember-article-rule);
+  text-align: left;
+  vertical-align: top;
+}
+
+.docText th {
+  color: var(--ember-article-muted);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: normal;
+}
+
+.docText td:first-child {
+  color: var(--ember-article-ink);
+  font-weight: 500;
+}
+
+.docText tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.docText img {
+  max-width: 100%;
+  height: auto;
+}
+
+.docText hr {
+  margin: 6px 0;
+  border: 0;
+  border-top: 1px solid var(--ember-article-rule);
+}
+
+.docText [data-md='wikilink'] {
+  color: var(--ember-primary);
+  text-decoration: underline dotted;
+}
+
+.docText [data-md='math-inline'],
+.docText [data-md='math-block'] {
+  font-family: var(--font-mono);
+}
+
+.docText [data-md='raw-html'],
+.docText [data-md='raw-html-block'] {
+  color: var(--ember-text-muted);
+}
+
+/* 卡片脚注：等宽小号（对齐 mock 的 foot 元信息）。 */
+.docHint {
+  margin-top: 6px;
+  color: var(--ember-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+}
+
+.docHint:empty {
+  display: none;
+}
+
+
+
+/* CR-20261119-24：画布音频/视频播放控件（节点 w/h 约束内自适应）。 */
+.media-player {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  border-radius: 6px;
+  /* CR-24 C3：nodeLayer 为 pointer-events:none，控件必须显式放开才能收点击（与 .docContent 同一先例）。 */
+  pointer-events: auto;
+  cursor: default;
+}
+
+/* CR-20261121-48：视频按节点高度收缩（留黑边不裁切），保证底部原生控件条完整落在节点内；
+   此前按内在宽高比撑高，控件条被节点 overflow 裁掉，用户看不到也点不到播放。 */
+.media-player[data-media-player='video'] {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  object-fit: contain;
+  background: var(--ember-bg-base);
+}
+
+/* CR-20261121-45 项3（B1）：渐隐（渐变①，theme-v1.1.md §4.5）——内容溢出且未滚到底时，
+ * 底部 --node-fade-height 淡出至透明（mask 到内容层，不叠色块）；滚到底自动摘除。 */
+.node[data-overflow='true'][data-scroll-end='false'] .docContent {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    currentColor calc(100% - var(--node-fade-height)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    currentColor calc(100% - var(--node-fade-height)),
+    transparent 100%
+  );
+}
+
+/* 展开钮：溢出时常驻（不依赖悬停），D2：文档节点 → 打开阅读浮窗 */
+.docExpand {
+  display: none;
+  position: absolute;
+  right: 12px;
+  bottom: 8px;
+  align-items: center;
+  height: 20px;
+  padding: 0 var(--space-sm);
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--ember-bg-elevated);
+  color: var(--ember-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.node[data-overflow='true'] .docExpand {
+  display: inline-flex;
+}
+
+.docExpand:hover,
+.docExpand:focus-visible {
+  color: var(--ember-text-primary);
+  text-decoration: underline;
+}
+
+/* 端口圆点：唯一一份样式（2026-11-23 对齐修复）。
+ *
+ * 此前的双份来源（本文件 6px + CanvasView.module.css 8px）同时命中同一个
+ * ::before/::after：后者赢下 width/height/margin-top，前者仍贡献
+ * `transform: translateY(-50%)`，导致圆点中心比连线端点高 4px（节点与连线
+ * 「没对齐」的直接原因）。现只保留本文件一份。
+ *
+ * 定位口径：绝对定位伪元素的包含块是 padding box（边框内侧 1px），
+ * 要让圆点中心落在 border-box 外边缘（edge-layout 的锚点），
+ * left/right = -(size / 2) - 1px；纵向只用 translateY(-50%) 居中一次。
+ */
+.node::before,
+.node::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: var(--ember-port-size);
+  height: var(--ember-port-size);
+  border-radius: var(--radius-full);
+  /* 2026-11-25：实色核心 + 隔离缝 + 半透明材质外环，替代原空心描边圆点。 */
+  background: var(--ember-port-core);
+  box-shadow:
+    0 0 0 2px var(--ember-port-gap),
+    0 0 0 5px var(--ember-port-halo),
+    0 0 10px var(--ember-primary-glow);
+  opacity: 1;
+  /* 纵向居中只在这里做一次；不要再叠加 margin-top，否则会与连线错位。 */
+  transform: translateY(-50%) scale(1);
+  transition:
+    opacity var(--duration-fast) ease-out,
+    transform var(--duration-fast) ease-out,
+    border-color var(--duration-fast) ease-out;
+  pointer-events: none;
+}
+
+.node::before {
+  left: calc(var(--ember-port-size) / -2 - 1px);
+}
+
+.node::after {
+  right: calc(var(--ember-port-size) / -2 - 1px);
+}
+
+.node[data-hover='true']::before,
+.node[data-hover='true']::after,
+.node[data-port-hl='true']::before,
+.node[data-port-hl='true']::after {
+  /* CR-20261121-59：吸附/悬停反馈=放大 + 外环加强（核心保持实色） */
+  transform: translateY(-50%) scale(1.3);
+  background: var(--ember-port-core);
+  box-shadow:
+    0 0 0 2px var(--ember-port-gap),
+    0 0 0 6px var(--ember-port-halo-active),
+    0 0 14px var(--ember-primary-glow);
+}
+
+/* CR-20261121-45 项5：LOD——缩放 <40%（0.37/0.43 滞回）切「仅标题」形态：
+ * 文档节点只留标题条，媒体隐藏缩略图留文件名；文本节点本身即标题不处理。 */
+.node[data-lod='true'] .docBody,
+.node[data-lod='true'] .docContent,
+.node[data-lod='true'] .docHint,
+.node[data-lod='true'] .docExpand,
+.node[data-lod='true'] .mediaSurface {
+  display: none;
+}
+
+.node[data-lod='true'] .mediaLabel {
+  position: static;
+  border-top: none;
+}
+
+/* LOD 形态提示：低缩放下播放器隐藏，避免「视频打不开」的误解；回到 ≥43% 自动恢复 */
+.node[data-lod='true'] .mediaLabel::after {
+  content: '放大查看与播放';
+  display: block;
+  margin-top: 2px;
+  color: var(--ember-text-muted);
+  font-size: var(--text-2xs);
+  font-family: var(--font-body);
+}
+
+.node[data-lod='true'] {
+  overflow: hidden;
+}
+
+/* CR-20261121-45 外标题：卡片外左上标注（文档=文档名/媒体=自定义名），20px 标注灰，
+ * 缩放补偿由 node-layer 按 transform.scale 写 fontSize（屏幕 ≥11px） */
+.nodeLabel {
+  position: absolute;
+  overflow: hidden;
+  color: var(--ember-text-annotation);
+  font-family: var(--font-body);
+  font-size: var(--text-md); /* 用户 2026-11-21 二次裁定：10px 基础上放大 1/3 → 13px */
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+/* 项E：空文本节点占位（ui-spec §9 空态说明） */
+.nodePlaceholder {
+  color: var(--ember-text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+/* 项F：新节点轻微淡入（出现动画，规格 §7；reduced-motion 关闭） */
+@media (prefers-reduced-motion: no-preference) {
+  .node {
+    animation: node-appear var(--duration-fast) ease-out;
+  }
+
+  @keyframes node-appear {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+/* CR-20261121-53：AI / 提示词节点统一小字号（布局见文末固定尺寸规则） */
+.node[data-node-type='ai'],
+.node[data-node-type='prompt'] {
+  font-size: var(--text-sm);
+}
+
+/* CR-20261122-62：AI 卡片实时运行/结果反馈；outline 不改变端点盒尺寸。
+   Cinematic Ember §2.4：AI 运行态一律火花青，橙色只留给选中与主操作。 */
+.node[data-node-type='ai'][data-ai-flash] {
+  outline: 2px solid var(--ember-ai);
+  outline-offset: 2px;
+}
+
+.node[data-node-type='ai'][data-ai-flash='ok'] {
+  outline-color: var(--ember-ai);
+}
+
+.node[data-node-type='ai'][data-ai-flash='error'] {
+  outline-color: var(--ember-danger);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .node[data-node-type='ai'][data-ai-flash] {
+    animation: ai-node-flash 1.5s ease-out;
+  }
+
+  @keyframes ai-node-flash {
+    from {
+      box-shadow: 0 0 0 6px color-mix(in srgb, currentColor 24%, transparent);
+    }
+
+    to {
+      box-shadow: 0 0 0 0 transparent;
+    }
+  }
+}
+
+/* ============================================================
+   CR-20261121-56：画布卡片视觉打磨
+   ============================================================ */
+
+/* 短卡片（文档节点）：内表面只放简介 + 标签；字数/时长与出链反链统一进外轮廓页脚。 */
+.docBody {
+  gap: 4px;
+  padding: 6px 9px;
+}
+
+.docSummary {
+  /* 单行省略：block + nowrap + ellipsis（-webkit-box 下 text-overflow 不可靠） */
+  display: block;
+  color: var(--ember-text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  -webkit-line-clamp: unset;
+}
+
+.docTags {
+  flex: 0 1 auto;
+  gap: var(--space-xs);
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.docMeta {
+  flex: 0 0 auto;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+/* 第 3 行：出链/反链（图标 + 数字，极简淡色） */
+.docLinks {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--space-sm);
+  color: var(--ember-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  line-height: 1.4;
+}
+
+.docLinks:empty {
+  display: none;
+}
+
+.docLinkOut:empty,
+.docLinkBack:empty {
+  display: none;
+}
+
+/* 长文预览（内容模式）：中英两套排版档（data-lang 由预览渲染器写入） */
+.docContent {
+  padding: var(--space-lg);
+}
+
+.docText {
+  font-size: var(--text-md);
+  line-height: var(--leading-card-en);
+  overflow-wrap: break-word;
+}
+
+.docText[data-lang='zh'] {
+  font-size: var(--text-md);
+  line-height: var(--leading-card-zh);
+}
+
+.docText[data-lang='en'] {
+  font-size: var(--text-sm);
+  line-height: var(--leading-card-en);
+  overflow-wrap: break-word;
+}
+
+.docText p {
+  margin: 0 0 1em;
+  text-indent: 0;
+}
+
+.docText > :last-child {
+  margin-bottom: 0;
+}
+
+/* 音频只把自定义播放器放在统一内表面中央，不再另用紫色卡片。 */
+.node[data-node-type='media'][data-media-kind='audio'] .mediaSurface {
+  justify-content: center;
+  padding: var(--space-lg);
+}
+
+/* 音频自定义播放器：圆形播放钮 + 极简进度条（圆点滑块）+ 时间 */
+.mediaAudioEl {
+  display: none;
+}
+
+.mediaAudioPlayer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  pointer-events: auto;
+}
+
+.mediaAudioPlay {
+  flex: 0 0 auto;
+  width: var(--control-height);
+  height: var(--control-height);
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--ember-primary);
+  color: var(--ember-text-on-accent);
+  font-size: var(--text-2xs);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.mediaAudioTrack {
+  position: relative;
+  flex: 1 1 auto;
+  height: 3px;
+  overflow: visible;
+  border-radius: var(--radius-full);
+  background: var(--ember-border-strong);
+  cursor: pointer;
+}
+
+.mediaAudioFill {
+  position: relative;
+  width: 0%;
+  height: 100%;
+  overflow: visible;
+  border-radius: var(--radius-full);
+  background: var(--ember-primary);
+  pointer-events: none;
+}
+
+.mediaAudioFill::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: calc(-1 * var(--ember-audio-dot-size) / 2);
+  width: var(--ember-audio-dot-size);
+  height: var(--ember-audio-dot-size);
+  transform: translateY(-50%);
+  border-radius: var(--radius-full);
+  background: var(--ember-primary);
+  box-shadow: 0 0 0 2px var(--ember-bg-elevated);
+}
+
+.mediaAudioTime {
+  flex: 0 0 auto;
+  color: var(--ember-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  white-space: nowrap;
+}
+
+/* 音频节点端口圆点隐藏（视觉干扰圆角卡；端口命中为几何判定，连线功能不受影响） */
+/* 用节点自身的类名（.host 类只存在于 CanvasView.module.css，跨模块哈希不相等，
+   旧选择器从未命中）。 */
+.node[data-media-kind='audio']::before,
+.node[data-media-kind='audio']::after {
+  display: none;
+}
+
+/* ============================================================
+   CR-20261121-59：节点卡片解剖（小标题+图标+内容）+ 类型色调 + 自适应撑高
+   ============================================================ */
+
+/* AI：420×190 固定宽扁卡片，提示词直接内联编辑；旧提示词节点仍保留。 */
+.node[data-node-type='ai'] {
+  display: block;
+  width: 420px;
+  height: 190px;
+  padding: 0;
+  overflow: visible;
+  background-color: var(--ember-node-bg);
+  background-image: none;
+  -webkit-line-clamp: unset;
+}
+
+.aiCard {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: var(--space-sm);
+  width: 100%;
+  height: 100%;
+  padding: 14px 14px 12px;
+  border-radius: inherit;
+}
+
+.aiHeader,
+.aiFooter,
+.aiActions {
+  display: flex;
+  align-items: center;
+}
+
+.aiHeader {
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.aiTitle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  color: var(--ember-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* 火花青圆点：AI 节点的产品标识，与运行流光同色系。 */
+.aiTitle::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-full);
+  background: var(--ember-ai);
+}
+
+.aiModel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 58%;
+  margin-left: auto;
+  padding: 3px 9px;
+  overflow: hidden;
+  border: 1px solid var(--ember-border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--ember-field-bg);
+  color: var(--ember-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+/* 2026-11-24：模型字段是单击即开的下拉入口，悬停提亮作为可点提示。 */
+.aiModel:hover {
+  border-color: var(--ember-border-strong);
+  background: var(--ember-field-bg-hover);
+  color: var(--ember-text-primary);
+}
+
+.aiModel::after {
+  content: '▾';
+  flex: 0 0 auto;
+  font-size: 9px;
+  opacity: 0.7;
+}
+
+.aiPrompt {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 10px 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  resize: none;
+  /* 2026-11-25：提示词区域弱化边框——常态无描边，仅保留浅内表面；聚焦才出现火花青细边。 */
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  outline: none;
+  background: var(--ember-field-bg);
+  color: var(--ember-text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  user-select: text;
+  pointer-events: auto;
+  cursor: text;
+  transition: background-color 120ms ease;
+}
+
+.aiPrompt:hover {
+  background: var(--ember-field-bg-hover);
+}
+
+.aiPrompt:focus {
+  border-color: var(--ember-ai-border);
+  background: var(--ember-field-bg-hover);
+  box-shadow: 0 0 0 3px var(--ember-ai-tint);
+}
+
+.aiFooter {
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.aiActions {
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.aiChip,
+.aiRun {
+  padding: 5px 10px;
+  border-radius: var(--radius-full);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  line-height: 1;
+  pointer-events: auto;
+}
+
+.aiChip {
+  border: 1px solid transparent;
+  background: var(--ember-field-bg);
+  color: var(--ember-text-muted);
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.aiRun {
+  flex: 0 0 auto;
+  padding: 7px 14px;
+  border: 1px solid var(--ember-primary);
+  background: var(--ember-primary);
+  color: var(--ember-text-on-accent);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.aiRun:hover {
+  background: var(--ember-primary-hover);
+}
+
+.aiRun:disabled {
+  cursor: wait;
+}
+
+.aiRunner {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.aiRunnerGlow,
+.aiRunnerCore {
+  fill: none;
+  stroke-linecap: round;
+  stroke-dasharray: 12 88;
+  stroke-dashoffset: 0;
+}
+
+.aiRunnerGlow {
+  stroke: var(--ember-ai);
+  stroke-width: 8;
+  opacity: 0.35;
+}
+
+.aiRunnerCore {
+  stroke: var(--ember-ai-bright);
+  stroke-width: 2;
+}
+
+.node[data-node-type='ai'][data-ai-running='true'] .aiRunner {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .node[data-node-type='ai'][data-ai-running='true'] .aiRunnerGlow,
+  .node[data-node-type='ai'][data-ai-running='true'] .aiRunnerCore {
+    animation: ai-runner-travel 1.8s linear infinite;
+  }
+
+  @keyframes ai-runner-travel {
+    to {
+      stroke-dashoffset: -100;
+    }
+  }
+}
+
+.node[data-node-type='prompt'] {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  column-gap: var(--space-md);
+  row-gap: var(--space-sm);
+  width: 320px;
+  height: 136px;
+  padding: var(--space-md) var(--space-lg);
+  background-color: var(--ember-node-bg);
+  background-image: none;
+  -webkit-line-clamp: unset;
+  white-space: normal;
+}
+
+/* 提示词：左侧「提示词」+ 圆形运行钮，右侧大输入框（参考图） */
+.node[data-node-type='prompt'] .nodeCardTitle {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+  white-space: nowrap;
+}
+
+.node[data-node-type='prompt'] .nodeCardContent {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  padding: var(--space-sm);
+  overflow-y: auto;
+  /* 固定尺寸后允许在文本框内滚动长提示词；放开 pointer-events 让滚轮命中内容区。 */
+  pointer-events: auto;
+  border: 1px solid var(--ember-node-prompt-border);
+  border-radius: var(--radius-md);
+  background: var(--ember-control-bg);
+  color: var(--ember-text-primary);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.node[data-node-type='prompt'] .nodeCardContent[data-empty-state='true'] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.node[data-node-type='prompt'] .nodeRunBtn {
+  /* nodeLayer/node 均 pointer-events:none，交互子元素必须显式放开（回归钉同基类）。 */
+  pointer-events: auto;
+  position: static;
+  grid-column: 1;
+  grid-row: 2;
+  align-self: end;
+  justify-self: start;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--ember-primary);
+  background: transparent;
+  color: var(--ember-primary);
+  font-size: 10px;
+}
+
+.node[data-node-type='prompt'] .nodeRunBtn:hover {
+  background: var(--ember-primary-tint-weak);
+}
+
+/* 自由文本节点（组节点不带 nodeType，保持原渲染） */
+.node:not([data-node-type]) {
+  padding: var(--space-lg);
+  background-color: var(--ember-node-bg);
+  background-image: linear-gradient(0deg, var(--ember-node-text-tint), var(--ember-node-text-tint));
+}
+
+/* 2026-11-25：文本节点改为「顶部 kicker + 内容 + 外轮廓底部固定信息」，
+   不再使用 -webkit-box 行截断，内容区自行渐隐。 */
+.node[data-simple='text'] {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px 0;
+  -webkit-line-clamp: unset;
+}
+
+.node[data-simple='text'] .nodeCardTitle {
+  width: 100%;
+  color: var(--ember-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.node[data-simple='text'] .nodeCardContent {
+  flex: 1 1 auto;
+}
+
+/* 文本节点外轮廓上的底部页脚：字数（左）| EMBER（右）。 */
+.nodeCardFooter {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 17px;
+  padding: 0 0 7px;
+  color: var(--ember-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+}
+
+.nodeCardFooter::after {
+  content: 'EMBER';
+  letter-spacing: 0.14em;
+  opacity: 0.75;
+}
+
+/* 卡片小标题：12px 次级灰 + 12px 细线图标（8px 间距） */
+.nodeCardTitle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--ember-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: var(--leading-tight);
+}
+
+.nodeCardIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 卡片内容 */
+.nodeCardContent {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  font-size: var(--text-md);
+  line-height: var(--leading-card-zh);
+  overflow-wrap: break-word;
+}
+
+.nodeCardContent[data-simple-kind='text'] {
+  color: var(--ember-text-primary);
+  /* 多行渐隐 */
+  -webkit-mask-image: linear-gradient(to bottom, black 65%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 65%, transparent 100%);
+}
+
+/* 提示词空状态：居中笔图标 + 引导语 */
+.nodeCardEmpty {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  color: var(--ember-text-muted);
+  font-size: var(--text-sm);
+}
+
+.nodeCardEmpty i {
+  font-style: normal;
+}
+
+/* 提示词右下角「开始」钮（图标，触发所连 AI 节点执行） */
+.nodeRunBtn {
+  /* CR-20261121-59 修复：nodeLayer/node 均为 pointer-events:none，交互子元素必须显式放开 */
+  pointer-events: auto;
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--ember-primary);
+  color: var(--ember-text-on-accent);
+  font-size: 9px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.nodeRunBtn:hover {
+  background: var(--ember-primary-hover);
+}

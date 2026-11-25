@@ -1,0 +1,126 @@
+/* 状态栏（§8.3）：32px 三段式——左保存状态、中当前文档、右节点/缩放。
+ * 只有可点击项（缩放）有 hover 与 pointer；其余是静态信息。 */
+
+.statusbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--layer-sidebar-overlay);
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  min-width: 0;
+  height: var(--statusbar-height);
+  padding: 0 var(--space-md);
+  background: transparent;
+  font-size: var(--text-2xs);
+  color: var(--ember-text-muted);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* 左：保存/同步状态，固定宽度不被中间内容挤压。 */
+.status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+  color: var(--ember-text-muted);
+  letter-spacing: var(--tracking-wide);
+  white-space: nowrap;
+}
+
+.dot {
+  width: var(--space-xs);
+  height: var(--space-xs);
+  border-radius: var(--radius-full);
+  background: currentColor;
+}
+
+/* 状态色只体现在点与文字，不给整条加背景。 */
+.toneSuccess .dot {
+  background: var(--ember-success);
+}
+
+.toneWarning .dot {
+  background: var(--ember-warning);
+}
+
+.toneDanger .dot {
+  background: var(--ember-danger);
+}
+
+.readonly {
+  margin-left: var(--space-xs);
+  color: var(--ember-warning);
+}
+
+.unsaved {
+  color: var(--ember-text-secondary);
+}
+
+/* 中：当前文档路径，占据剩余空间，超长省略。 */
+.document {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.docPath {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ember-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docEmpty {
+  color: var(--ember-text-muted);
+}
+
+/* 右：节点数 / 连线 / 缩放，固定宽度不被截断。 */
+.stats {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* 数字统一等宽，避免数值变化时抖动。 */
+.numeric {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 缩放是唯一可点击项：默认无底，悬停才给反馈。 */
+.zoom {
+  padding: 0 var(--space-xs);
+  color: inherit;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: inherit;
+  line-height: 1;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.zoom:hover {
+  color: var(--ember-text-secondary);
+  background: var(--ember-bg-hover);
+}
+
+.separator {
+  width: 1px;
+  height: var(--space-sm);
+  flex-shrink: 0;
+  background: var(--ember-border-subtle);
+}

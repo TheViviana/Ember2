@@ -1,0 +1,148 @@
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-xl);
+  border-bottom: 1px solid var(--ember-border-subtle);
+  background: var(--ember-bg-deep);
+}
+
+.label {
+  flex-shrink: 0;
+  color: var(--ember-text-muted);
+  font-family: var(--font-body);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  flex: 1;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 18rem;
+  padding: 2px var(--space-sm);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-full);
+  background: var(--ember-control-bg);
+  color: var(--ember-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+}
+
+.chip:hover {
+  background: var(--ember-bg-hover);
+  border-color: var(--ember-border-strong);
+}
+
+.chipRoot {
+  color: var(--ember-text-muted);
+}
+
+.chipLeaf {
+  overflow: hidden;
+  color: var(--ember-text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remove {
+  margin-left: var(--space-xs);
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ember-text-muted);
+  font-size: var(--text-sm);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.remove:hover {
+  background: var(--ember-danger-tint);
+  color: var(--ember-danger);
+}
+
+.remove:focus-visible {
+  outline: var(--focus-ring-width) solid var(--ember-border-focus);
+  outline-offset: var(--focus-ring-gap);
+}
+
+.empty {
+  color: var(--ember-text-muted);
+  font-size: var(--text-xs);
+}
+
+.inputWrap {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.input {
+  width: 12rem;
+  padding: 2px var(--space-sm);
+  border: 1px solid var(--ember-border-input);
+  border-radius: var(--radius-sm);
+  background: var(--ember-bg-input);
+  color: var(--ember-text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+}
+
+.input::placeholder {
+  color: var(--ember-text-muted);
+  opacity: 1;
+}
+
+.input:hover:not(:disabled) {
+  border-color: var(--ember-border-strong);
+}
+
+.input:focus-visible {
+  outline: none;
+  border-color: var(--ember-border-focus);
+  box-shadow: 0 0 0 var(--focus-ring-width) var(--ember-border-focus);
+}
+
+.add {
+  min-height: var(--control-height);
+  padding: 2px var(--space-sm);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-sm);
+  background: var(--ember-control-bg);
+  box-shadow: var(--ember-control-inset);
+  color: var(--ember-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.add:hover {
+  background: var(--ember-bg-hover);
+  border-color: var(--ember-border-strong);
+  color: var(--ember-text-primary);
+}
+
+.add:active {
+  background: var(--ember-bg-pressed);
+}
+
+.add:focus-visible {
+  outline: var(--focus-ring-width) solid var(--ember-border-focus);
+  outline-offset: var(--focus-ring-gap);
+}
+
+.error {
+  flex-basis: 100%;
+  color: var(--ember-danger);
+  font-size: var(--text-2xs);
+}

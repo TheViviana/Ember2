@@ -1,0 +1,445 @@
+/* CR-20261119-23: 媒体库浮窗样式。全部使用 --ember-* tokens；零裸色值（与 ai-panel 同纪律）。 */
+
+.window {
+  position: relative;
+  height: 100%;
+  overflow-y: auto;
+  padding: 12px;
+  box-sizing: border-box;
+  font-family: var(--font-body);
+  color: var(--ember-text-primary);
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.tabBtn {
+  min-height: var(--control-height);
+  padding: 4px 10px;
+  font-size: var(--text-sm);
+  font-family: var(--font-body);
+  color: var(--ember-text-secondary);
+  background: var(--ember-control-bg);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  box-shadow: var(--ember-control-inset);
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.tabBtn:hover:not(:disabled):not(.tabActive) {
+  background: var(--ember-bg-hover);
+  border-color: var(--ember-border-strong);
+  color: var(--ember-text-primary);
+}
+
+.tabBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tabActive {
+  color: var(--ember-text-on-accent);
+  background: var(--ember-primary);
+  border-color: var(--ember-primary);
+}
+
+.tabActive:hover {
+  background: var(--ember-primary-hover);
+  border-color: var(--ember-primary-hover);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.refreshBtn {
+  min-height: var(--control-height);
+  padding: 4px 10px;
+  font-size: var(--text-sm);
+  font-family: var(--font-body);
+  color: var(--ember-text-secondary);
+  background: var(--ember-control-bg);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  box-shadow: var(--ember-control-inset);
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.refreshBtn:hover:not(:disabled) {
+  background: var(--ember-bg-hover);
+  border-color: var(--ember-border-strong);
+  color: var(--ember-text-primary);
+}
+
+.refreshBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.viaLine {
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  font-size: var(--text-sm);
+  color: var(--ember-text-secondary);
+  background: var(--ember-bg-input);
+  border-radius: var(--radius-sm);
+}
+
+.errorBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  font-size: var(--text-sm);
+  color: var(--ember-danger);
+  background: var(--ember-danger-tint);
+  border: 1px solid var(--ember-danger-border);
+  border-radius: var(--radius-sm);
+}
+
+.errorDetail {
+  color: var(--ember-text-muted);
+}
+
+.errorRetry {
+  min-height: var(--control-height);
+  padding: 2px 8px;
+  font-size: var(--text-2xs);
+  font-family: var(--font-body);
+  color: var(--ember-danger);
+  background: var(--ember-control-bg);
+  border: 1px solid var(--ember-danger-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.errorRetry:hover:not(:disabled) {
+  background: var(--ember-danger-tint);
+}
+
+.hint {
+  margin: 24px 0;
+  font-size: var(--text-sm);
+  text-align: center;
+  color: var(--ember-text-muted);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  margin: 0;
+}
+
+.card {
+  display: flex;
+  flex-wrap: wrap; /* CR-24 C3：播放器独占一行，避免与缩略图/文件名/删除按钮挤在一行。 */
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  background: var(--ember-bg-elevated);
+  border: 1px solid var(--ember-border-subtle);
+  border-radius: var(--radius-md);
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.playerFull {
+  flex-basis: 100%;
+  width: 100%;
+}
+
+.card:hover {
+  background: var(--ember-bg-hover);
+}
+
+.thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 56px;
+  height: 42px;
+  overflow: hidden;
+  background: var(--ember-bg-input);
+  border: 1px solid var(--ember-border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.thumbImg {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: cover;
+}
+
+.kindIcon {
+  font-size: 18px;
+  color: var(--ember-text-muted);
+}
+
+.meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.name {
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--text-md);
+  color: var(--ember-text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sub {
+  margin: 2px 0 0;
+  font-size: var(--text-2xs);
+  color: var(--ember-text-muted);
+}
+
+.dragGhost {
+  position: fixed;
+  z-index: 80;
+  transform: translate(12px, 12px);
+  padding: 4px 10px;
+  font-size: var(--text-xs);
+  color: var(--ember-text-primary);
+  background: var(--ember-float-bg);
+  border: var(--ember-hairline) solid var(--ember-border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--ember-panel-shadow);
+  pointer-events: none;
+}
+
+.deleteBtn {
+  flex-shrink: 0;
+  min-height: var(--control-height);
+  padding: 4px 10px;
+  font-size: var(--text-2xs);
+  font-family: var(--font-body);
+  color: var(--ember-danger);
+  background: transparent;
+  border: 1px solid var(--ember-danger-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.deleteBtn:hover:not(:disabled) {
+  background: var(--ember-danger-tint);
+}
+
+.deleteBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.moreBtn {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 6px;
+  font-size: var(--text-sm);
+  font-family: var(--font-body);
+  color: var(--ember-text-secondary);
+  background: transparent;
+  border: 1px dashed var(--ember-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.moreBtn:hover:not(:disabled) {
+  background: var(--ember-bg-hover);
+  color: var(--ember-text-primary);
+}
+
+.moreBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.confirmScrim {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--ember-bg-void) 55%, transparent);
+}
+
+.confirmBox {
+  width: min(420px, 90%);
+  padding: 16px;
+  background: var(--ember-float-bg);
+  border: var(--ember-hairline) solid var(--ember-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--ember-panel-shadow);
+}
+
+.confirmText {
+  margin: 0 0 12px;
+  overflow-wrap: anywhere;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--ember-text-primary);
+}
+
+.confirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.confirmCancel {
+  min-height: var(--control-height);
+  padding: 6px 12px;
+  font-size: var(--text-sm);
+  font-family: var(--font-body);
+  color: var(--ember-text-secondary);
+  background: var(--ember-control-bg);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  box-shadow: var(--ember-control-inset);
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.confirmCancel:hover:not(:disabled) {
+  background: var(--ember-bg-hover);
+  color: var(--ember-text-primary);
+}
+
+.confirmCancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.confirmDanger {
+  min-height: var(--control-height);
+  padding: 6px 12px;
+  font-size: var(--text-sm);
+  font-family: var(--font-body);
+  color: var(--ember-text-on-accent);
+  background: var(--ember-danger);
+  border: 1px solid var(--ember-danger);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.confirmDanger:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.confirmDanger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.previewScrim {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: color-mix(in srgb, var(--ember-bg-void) 72%, transparent);
+}
+
+.docViewerBox {
+  display: flex;
+  width: min(920px, 100%);
+  height: min(720px, 100%);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--ember-border-strong);
+  border-radius: var(--ember-node-radius);
+  background: var(--ember-bg-input);
+  box-shadow: var(--ember-node-shadow);
+}
+
+.docViewerFrame {
+  display: block;
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  background: var(--ember-bg-input);
+}
+
+.docViewerFailed {
+  margin: auto;
+  padding: var(--space-lg);
+  color: var(--ember-text-primary);
+  line-height: var(--leading-normal);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.previewImg {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  background: var(--ember-bg-input);
+  border: 1px solid var(--ember-border-strong);
+  border-radius: var(--radius-md);
+}
+
+.nameBtn {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 0;
+  font-size: var(--text-md);
+  color: var(--ember-text-primary);
+  text-align: left;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.nameBtn:hover {
+  color: var(--ember-text-accent);
+  text-decoration: underline;
+}
+
+.playbackUnsupported {
+  flex-shrink: 0;
+  max-width: 160px;
+  font-size: var(--text-2xs);
+  line-height: var(--leading-normal);
+  color: var(--ember-text-muted);
+}

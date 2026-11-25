@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>Ember S4 文档指针拖拽复现</title>
+    <style>
+      body {
+        margin: 0;
+        background: #050505;
+        color: #fafafa;
+        font: 12px/1.5 ui-monospace, monospace;
+      }
+      #source {
+        width: 240px;
+        margin: 12px;
+      }
+      #canvas {
+        position: relative;
+        width: 640px;
+        height: 360px;
+        margin: 12px;
+      }
+      #result {
+        margin: 12px;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <p>手动复现：用鼠标拖动下方 a.md 到画布；自动合成指针会话结果见页面底部。</p>
+    <div id="source"></div>
+    <div id="canvas"></div>
+    <pre id="result">RUNNING</pre>
+    <script type="module" src="./browser-dnd-harness.ts"></script>
+  </body>
+</html>

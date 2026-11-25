@@ -1,0 +1,13 @@
+# cargo-audit 配置：显式忽略仅存在于非 macOS 目标的传递依赖告警。
+#
+# 本应用发布目标只有 macOS。以下 crate 均来自 Tauri 的 Linux/GTK 依赖链
+# （cargo tree -i <crate> --target aarch64-apple-darwin 反查为空），
+# macOS 产物不会链接它们，因此不构成实际攻击面。
+# 待 Tauri 上游升级到 glib/gtk 0.20+ 并移除 serde_with -> chrono 依赖后删除对应条目。
+
+[advisories]
+ignore = [
+  "RUSTSEC-2026-0543", # chrono unmaintained（tauri-utils -> serde_with -> chrono）
+  "RUSTSEC-2024-0370", # proc-macro-error unmaintained（glib-macros / gtk3-macros）
+  "RUSTSEC-2024-0429", # glib unsound（webkit2gtk / gtk 的 Linux 目标依赖）
+]

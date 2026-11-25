@@ -1,0 +1,197 @@
+/* 设置壳「工具与维护 / 效率工具」页。外框由 SettingsShell 提供。 */
+.body {
+  color: var(--ember-text-primary);
+  font-family: var(--font-body);
+}
+
+.sectionHeading,
+.timerMeta,
+.actions,
+.volumeRow {
+  display: flex;
+  align-items: center;
+}
+
+.sectionHeading h3 {
+  margin: 0;
+}
+
+.section {
+  padding: var(--space-lg) 0;
+  border-top: 1px solid var(--ember-border-subtle);
+}
+
+.sectionHeading {
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.sectionHeading h3 {
+  font-size: var(--text-base);
+  font-weight: 500;
+}
+
+.sectionHeading > span,
+.timerMeta,
+.hint {
+  color: var(--ember-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.timer {
+  margin-top: var(--space-md);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-tight);
+  text-align: center;
+  letter-spacing: var(--tracking-wide);
+}
+
+.timerMeta {
+  justify-content: center;
+  gap: var(--space-lg);
+  margin-top: var(--space-sm);
+}
+
+.actions {
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+}
+
+.panel button {
+  min-height: var(--control-height);
+  padding: var(--space-sm) var(--space-md);
+  color: var(--ember-text-secondary);
+  background: var(--ember-control-bg);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--ember-control-inset);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.panel button:hover:not(:disabled) {
+  color: var(--ember-text-primary);
+  background: var(--ember-bg-hover);
+  border-color: var(--ember-border-strong);
+}
+
+.panel button:active:not(:disabled) {
+  background: var(--ember-bg-pressed);
+}
+
+.panel button:focus-visible {
+  outline: var(--focus-ring-width) solid var(--ember-border-focus);
+  outline-offset: var(--focus-ring-gap);
+}
+
+.panel button:disabled {
+  color: var(--ember-text-muted);
+  cursor: default;
+}
+
+.panel button.primary {
+  color: var(--ember-text-on-accent);
+  background: var(--ember-primary);
+  border-color: var(--ember-primary);
+  box-shadow: none;
+}
+
+.panel button.primary:hover:not(:disabled) {
+  color: var(--ember-text-on-accent);
+  background: var(--ember-primary-hover);
+  border-color: var(--ember-primary-hover);
+}
+
+.panel button.primary:active:not(:disabled) {
+  background: var(--ember-primary-pressed);
+  border-color: var(--ember-primary-pressed);
+}
+
+.panel button.primary:disabled {
+  color: var(--ember-text-muted);
+  background: var(--ember-bg-pressed);
+  border-color: var(--ember-border);
+}
+
+.durationForm {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: end;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+}
+
+.durationForm label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  color: var(--ember-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.durationForm input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-sm);
+  color: var(--ember-text-primary);
+  background: var(--ember-bg-input);
+  border: 1px solid var(--ember-border-input);
+  border-radius: var(--radius-sm);
+  font: inherit;
+}
+
+.durationForm input::placeholder {
+  color: var(--ember-text-muted);
+  opacity: 1;
+}
+
+.panel input:hover:not(:disabled) {
+  border-color: var(--ember-border-strong);
+}
+
+.panel input:focus-visible {
+  outline: none;
+  border-color: var(--ember-border-focus);
+  box-shadow: 0 0 0 var(--focus-ring-width) var(--ember-border-focus);
+}
+
+.hint {
+  margin: var(--space-sm) 0 0;
+  line-height: var(--leading-normal);
+}
+
+.volumeRow {
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+  color: var(--ember-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.volumeRow input {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--ember-primary);
+}
+
+.volumeRow output {
+  min-width: 40px;
+  color: var(--ember-text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  text-align: right;
+}
+
+.error {
+  margin: var(--space-md) 0 0;
+  padding: var(--space-sm) var(--space-md);
+  color: var(--ember-danger);
+  background: var(--ember-danger-tint);
+  border: 1px solid var(--ember-danger-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}

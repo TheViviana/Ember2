@@ -1,0 +1,81 @@
+/* P5-C4：编辑器浮窗内的关窗进度 / 失败 / 二次确认面板。只引用 token。 */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  width: min(420px, 100%);
+  padding: var(--space-xl);
+  border: var(--ember-hairline) solid var(--ember-border);
+  border-radius: var(--radius-lg);
+  background: var(--ember-float-bg);
+  box-shadow: var(--ember-panel-shadow);
+}
+
+.panelAlert {
+  border-color: var(--ember-warning-border);
+}
+
+.panelTitle {
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--ember-text-primary);
+}
+
+.panelHint {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  color: var(--ember-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.panelActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.button {
+  min-height: var(--control-height);
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-sm);
+  background: var(--ember-control-bg);
+  box-shadow: var(--ember-control-inset);
+  color: var(--ember-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  border-color: var(--ember-border-strong);
+  background: var(--ember-bg-hover);
+  color: var(--ember-text-primary);
+}
+
+.button:active:not(:disabled) {
+  background: var(--ember-bg-pressed);
+}
+
+.buttonDanger {
+  border-color: var(--ember-danger-border);
+  color: var(--ember-danger);
+}
+
+.buttonDanger:hover:not(:disabled) {
+  border-color: var(--ember-danger-border);
+  background: var(--ember-danger-tint);
+  color: var(--ember-danger);
+}
+
+.buttonQuiet {
+  background: transparent;
+  box-shadow: none;
+  color: var(--ember-text-secondary);
+}

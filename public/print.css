@@ -1,0 +1,50 @@
+* { box-sizing: border-box; }
+body {
+  margin: 0 auto;
+  max-width: 720px;
+  padding: 32px 24px;
+  color: #1f2328;
+  background: #ffffff;
+  font-family: "Songti SC", "PingFang SC", Georgia, serif;
+  font-size: 14px;
+  line-height: 1.75;
+}
+h1, h2, h3, h4, h5, h6 { line-height: 1.4; margin: 1.6em 0 0.6em; }
+h1 { font-size: 1.7em; }
+h2 { font-size: 1.4em; }
+h3 { font-size: 1.2em; }
+p { margin: 0.6em 0; }
+pre {
+  padding: 10px 12px;
+  background: #f6f7f9;
+  border-radius: 6px;
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  overflow-x: auto;
+  break-inside: avoid;
+}
+code { font-family: "SF Mono", Menlo, monospace; font-size: 0.92em; background: #f0f1f3; padding: 1px 4px; border-radius: 4px; }
+pre code { background: none; padding: 0; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; break-inside: avoid; }
+th, td { border: 1px solid #d5d9de; padding: 6px 10px; text-align: left; }
+th { background: #f6f7f9; }
+img { max-width: 100%; }
+blockquote { margin: 1em 0; padding: 4px 16px; border-left: 3px solid #d5d9de; color: #57606a; }
+hr { border: none; border-top: 1px solid #d5d9de; margin: 1.6em 0; }
+.math { font-family: Georgia, serif; font-style: italic; }
+.wiki { color: #0969da; }
+.missing-image { color: #a40e26; font-size: 0.9em; }
+
+/* 打印容器：平时不参与渲染，打印时替换掉应用外壳 */
+#ember-print-root {
+  display: none;
+}
+
+@media print {
+  body > #root {
+    display: none !important;
+  }
+  #ember-print-root {
+    display: block;
+  }
+}

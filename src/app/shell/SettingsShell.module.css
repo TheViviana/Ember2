@@ -1,0 +1,230 @@
+/* 设置壳（2026-11-25）：贴右全高侧栏，清单式分区 + 栏内详情页。
+ * 颜色全部走 --settings-* 语义别名，随应用主题切换。 */
+
+.host {
+  /* 2026-11-25：改用 absolute 贴住 .shell 的 padding box（已让出 body 的窗口外环 6px 与
+   * 内描边 1px），侧栏顶部/底部落在界面内边线内侧，并随 .shell 的圆角被裁切。
+   * 若改回 fixed，会以视口为包含块，重新盖住窗口外环与四角。 */
+  position: absolute;
+  inset: 0;
+  /* 高于 Z_MODAL（3000）以覆盖 AI 对话浮窗，低于 Z_TOAST（4000）。 */
+  z-index: 3500;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* 侧栏不压暗画布；透明背板只负责「点外部关闭」。 */
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+}
+
+.window {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  /* 宽度相对宿主（.shell 内容区），窄窗时两侧至少留 24px 画布 */
+  width: min(440px, calc(100% - 24px));
+  height: 100%;
+  overflow: hidden;
+  border-left: var(--ember-hairline) solid var(--settings-border);
+  border-radius: 18px 0 0 18px;
+  background: var(--settings-paper);
+  color: var(--settings-text);
+  box-shadow: var(--settings-sidebar-shadow);
+}
+
+.header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: 18px 16px 14px 18px;
+  border-bottom: 1px solid var(--settings-border);
+}
+
+.heading {
+  display: flex;
+  min-width: 0;
+  gap: var(--space-sm);
+}
+
+.headingText {
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  color: var(--settings-text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.subtitle {
+  margin: 3px 0 0;
+  overflow: hidden;
+  color: var(--settings-text-muted);
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  line-height: var(--leading-normal);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.backButton {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--settings-text-secondary);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.backButton:hover {
+  background: var(--settings-hover);
+  color: var(--settings-text);
+}
+
+.closeButton {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-height);
+  height: var(--control-height);
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--settings-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-lg);
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.closeButton:hover {
+  background: var(--settings-hover);
+  color: var(--settings-text);
+}
+
+/* 首页：分区清单。标签字号与颜色沿用「左栏固定分组文字」的橙色规范。 */
+.list {
+  flex: 1;
+  min-height: 0;
+  padding: 4px 10px 28px;
+  overflow-y: auto;
+}
+
+.group {
+  margin-top: 14px;
+}
+
+.groupLabel {
+  margin: 0;
+  padding: 0 10px 4px;
+  color: var(--settings-active-text);
+  font-family: var(--font-body);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.row:hover:not(:disabled) {
+  background: var(--settings-hover);
+}
+
+.row:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.rowBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rowTitle {
+  color: var(--settings-text);
+  font-family: var(--font-body);
+  font-size: 13px;
+}
+
+.rowDescription {
+  overflow: hidden;
+  color: var(--settings-text-muted);
+  font-family: var(--font-body);
+  font-size: 11px;
+  line-height: var(--leading-normal);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowChevron {
+  flex-shrink: 0;
+  color: var(--settings-text-muted);
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* 详情页内容区：迁移过来的表单控件与设置壳共享同一套主题语义色。
+ * 覆盖只作用于内容区，不污染壳外。 */
+.contentBody {
+  flex: 1;
+  min-height: 0;
+  padding: 18px 18px 28px;
+  overflow-y: auto;
+
+  --ember-text-primary: var(--settings-text);
+  --ember-text-secondary: var(--settings-text-secondary);
+  --ember-text-muted: var(--settings-text-muted);
+  --ember-border: var(--settings-border);
+  --ember-border-subtle: var(--settings-border);
+  --ember-border-strong: var(--settings-border-strong);
+  --ember-border-input: var(--settings-border);
+  --ember-bg-surface: var(--settings-paper-raised);
+  --ember-bg-elevated: var(--settings-paper-raised);
+  --ember-bg-input: var(--settings-paper-sunken);
+  --ember-bg-hover: var(--settings-hover);
+  --ember-control-bg: transparent;
+  --ember-control-inset: none;
+  --ember-panel-shadow: none;
+  --ember-float-bg: transparent;
+}

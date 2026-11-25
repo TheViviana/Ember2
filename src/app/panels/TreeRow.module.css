@@ -1,0 +1,150 @@
+/* CR-20261121-56：目录行紧凑化（26px 行高 / 13px 字号 / 图标-文字 8px 间距） */
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  min-width: 0;
+  min-height: var(--ember-tree-row-height);
+  padding: 0 var(--space-sm);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ember-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  text-align: left;
+  cursor: pointer;
+}
+
+.row:hover {
+  background: var(--ember-bg-hover);
+  color: var(--ember-text-primary);
+}
+
+/* 聚焦环内缩 2px（§1.4 列表行）；去发光：primary→border-focus（灰系） */
+.row:focus-visible {
+  outline: var(--focus-ring-width) solid var(--ember-border-focus);
+  outline-offset: calc(-1 * var(--focus-ring-gap));
+}
+
+/* 空目录不再用原生 disabled：原生禁用会吞掉右键，导致无法删除文件夹。 */
+.row[aria-disabled='true'] {
+  cursor: default;
+}
+
+/* CR-20261121-56：选中行=整行极淡底色 + 6px 圆角（撤 2px 白色竖条，用户裁定） */
+.rowActive {
+  background: var(--ember-tree-selected-bg);
+  color: var(--ember-text-primary);
+}
+
+.marker {
+  flex-shrink: 0;
+  width: var(--space-md);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--ember-text-muted);
+  text-align: center;
+}
+
+/* CR-20261121-56：文件夹/文件图标（与箭头、文字严格同列对齐） */
+.icon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-md);
+  color: var(--ember-text-muted);
+}
+
+.name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* §8.4：层级靠字重与颜色，不靠额外的装饰线。 */
+.nameDir {
+  font-weight: 500;
+  color: var(--ember-text-secondary);
+}
+
+/* 当前文档最重、最亮，其余文件保持常规字重。 */
+.rowActive .name {
+  font-weight: 600;
+  color: var(--ember-text-primary);
+}
+
+/* S4：指针拖拽跟随指示（固定定位，视觉走既有 token）。 */
+.ghost {
+  position: fixed;
+  z-index: 80;
+  transform: translate(12px, 12px);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--ember-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--ember-bg-elevated);
+  color: var(--ember-text-primary);
+  box-shadow: var(--shadow-lg);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* 深度缩进：避免内联几何样式，全部用 token 计算，最深显示到第 10 层。 */
+.indent0 {
+  padding-left: var(--space-sm);
+}
+
+.indent1 {
+  padding-left: calc(var(--space-sm) + var(--space-md));
+}
+
+.indent2 {
+  padding-left: calc(var(--space-sm) + var(--space-md) * 2);
+}
+
+.indent3 {
+  padding-left: calc(var(--space-sm) + var(--space-md) * 3);
+}
+
+.indent4 {
+  padding-left: calc(var(--space-sm) + var(--space-md) * 4);
+}
+
+.indent5 {
+  padding-left: calc(var(--space-sm) + var(--space-md) * 5);
+}
+
+.indent6 {
+  padding-left: calc(var(--space-sm) + var(--space-md) * 6);
+}
+
+.indent7 {
+  padding-left: calc(var(--space-sm) + var(--space-md) * 7);
+}
+
+.indent8 {
+  padding-left: calc(var(--space-sm) + var(--space-md) * 8);
+}
+
+.indent9 {
+  padding-left: calc(var(--space-sm) + var(--space-md) * 9);
+}
+
+/* CR-20261121-57：原位重命名输入框（与行同高，替换名称，不弹面板） */
+.editInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--ember-tree-row-height);
+  padding: 0 var(--space-xs);
+  border: 1px solid var(--ember-border-input);
+  border-radius: var(--radius-sm);
+  background: var(--ember-bg-input);
+  color: var(--ember-text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  outline: none;
+}

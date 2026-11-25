@@ -1,0 +1,7 @@
+{
+  "ceiling": 2,
+  "cycles": [
+    ["src/core/conflict.ts", "src/core/doc-state.ts"],
+    ["src/windows/focus.ts", "src/windows/manager.ts"]
+  ]
+}
