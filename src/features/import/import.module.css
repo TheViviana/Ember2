@@ -1,0 +1,35 @@
+.host { position: fixed; inset: 0; }
+.backdrop { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--ember-overlay-scrim); backdrop-filter: blur(6px); }
+.panel { display: flex; flex-direction: column; width: min(720px, calc(100vw - 48px)); max-height: calc(100vh - 64px); padding: 20px; color: var(--ember-text-primary); background: var(--ember-float-bg); border: var(--ember-hairline) solid var(--ember-border); border-radius: var(--radius-lg); box-shadow: var(--ember-panel-shadow); font-family: var(--font-body); }
+.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.title { margin: 0; color: var(--ember-text-primary); font-size: var(--text-base); }
+.closeButton, .footer button, .pickButton, .removeButton { min-height: var(--control-height); padding: 5px 9px; color: var(--ember-text-secondary); background: var(--ember-control-bg); border: 1px solid var(--ember-border); border-radius: var(--radius-sm); box-shadow: var(--ember-control-inset); cursor: pointer; }
+.closeButton { width: 28px; height: 28px; padding: 0; color: var(--ember-text-secondary); }
+.controls { display: grid; grid-template-columns: minmax(0, 1fr) 170px; gap: 10px; margin-bottom: 12px; }
+.field { display: flex; flex-direction: column; gap: 5px; color: var(--ember-text-secondary); font-size: var(--text-xs); }
+.field input, .field select { box-sizing: border-box; width: 100%; padding: 8px; color: var(--ember-text-primary); background: var(--ember-bg-input); border: 1px solid var(--ember-border-input); border-radius: var(--radius-sm); font: inherit; }
+.field input::placeholder, .field select::placeholder { color: var(--ember-text-muted); opacity: 1; }
+.field input:hover:not(:disabled), .field select:hover:not(:disabled) { border-color: var(--ember-border-strong); }
+.field input:focus-visible, .field select:focus-visible { outline: none; border-color: var(--ember-border-focus); box-shadow: 0 0 0 var(--focus-ring-width) var(--ember-border-focus); }
+.closeButton:focus-visible, .footer button:focus-visible, .pickButton:focus-visible, .removeButton:focus-visible { outline: var(--focus-ring-width) solid var(--ember-border-focus); outline-offset: var(--focus-ring-gap); }
+.pickButton { align-self: end; }
+.list { min-height: 120px; overflow-y: auto; border-top: 1px solid var(--ember-border-subtle); }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) 86px auto; gap: 8px; align-items: center; padding: 8px 4px; border-bottom: 1px solid var(--ember-border-subtle); font-size: var(--text-sm); }
+.path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.message { grid-column: 1 / -1; margin: 0; color: var(--ember-danger); font-size: var(--text-xs); white-space: normal; }
+.status { color: var(--ember-text-secondary); font-variant-numeric: tabular-nums; }
+.empty { padding: 26px 8px; color: var(--ember-text-secondary); text-align: center; font-size: var(--text-sm); }
+.progress { margin: 12px 0 4px; color: var(--ember-text-secondary); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.error { padding: 8px 10px; color: var(--ember-danger); background: var(--ember-danger-tint); border: 1px solid var(--ember-danger-border); border-radius: var(--radius-sm); font-size: var(--text-sm); }
+.summary { color: var(--ember-text-primary); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.footer { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+.spacer { flex: 1; }
+.hint { color: var(--ember-text-secondary); font-size: var(--text-xs); }
+.closeButton:hover:not(:disabled), .footer button:hover:not(:disabled), .pickButton:hover:not(:disabled), .removeButton:hover:not(:disabled) { color: var(--ember-text-primary); background: var(--ember-bg-hover); border-color: var(--ember-border-strong); }
+.closeButton:active:not(:disabled), .footer button:active:not(:disabled), .pickButton:active:not(:disabled), .removeButton:active:not(:disabled) { background: var(--ember-bg-pressed); }
+.footer button.primary { color: var(--ember-text-on-accent); background: var(--ember-primary); border-color: var(--ember-primary); box-shadow: none; }
+.footer button.primary:hover:not(:disabled) { color: var(--ember-text-on-accent); background: var(--ember-primary-hover); border-color: var(--ember-primary-hover); }
+.footer button.primary:active:not(:disabled) { background: var(--ember-primary-pressed); border-color: var(--ember-primary-pressed); }
+.footer button:disabled, .pickButton:disabled, .removeButton:disabled { color: var(--ember-text-muted); cursor: default; }
+.footer button.primary:disabled { color: var(--ember-text-muted); background: var(--ember-bg-pressed); border-color: var(--ember-border); }
+@media (max-width: 600px) { .controls { grid-template-columns: 1fr; } .row { grid-template-columns: minmax(0, 1fr) auto; } .removeButton { grid-column: 2; grid-row: 1; } }

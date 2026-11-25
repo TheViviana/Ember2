@@ -1,0 +1,580 @@
+/* P5-C3：编辑器浮窗内容样式。只引用 token，不写裸色值（DESIGN 约束）。 */
+
+.view {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--ember-bg-deep);
+}
+
+.banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-xl);
+  border-bottom: 1px solid var(--ember-warning-border);
+  background: var(--ember-warning-tint);
+}
+
+.bannerText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.bannerTitle {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ember-warning);
+}
+
+.bannerHint {
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  color: var(--ember-text-secondary);
+}
+
+.bannerError {
+  overflow-wrap: anywhere;
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  color: var(--ember-danger);
+}
+
+.bannerActions {
+  display: flex;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  gap: var(--space-sm);
+}
+
+.button {
+  min-height: var(--control-height);
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-sm);
+  background: var(--ember-control-bg);
+  box-shadow: var(--ember-control-inset);
+  color: var(--ember-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  border-color: var(--ember-border-strong);
+  background: var(--ember-bg-hover);
+  color: var(--ember-text-primary);
+}
+
+.button:active:not(:disabled) {
+  background: var(--ember-bg-pressed);
+}
+
+.button:disabled {
+  color: var(--ember-text-muted);
+  cursor: default;
+}
+
+.buttonQuiet {
+  background: transparent;
+  box-shadow: none;
+  color: var(--ember-text-secondary);
+}
+
+.body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.editor {
+  height: 100%;
+  min-width: 0;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* CodeMirror 基础外观：撑满容器、透明底、沿用应用字体与语义色。 */
+.editor :global(.cm-editor) {
+  height: 100%;
+  background: transparent;
+  color: var(--ember-text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+}
+
+.editor :global(.cm-editor .cm-scroller) {
+  font-family: var(--font-body);
+  line-height: var(--leading-normal);
+}
+
+.editor :global(.cm-editor .cm-content) {
+  padding: var(--space-xl);
+  caret-color: var(--ember-text-primary);
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.editor :global(.cm-editor .cm-gutters) {
+  background: transparent;
+  border-right: 1px solid var(--ember-border-subtle);
+  color: var(--ember-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.editor :global(.cm-editor .cm-activeLine) {
+  background: var(--ember-bg-hover);
+}
+
+.editor :global(.cm-editor .cm-activeLineGutter) {
+  background: transparent;
+  color: var(--ember-text-secondary);
+}
+
+.editor :global(.cm-editor.cm-focused) {
+  outline: none;
+}
+
+.editor :global(.cm-editor .cm-selectionBackground),
+.editor :global(.cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground) {
+  background: var(--ember-bg-selected);
+}
+
+.editor :global(.cm-editor .cm-cursor) {
+  border-left-color: var(--ember-text-primary);
+}
+
+/* 行内媒体只替换视图；进入选区后装饰移除，原始 Markdown 保持可编辑。 */
+.editor :global(.ember-media-preview) {
+  display: inline-flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-width: 100%;
+  margin: var(--space-xs) 0;
+  padding: var(--space-sm);
+  vertical-align: middle;
+  border: 1px solid var(--ember-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--ember-bg-elevated);
+}
+
+.editor :global(.ember-media-preview[data-media-error]) {
+  border-color: var(--ember-danger-border);
+}
+
+.editor :global(.ember-media-preview img),
+.editor :global(.ember-media-preview video) {
+  display: block;
+  max-width: 100%;
+  max-height: 24rem;
+  object-fit: contain;
+}
+
+.editor :global(.ember-media-preview audio) {
+  width: min(28rem, 100%);
+}
+
+.editor :global(.ember-media-label) {
+  overflow-wrap: anywhere;
+  color: var(--ember-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.editor :global(.ember-media-error) {
+  max-width: 32rem;
+  color: var(--ember-danger);
+  font-size: var(--text-xs);
+}
+
+.editor :global(.cm-editor .tok-heading) {
+  color: var(--ember-text-primary);
+  font-weight: 600;
+}
+
+.editor :global(.cm-editor .tok-strong) {
+  color: var(--ember-text-primary);
+  font-weight: 600;
+}
+
+.editor :global(.cm-editor .tok-emphasis) {
+  font-style: italic;
+}
+
+.editor :global(.cm-editor .tok-link),
+.editor :global(.cm-editor .tok-url) {
+  color: var(--ember-primary);
+}
+
+.editor :global(.cm-editor .tok-monospace) {
+  font-family: var(--font-mono);
+}
+
+.editor :global(.cm-editor .tok-quote),
+.editor :global(.cm-editor .tok-comment) {
+  color: var(--ember-text-muted);
+}
+
+.editor :global(.cm-editor .tok-string) {
+  color: var(--ember-success);
+}
+
+.placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-2xl);
+  text-align: center;
+  background: var(--ember-bg-deep);
+}
+
+.placeholderMark {
+  width: var(--space-2xl);
+  height: 1px;
+  background: var(--ember-border-strong);
+}
+
+.placeholderTitle {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ember-text-secondary);
+}
+
+.placeholderHint {
+  max-width: 26em;
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  color: var(--ember-text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* §10：编辑/专注/阅读三态钮改顶栏内联（与翻译/反向链接同排，按钮同为 topbarButton）；
+   原 `position:absolute; right/bottom` 悬浮右下角的容器样式随底部浮层一并删除。 */
+.modeToggle {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--space-xs);
+  align-items: center;
+}
+
+/* §10 衬线阅读（原浮窗功能随迁）：宋体系 + 17px + 1.75 行高。
+   .preview 自带 font 声明会挡住继承，用 data-markdown-preview 属性选择器直改根元素。 */
+.readSerif [data-markdown-preview] {
+  font-family: var(--font-serif);
+  font-size: var(--text-article-serif);
+  line-height: var(--leading-article-serif-zh);
+}
+
+/* C4：保存三态指示（右上角，不拦截正文点击）。 */
+.phaseChip {
+  position: absolute;
+  top: var(--space-sm);
+  right: var(--space-md);
+  z-index: 1;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--ember-border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--ember-bg-elevated);
+  color: var(--ember-text-muted);
+  font-family: var(--font-body);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-normal);
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.phaseSaved {
+  color: var(--ember-text-muted);
+}
+
+.phaseDirty {
+  border-color: var(--ember-warning-border);
+  color: var(--ember-warning);
+}
+
+.phaseSaving {
+  color: var(--ember-text-secondary);
+}
+
+.phaseConflict,
+.phaseError {
+  border-color: var(--ember-danger-border);
+  color: var(--ember-danger);
+}
+
+/* C4：关窗进度 / 失败 / 二次确认面板的定位壳；内容由 app 层注入。 */
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xl);
+  background: var(--ember-overlay-scrim);
+  backdrop-filter: blur(var(--ember-glass-blur));
+}
+
+/* 阅读窗口顶栏：面包屑 + 反向链接入口。 */
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-xl);
+  border-bottom: 1px solid var(--ember-border-subtle);
+  background: var(--ember-bg-deep);
+}
+
+/* 专注态只留模式切换：左侧用极简标签替代面包屑。 */
+.focusModeLabel {
+  color: var(--ember-text-muted);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-caps);
+}
+
+/* 设置→外观：隐藏 CodeMirror 行号槽（折行箭头同槽一并隐藏）。 */
+.gutterHidden :global(.cm-gutters) {
+  display: none;
+}
+
+.breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 0;
+  color: var(--ember-text-muted);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+}
+
+.breadcrumbLibrary {
+  color: var(--ember-primary);
+}
+
+.breadcrumbSegment {
+  overflow: hidden;
+  max-width: 12rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.breadcrumbSeparator {
+  margin: 0 var(--space-xs);
+  color: var(--ember-text-muted);
+}
+
+.breadcrumbTitle {
+  overflow: hidden;
+  color: var(--ember-text-primary);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbarActions {
+  display: flex;
+  gap: var(--space-xs);
+  align-items: center;
+}
+
+/* CR-20261121-42：联网翻译段计数徽标——挂在「翻译」按钮后，流式期间显示 N/M，终态自动隐藏。 */
+.translateCounter {
+  padding: 2px var(--space-sm);
+  border: 1px solid var(--ember-border-subtle);
+  border-radius: var(--radius-full);
+  color: var(--ember-text-muted);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-normal);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.topbarButton {
+  min-height: var(--control-height);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-full);
+  background: var(--ember-control-bg);
+  box-shadow: var(--ember-control-inset);
+  color: var(--ember-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-2xs);
+  cursor: pointer;
+}
+
+.topbarButton:hover {
+  border-color: var(--ember-border-strong);
+  background: var(--ember-bg-hover);
+  color: var(--ember-text-primary);
+}
+
+.topbarButton:active {
+  background: var(--ember-bg-pressed);
+}
+
+.topbarButtonActive {
+  border-color: var(--ember-border-focus);
+  background: var(--ember-bg-selected);
+  color: var(--ember-text-primary);
+}
+
+/* 格式工具栏：仅在编辑模式出现，按钮保持紧凑。 */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  padding: var(--space-xs) var(--space-xl);
+  border-bottom: 1px solid var(--ember-border-subtle);
+  background: var(--ember-bg-deep);
+}
+
+.toolbarGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.toolbarButton {
+  min-width: 1.75rem;
+  min-height: var(--control-height);
+  padding: var(--space-xs) var(--space-xs);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ember-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  cursor: pointer;
+}
+
+.toolbarButton:hover:not(:disabled) {
+  border-color: var(--ember-border-subtle);
+  background: var(--ember-bg-hover);
+  color: var(--ember-text-primary);
+}
+
+.toolbarButton:active:not(:disabled) {
+  background: var(--ember-bg-pressed);
+}
+
+.toolbarButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* 阅读模式：隐藏 CodeMirror 但保留实例与撤销栈。 */
+.editorHidden {
+  display: none;
+}
+
+/* 反向链接面板。 */
+.backlinks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-height: 12rem;
+  overflow-y: auto;
+  padding: var(--space-sm) var(--space-xl);
+  border-bottom: 1px solid var(--ember-border-subtle);
+  background: var(--ember-bg-base);
+}
+
+.backlinksHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.backlinksTitle {
+  color: var(--ember-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+}
+
+.backlinksBuild {
+  min-height: var(--control-height);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-sm);
+  background: var(--ember-control-bg);
+  box-shadow: var(--ember-control-inset);
+  color: var(--ember-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-2xs);
+  cursor: pointer;
+}
+
+.backlinksBuild:hover:not(:disabled) {
+  border-color: var(--ember-border-strong);
+  background: var(--ember-bg-hover);
+  color: var(--ember-text-primary);
+}
+
+.backlinksBuild:active:not(:disabled) {
+  background: var(--ember-bg-pressed);
+}
+
+.backlinksBuild:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.backlinksHint,
+.backlinksError {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-normal);
+}
+
+.backlinksHint {
+  color: var(--ember-text-muted);
+}
+
+.backlinksError {
+  color: var(--ember-danger);
+}
+
+.backlinksList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.backlinksItem {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--ember-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  text-align: left;
+  cursor: pointer;
+}
+
+.backlinksItem:hover {
+  text-decoration: underline;
+}

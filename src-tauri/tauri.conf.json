@@ -1,0 +1,62 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Ember",
+  "version": "1.0.0",
+  "identifier": "app.ember.desktop",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Ember",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 960,
+        "minHeight": 640,
+        "decorations": true,
+        "transparent": true,
+        "dragDropEnabled": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self'; style-src-elem 'self' 'sha256-LngRAnDgOGg34uPb65s0q/QdBXJVehiBrosISt/ZaSc=' 'nonce-RW1iZXJFZGl0b3JTdHlsZU5vbmNl'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob: media:; media-src 'self' media: blob:; font-src 'self'; connect-src 'self' ipc: http://ipc.localhost; object-src 'none'; base-uri 'self'; form-action 'none'; frame-src 'self' media:",
+      "devCsp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'unsafe-inline'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob: media:; media-src 'self' media: blob:; font-src 'self' data:; connect-src 'self' ws://localhost:5173 http://localhost:5173 ipc: http://ipc.localhost; object-src 'none'; base-uri 'self'; form-action 'none'; frame-src 'self' media:"
+    },
+    "macOSPrivateApi": true
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://updates.example.invalid/ember/latest.json"
+      ],
+      "pubkey": "PLACEHOLDER_REPLACE_WITH_TAURI_UPDATER_PUBLIC_KEY"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": false,
+    "targets": [
+      "app",
+      "dmg"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/512x512.png",
+      "icons/icon.icns"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "13.0",
+      "infoPlist": "Info.plist",
+      "signingIdentity": "-",
+      "hardenedRuntime": false
+    }
+  }
+}

@@ -1,0 +1,228 @@
+/* CR-20261120-34：Markdown 安全预览样式。只引用 token，不写裸色值。 */
+
+.preview {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: auto;
+  padding: var(--space-xl);
+  background: var(--ember-bg-deep);
+  color: var(--ember-text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.empty {
+  color: var(--ember-text-muted);
+  font-size: var(--text-sm);
+}
+
+/* CR-20261121-43：对照翻译内联——每段译文直接附在该段原文下方，不集中成块。 */
+.translationInline {
+  /* 默认正文为无衬线 → 译文用衬线；正文切到衬线时由 .translationSans 反转。 */
+  font-family: var(--font-serif);
+  margin: 0 0 var(--space-md);
+  color: var(--ember-text-secondary);
+  line-height: var(--leading-normal);
+  white-space: pre-line;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* 正文切到衬线时，译文反转为无衬线，始终与正文保持字族对比。 */
+.translationSans {
+  font-family: var(--font-body);
+}
+
+
+.heading {
+  margin: var(--space-lg) 0 var(--space-sm);
+  color: var(--ember-text-primary);
+  font-weight: 600;
+  line-height: var(--leading-tight);
+}
+
+.heading:first-child {
+  margin-top: 0;
+}
+
+.paragraph {
+  margin: 0 0 var(--space-md);
+  overflow-wrap: anywhere;
+}
+
+.paragraph:last-child {
+  margin-bottom: 0;
+}
+
+.blockquote {
+  margin: 0 0 var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border-left: 2px solid var(--ember-border-strong);
+  color: var(--ember-text-secondary);
+}
+
+.list {
+  margin: 0 0 var(--space-md);
+  padding-left: var(--space-xl);
+}
+
+.list li {
+  margin: var(--space-xs) 0;
+}
+
+.rule {
+  margin: var(--space-lg) 0;
+  border: none;
+  border-top: 1px solid var(--ember-border-subtle);
+}
+
+.inlineCode {
+  padding: 0 var(--space-xs);
+  border-radius: var(--radius-sm);
+  background: var(--ember-bg-elevated);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.codeBlock {
+  margin: 0 0 var(--space-md);
+  padding: var(--space-md);
+  overflow-x: auto;
+  border: 1px solid var(--ember-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--ember-bg-elevated);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  white-space: pre;
+}
+
+.codeBlock code {
+  font-family: inherit;
+}
+
+/* raw HTML：按纯文本整块展示，视觉上明确是「未渲染的源码」。 */
+.rawHtmlBlock {
+  margin: 0 0 var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  overflow-x: auto;
+  border: 1px dashed var(--ember-border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--ember-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  white-space: pre-wrap;
+}
+
+.rawHtml {
+  color: var(--ember-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.literal {
+  color: var(--ember-text-muted);
+  font-size: var(--text-sm);
+}
+
+.textLink {
+  color: var(--ember-primary);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+
+.internalLink {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ember-primary);
+  font-family: inherit;
+  font-size: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.internalLink:hover {
+  background: var(--ember-primary-tint-soft);
+}
+
+.media {
+  display: inline-flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-width: 100%;
+  margin: var(--space-xs) 0;
+  padding: var(--space-sm);
+  vertical-align: middle;
+  border: 1px solid var(--ember-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--ember-bg-elevated);
+}
+
+.mediaElement {
+  display: block;
+  max-width: 100%;
+  max-height: 24rem;
+  object-fit: contain;
+}
+
+.audioElement {
+  width: min(28rem, 100%);
+}
+
+.mediaLabel {
+  overflow-wrap: anywhere;
+  color: var(--ember-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.tableWrap {
+  margin: 0 0 var(--space-md);
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.table th,
+.table td {
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--ember-border-subtle);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table th {
+  background: var(--ember-bg-elevated);
+  font-weight: 600;
+}
+
+.mathInline {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+.mathBlock {
+  margin: 0 0 var(--space-md);
+  overflow-x: auto;
+  text-align: center;
+}
+
+.taskItem {
+  list-style: none;
+}
+
+.taskCheckbox {
+  margin: 0 var(--space-xs) 0 0;
+  vertical-align: middle;
+  accent-color: var(--ember-primary);
+}

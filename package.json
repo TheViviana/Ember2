@@ -1,0 +1,65 @@
+{
+  "name": "ember",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.15.0",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "imports": {
+    "#doc-model": "./packages/doc-model/src/index.ts",
+    "#doc-model/*": "./packages/doc-model/src/*.ts",
+    "#canvas-format": "./packages/canvas-format/src/index.ts",
+    "#canvas-format/*": "./packages/canvas-format/src/*.ts"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit && tsc -p tests/tsconfig.json --noEmit",
+    "lint": "eslint . --max-warnings=0",
+    "test": "node --test \"tests/**/*.test.ts\"",
+    "gate": "node scripts/gates/all.mjs",
+    "audit:deps": "pnpm audit --audit-level=high --registry=https://registry.npmjs.org/",
+    "audit:cargo": "cd src-tauri && cargo audit",
+    "check:rust": "cd src-tauri && cargo fmt --check && cargo check && cargo clippy -- -D warnings && cargo test && cargo audit",
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run gate && pnpm run build && pnpm run test && pnpm run audit:deps && pnpm run check:rust"
+  },
+  "dependencies": {
+    "@codemirror/lang-markdown": "6.5.2",
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.15",
+    "@tauri-apps/api": "2.12.4",
+    "@tauri-apps/plugin-dialog": "2.6.0",
+    "@tauri-apps/plugin-updater": "2.14.1",
+    "codemirror": "6.0.2",
+    "katex": "0.19.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "remark-gfm": "4.0.1",
+    "remark-math": "6.0.0",
+    "remark-parse": "11.0.0",
+    "unified": "11.0.5",
+    "yaml": "2.9.1",
+    "zustand": "5.1.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@tauri-apps/cli": "2.12.4",
+    "@types/mdast": "4.0.4",
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@typescript-eslint/parser": "8.72.2",
+    "@vitejs/plugin-react": "5.2.0",
+    "eslint": "10.14.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.14.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.72.2",
+    "vite": "7.3.8"
+  }
+}

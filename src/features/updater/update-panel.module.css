@@ -1,0 +1,160 @@
+.host {
+  position: fixed;
+  inset: 0;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--ember-bg-void) 55%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  width: min(560px, calc(100vw - 48px));
+  max-height: calc(100vh - 64px);
+  padding: 20px;
+  box-sizing: border-box;
+  color: var(--ember-text-primary);
+  background: var(--ember-bg-surface);
+  border: 1px solid var(--ember-border-strong);
+  border-radius: 8px;
+  font-family: var(--font-body);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.title {
+  margin: 0;
+  color: var(--ember-primary);
+  font-size: 15px;
+}
+
+.subtitle {
+  margin: 5px 0 0;
+  color: var(--ember-text-secondary);
+  font-size: 11px;
+}
+
+.closeButton,
+.footer button {
+  padding: 5px 10px;
+  color: var(--ember-text-primary);
+  background: transparent;
+  border: 1px solid var(--ember-border);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.closeButton {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  padding: 0;
+  color: var(--ember-primary);
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: var(--ember-text-primary);
+  font-size: 12px;
+}
+
+.body {
+  min-height: 120px;
+  padding: 12px 0;
+  border-top: 1px solid var(--ember-border-subtle);
+  border-bottom: 1px solid var(--ember-border-subtle);
+}
+
+.hint {
+  margin: 0;
+  color: var(--ember-text-secondary);
+  font-size: 12px;
+}
+
+.notice {
+  margin: 0;
+  color: var(--ember-primary);
+  font-size: 12px;
+}
+
+.version {
+  margin: 0;
+  color: var(--ember-text-primary);
+  font-size: 13px;
+}
+
+.meta {
+  margin: 4px 0 0;
+  color: var(--ember-text-secondary);
+  font-size: 11px;
+}
+
+.notes {
+  max-height: 180px;
+  margin: 10px 0 0;
+  overflow: auto;
+  color: var(--ember-text-primary);
+  font-family: var(--font-body);
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.error {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  overflow-wrap: anywhere;
+  color: var(--ember-danger);
+  background: color-mix(in srgb, var(--ember-danger) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ember-danger) 35%, transparent);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.footer .primaryButton {
+  color: var(--ember-text-on-accent);
+  background: var(--ember-primary);
+  border-color: var(--ember-primary);
+}
+
+.closeButton:hover:not(:disabled),
+.footer button:hover:not(:disabled) {
+  background: var(--ember-bg-hover);
+}
+
+.footer .primaryButton:hover:not(:disabled) {
+  background: var(--ember-primary-hover);
+}
+
+.closeButton:disabled,
+.footer button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

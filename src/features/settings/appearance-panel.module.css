@@ -1,0 +1,130 @@
+/* CR-20261121-45 项1：外观面板（模态轻面板，壳样式与 UpdatePanel 同族，只引用 token）。 */
+.host {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: calc(var(--topbar-height) + var(--space-xl));
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--ember-overlay-scrim);
+}
+
+.panel {
+  position: relative;
+  width: 360px;
+  border: var(--ember-hairline) solid var(--ember-border);
+  border-radius: var(--ember-float-radius);
+  background: var(--ember-float-bg);
+  /* 与侧栏浮层同属二级表面，明显低于菜单、高于节点。 */
+  box-shadow: var(--ember-panel-shadow);
+  padding: var(--space-lg);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.title {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--ember-text-primary);
+}
+
+.subtitle {
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  color: var(--ember-text-secondary);
+}
+
+.closeButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-height);
+  height: var(--control-height);
+  padding: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ember-text-secondary);
+  font-size: var(--text-lg);
+  line-height: 1;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.closeButton:hover {
+  border-color: var(--ember-border);
+  background: var(--ember-control-bg);
+  color: var(--ember-text-primary);
+}
+
+/* 凹槽底槽 + 浮起选中项 */
+.segmented {
+  display: flex;
+  gap: var(--space-xs);
+  padding: var(--space-xs);
+  background: var(--ember-bg-input);
+  border: 1px solid var(--ember-border-input);
+  border-radius: var(--radius-md);
+}
+
+.option {
+  flex: 1;
+  height: var(--control-height);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ember-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.option:hover {
+  background: var(--ember-bg-hover);
+  color: var(--ember-text-primary);
+}
+
+.option:active {
+  background: var(--ember-bg-pressed);
+}
+
+.optionActive {
+  background: var(--ember-bg-elevated);
+  color: var(--ember-text-primary);
+  font-weight: 500;
+  box-shadow: var(--ember-control-raised), 0 0 0 var(--ember-hairline) var(--ember-border-strong);
+}
+
+.hint {
+  margin-top: var(--space-md);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  color: var(--ember-text-muted);
+}
+
+.groupLabel {
+  margin: var(--space-xl) 0 var(--space-sm);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  color: var(--ember-text-muted);
+}

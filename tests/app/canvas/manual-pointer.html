@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>Ember C4 真实指针 capture 手工验证</title>
+    <style>
+      body { margin: 0; background: #050505; color: #fafafa; font: 12px/1.5 ui-monospace, monospace; display: flex; flex-direction: column; height: 100vh; }
+      #debug { padding: 6px 10px; border-bottom: 1px solid #222; white-space: pre-wrap; flex: 0 0 auto; }
+      #stage { flex: 1 1 auto; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+      #host { width: 720px; height: 360px; flex: 0 0 auto; }
+    </style>
+  </head>
+  <body>
+    <pre id="debug">loading…</pre>
+    <div id="stage"><div class="host" id="host"></div></div>
+    <script type="module" src="./manual-pointer.ts"></script>
+  </body>
+</html>

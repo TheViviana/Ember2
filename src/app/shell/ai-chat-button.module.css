@@ -1,0 +1,51 @@
+/* CR-20261121-49：按钮缩小并向状态栏贴近，作为 AI 浮层的锚点。 */
+.button {
+  position: fixed;
+  right: var(--space-md);
+  bottom: calc(var(--statusbar-height) + var(--space-xs));
+  z-index: var(--layer-chrome);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--ember-text-primary);
+  background: var(--ember-float-bg);
+  border: var(--ember-hairline) solid var(--ember-border);
+  border-radius: var(--radius-full);
+  box-shadow: var(--ember-control-raised);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.button:hover {
+  background: var(--ember-bg-hover);
+  border-color: var(--ember-border-strong);
+}
+
+.active {
+  color: var(--ember-text-on-accent);
+  background: var(--ember-primary);
+  border-color: var(--ember-primary);
+}
+
+.active:hover {
+  background: var(--ember-primary-hover);
+  border-color: var(--ember-primary-hover);
+}
+
+.label {
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-wide);
+}
+
+.button:focus-visible {
+  outline: var(--focus-ring-width) solid var(--ember-border-focus);
+  outline-offset: var(--focus-ring-gap);
+}

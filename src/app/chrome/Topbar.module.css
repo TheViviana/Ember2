@@ -1,0 +1,143 @@
+/* 顶栏：透明覆盖层（用户 2026-11-21 裁定：不用玻璃底），浮在画布之上；整条可拖动。
+ * reduced-transparency 无需降级——无半透明层。 */
+
+.topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--layer-sidebar-overlay);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  box-sizing: border-box;
+  min-width: 0;
+  height: var(--topbar-height);
+  /* 左侧让出系统交通灯（titleBarStyle:'Overlay'，三灯约占 72px，原生位置 20px 不动）
+   * + 16px 后放 Ember（CR-20261121-58）。 */
+  padding: 0 var(--space-md) 0 calc(72px + var(--space-lg));
+  background: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* CR-20261121-58：品牌区 14px/600 主文本色（非纯白），版本 12px 淡灰，间距 4px */
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.brandName {
+  color: var(--ember-text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: var(--tracking-wide);
+}
+
+.brandVersion {
+  color: var(--ember-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+/* 设置钮图标化后保持触达面积；品牌与导航间 24px 间距在 .modes 上 */
+.settingsButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-left: var(--space-xl);
+  width: var(--control-height);
+  height: var(--control-height);
+  padding: 0;
+  color: var(--ember-text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.settingsButton:hover {
+  color: var(--ember-text-primary);
+  border-color: var(--ember-border-subtle);
+  background: var(--ember-bg-hover);
+}
+
+.settingsActive {
+  color: var(--ember-text-primary);
+  border-color: var(--ember-border-input);
+  background: var(--ember-control-bg);
+  box-shadow: var(--ember-control-inset);
+}
+
+/* CR-20261121-58：品牌与导航拉开 24px；选中档=极淡灰白半透明 + 6px 圆角 + 紧凑内边距 */
+.modes {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+  margin-left: var(--space-xl);
+}
+
+.modeButton {
+  padding: var(--space-xs) var(--space-sm);
+  color: var(--ember-text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.modeButton:hover {
+  color: var(--ember-text-primary);
+  border-color: var(--ember-border-subtle);
+  background: var(--ember-bg-hover);
+}
+
+.modeActive {
+  color: var(--ember-text-primary);
+  border-color: var(--ember-border-input);
+  background: var(--ember-control-bg);
+  box-shadow: var(--ember-control-inset);
+}
+
+.spacer {
+  flex: 1;
+  min-width: var(--space-sm);
+}
+
+.readonly {
+  flex-shrink: 0;
+  color: var(--ember-warning);
+  font-size: var(--text-2xs);
+}
+
+/* 聚焦环走 global.css 全局 :focus-visible（离边 2px 灰色描边环），组件不再覆写。 */
+
+/* 专注模式（CR-20261121-45 项6）：chrome 淡出 30%，悬停恢复；reduced-motion 由全局 transition 类管 */
+.focusFade {
+  opacity: 0.3;
+}
+
+.focusFade:hover {
+  opacity: 1;
+}
+
+.topbar {
+  transition: opacity var(--duration-fast) ease-out;
+}

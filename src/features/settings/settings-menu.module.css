@@ -1,0 +1,154 @@
+/* 设置下拉菜单（CR-20261120-35 / CR-36）：无全屏遮罩，锚定顶栏设置按钮。 */
+
+.host {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--layer-sidebar-overlay);
+}
+
+.panel {
+  position: absolute;
+  /* 默认落位在顶栏下方左侧；实际坐标由 anchorRef 测量后以内联样式覆盖。 */
+  top: calc(var(--topbar-height) + var(--space-xs));
+  left: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: min(360px, calc(100vw - var(--space-2xl)));
+  max-height: min(70vh, 560px);
+  pointer-events: auto;
+  /* 二级表面：与侧栏/外观面板同一层级，低于菜单。 */
+  background: var(--ember-float-bg);
+  border: var(--ember-hairline) solid var(--ember-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--ember-panel-shadow);
+  outline: none;
+}
+
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-height: 0;
+  padding: var(--space-sm) var(--space-xs);
+  overflow-y: auto;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  color: var(--ember-text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.sectionHeader:hover {
+  color: var(--ember-text-primary);
+  background: var(--ember-bg-hover);
+}
+
+.sectionHeader:active {
+  background: var(--ember-bg-pressed);
+}
+
+.chevron {
+  width: 1em;
+  flex-shrink: 0;
+  color: var(--ember-text-muted);
+  font-size: var(--text-2xs);
+}
+
+.sectionLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entries {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 0 var(--space-xs) var(--space-md);
+}
+
+.entry {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  text-align: left;
+  color: var(--ember-text-primary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.entry:hover:not(:disabled) {
+  background: var(--ember-bg-hover);
+  border-color: var(--ember-border-subtle);
+}
+
+.entry:active:not(:disabled) {
+  background: var(--ember-bg-pressed);
+}
+
+.entry:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.entryTitle {
+  font-size: var(--text-xs);
+}
+
+.entryDescription {
+  color: var(--ember-text-muted);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-normal);
+}
+
+.sectionHeader:focus-visible,
+.entry:focus-visible {
+  outline: var(--focus-ring-width) solid var(--ember-border-focus);
+  outline-offset: calc(-1 * var(--focus-ring-gap));
+}
+
+
+/* CR-20261121-58：条目图标与文字列 */
+.entryIcon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--ember-text-secondary);
+}
+
+.entryText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}

@@ -1,0 +1,532 @@
+/* T1-AI-A: AI 面板样式。全部使用 --ember-* tokens；零裸色值。 */
+
+/* CR-20261121-49：AI 助手改为按钮锚定的非模态浮层。
+   宿主只做定位与层级，不再渲染遮罩、不拦截指针——面板之外照常操作画布/编辑器。 */
+.backdrop {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 0 var(--space-md) calc(var(--statusbar-height) + 40px);
+  background: transparent;
+  pointer-events: none;
+}
+
+.panel {
+  pointer-events: auto;
+  width: 420px;
+  max-height: min(560px, calc(100vh - 120px));
+  overflow-y: auto;
+  /* 二级表面：与侧栏/设置面板同级，低于右键菜单。 */
+  background: var(--ember-float-bg);
+  border: var(--ember-hairline) solid var(--ember-border);
+  border-radius: var(--radius-lg);
+  /* CR-20261121-57：左右 24px / 上下 20px */
+  padding: var(--ember-ai-pad-block) var(--space-xl);
+  box-shadow: var(--ember-panel-shadow);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--text-base);
+  font-weight: 600;
+  margin: 0;
+  color: var(--ember-text-primary);
+}
+
+.titleIcon {
+  flex: 0 0 auto;
+  color: var(--ember-primary);
+}
+
+/* CR-20261121-57：设置折叠面板（顶端，收起态显示当前模型） */
+.collapseToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  width: 100%;
+  margin-bottom: 14px;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--ember-control-bg);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--ember-control-inset);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.collapseToggle:hover {
+  border-color: var(--ember-border-strong);
+  background: var(--ember-bg-hover);
+}
+
+.collapseToggle:active {
+  background: var(--ember-bg-pressed);
+}
+
+.collapseModel {
+  overflow: hidden;
+  color: var(--ember-text-secondary);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.collapseChevron {
+  flex: 0 0 auto;
+  color: var(--ember-text-muted);
+  font-size: var(--text-xs);
+}
+
+.closeBtn {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-height);
+  height: var(--control-height);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--ember-text-secondary);
+  font-size: var(--text-lg);
+  cursor: pointer;
+  line-height: 1;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.closeBtn:hover {
+  background: var(--ember-control-bg);
+  border-color: var(--ember-border);
+  color: var(--ember-text-primary);
+}
+
+.section {
+  margin-bottom: 14px;
+}
+
+.sectionLabel {
+  display: block;
+  font-size: var(--text-2xs);
+  color: var(--ember-text-muted);
+  margin-bottom: 6px;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.presetRow {
+  display: flex;
+  gap: 6px;
+}
+
+.presetBtn {
+  flex: 1;
+  min-height: var(--control-height);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--ember-control-bg);
+  border: 1px solid var(--ember-border);
+  color: var(--ember-text-secondary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  box-shadow: var(--ember-control-inset);
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.presetBtn:hover:not(:disabled) {
+  border-color: var(--ember-border-strong);
+  background: var(--ember-bg-hover);
+  color: var(--ember-text-primary);
+}
+
+.presetBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.presetActive {
+  border-color: var(--ember-primary);
+  background: var(--ember-primary-tint-soft);
+  color: var(--ember-primary);
+}
+
+.input,
+.select {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--ember-bg-input);
+  border: 1px solid var(--ember-border-input);
+  color: var(--ember-text-primary);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.input::placeholder,
+.select::placeholder {
+  color: var(--ember-text-muted);
+  opacity: 1;
+}
+
+.input:hover:not(:disabled),
+.select:hover:not(:disabled) {
+  border-color: var(--ember-border-strong);
+}
+
+/* 焦点统一灰色环，不再用主色描边。 */
+.input:focus-visible,
+.select:focus-visible {
+  border-color: var(--ember-border-focus);
+  box-shadow: 0 0 0 var(--focus-ring-width) var(--ember-border-focus);
+}
+
+.input:disabled,
+.select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+  color: var(--ember-text-secondary);
+  cursor: pointer;
+}
+
+.checkboxRow input[type='checkbox'] {
+  accent-color: var(--ember-primary);
+}
+
+.modelsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.successBox {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--ember-success-tint);
+  border: 1px solid var(--ember-success-border);
+  color: var(--ember-success);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+.warningBox {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--ember-warning-tint);
+  border: 1px solid var(--ember-warning-border);
+  color: var(--ember-warning);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+.errorBox {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--ember-danger-tint);
+  border: 1px solid var(--ember-danger-border);
+  color: var(--ember-danger);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+.infoBox {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--ember-bg-input);
+  border: 1px solid var(--ember-border-subtle);
+  color: var(--ember-text-secondary);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--ember-border-subtle);
+}
+
+.actionsSpacer {
+  flex: 1;
+}
+
+.primaryBtn,
+.ghostBtn,
+.dangerBtn {
+  min-height: var(--control-height);
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  border: 1px solid transparent;
+  font-family: inherit;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.primaryBtn {
+  background: var(--ember-primary);
+  color: var(--ember-text-on-accent);
+  font-weight: 600;
+  border-color: var(--ember-primary);
+}
+
+.primaryBtn:hover:not(:disabled) {
+  background: var(--ember-primary-hover);
+  border-color: var(--ember-primary-hover);
+}
+
+.primaryBtn:active:not(:disabled) {
+  background: var(--ember-primary-pressed);
+  border-color: var(--ember-primary-pressed);
+}
+
+.primaryBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ghostBtn {
+  background: var(--ember-control-bg);
+  border-color: var(--ember-border);
+  color: var(--ember-text-secondary);
+  box-shadow: var(--ember-control-inset);
+}
+
+.ghostBtn:hover:not(:disabled) {
+  background: var(--ember-bg-hover);
+  border-color: var(--ember-border-strong);
+  color: var(--ember-text-primary);
+}
+
+.ghostBtn:active:not(:disabled) {
+  background: var(--ember-bg-pressed);
+}
+
+.ghostBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dangerBtn {
+  background: transparent;
+  border-color: var(--ember-danger-border);
+  color: var(--ember-danger);
+}
+
+.dangerBtn:hover:not(:disabled) {
+  background: var(--ember-danger-tint);
+}
+
+.dangerBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─── T1-B：设置 / 对话 tab ─────────────────────────────────────── */
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--ember-border-subtle);
+}
+
+.tabBtn {
+  min-height: var(--control-height);
+  padding: 7px 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--ember-text-secondary);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.tabBtn:hover {
+  color: var(--ember-text-primary);
+  background: var(--ember-bg-hover);
+}
+
+.tabActive {
+  color: var(--ember-text-primary);
+  border-bottom-color: var(--ember-primary);
+  font-weight: 600;
+}
+
+.tabPanel[hidden] {
+  display: none;
+}
+
+/* ─── T1-B：聊天视图 ───────────────────────────────────────────── */
+
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: min(440px, calc(100vh - 240px));
+}
+
+.chatEmpty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px dashed var(--ember-border-subtle);
+  border-radius: var(--radius-md);
+  min-height: 200px;
+}
+
+.chatEmptyTitle {
+  margin: 0;
+  font-size: var(--text-md);
+  color: var(--ember-text-primary);
+}
+
+.chatEmptyHint {
+  margin: 0;
+  font-size: var(--text-2xs);
+  color: var(--ember-text-muted);
+}
+
+.chatMessages {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 2px;
+  min-height: 200px;
+}
+
+.chatRow {
+  display: flex;
+  width: 100%;
+}
+
+.chatRowUser {
+  justify-content: flex-end;
+}
+
+.chatRowAssistant {
+  justify-content: flex-start;
+}
+
+.chatBubble {
+  max-width: 85%;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chatBubbleUser {
+  background: var(--ember-primary);
+  color: var(--ember-text-on-accent);
+}
+
+.chatBubbleAssistant {
+  background: var(--ember-bg-elevated);
+  border: 1px solid var(--ember-border-subtle);
+  color: var(--ember-text-primary);
+}
+
+.chatBubbleStreaming::after {
+  content: '▍';
+  margin-left: 2px;
+  animation: ember-chat-caret 1s step-end infinite;
+}
+
+@keyframes ember-chat-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+.chatComposer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--ember-border-subtle);
+}
+
+.chatInput {
+  width: 100%;
+  min-height: 68px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--ember-bg-input);
+  border: 1px solid var(--ember-border-input);
+  color: var(--ember-text-primary);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  line-height: var(--leading-normal);
+  box-sizing: border-box;
+  outline: none;
+  resize: vertical;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.chatInput::placeholder {
+  color: var(--ember-text-muted);
+  opacity: 1;
+}
+
+.chatInput:focus-visible {
+  border-color: var(--ember-border-focus);
+  box-shadow: 0 0 0 var(--focus-ring-width) var(--ember-border-focus);
+}
+
+.chatComposerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chatHint {
+  flex: 1;
+  margin: 0;
+  font-size: var(--text-2xs);
+  color: var(--ember-text-muted);
+}

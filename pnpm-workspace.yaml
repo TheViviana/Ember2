@@ -1,0 +1,17 @@
+packages:
+  - packages/*
+
+# katex 0.16.x 存在 GHSA-238p-pmpm-9mq7（原型污染绕过 trust 限制，patched >=0.18.2）。
+# 直接依赖已升 0.19.1；此处钉住是为了让 micromark-extension-math（声明 ^0.16.0）的
+# 传递副本也解析到修补版，把漏洞版本从依赖树彻底移除。其 katex 仅被本仓不引用的
+# html 扩展分支使用（已核实 remark-math/mdast-util-math 引用链），renderToString
+# 核心 API 在 0.16→0.19 无破坏性变更，钉住风险可控。
+overrides:
+  katex: 0.19.1
+
+allowBuilds:
+  esbuild: true
+
+auditConfig:
+  ignoreGhsas:
+    - GHSA-fc5q-39xc-vjpf

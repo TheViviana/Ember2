@@ -1,0 +1,254 @@
+/* P5-C5：恢复检测演示面板（DEV only）。只引用既有 token，不新造色值。 */
+
+.root {
+  position: absolute;
+  left: var(--space-md);
+  bottom: calc(var(--statusbar-height) + var(--space-md));
+  max-width: min(360px, calc(100vw - var(--space-xl)));
+  pointer-events: auto;
+  font-family: var(--font-body);
+}
+
+.card {
+  width: 340px;
+  max-width: 100%;
+  max-height: 62vh;
+  overflow-y: auto;
+  padding: var(--space-md);
+  border: var(--ember-hairline) solid var(--ember-border);
+  border-radius: var(--radius-lg);
+  background: var(--ember-float-bg);
+  box-shadow: var(--ember-panel-shadow);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.title {
+  margin: 0;
+  color: var(--ember-text-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.note {
+  margin: var(--space-xs) 0 0;
+  color: var(--ember-text-muted);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-normal);
+}
+
+.iconButton {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ember-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.iconButton:hover {
+  background: var(--ember-bg-hover);
+  border-color: var(--ember-border-strong);
+  color: var(--ember-text-primary);
+}
+
+.iconButton:active {
+  background: var(--ember-bg-pressed);
+}
+
+.scenarios {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-md);
+}
+
+.scenario {
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-full);
+  background: var(--ember-control-bg);
+  color: var(--ember-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-2xs);
+  cursor: pointer;
+}
+
+.scenario:hover:not(:disabled) {
+  background: var(--ember-bg-hover);
+  border-color: var(--ember-border-strong);
+  color: var(--ember-text-primary);
+}
+
+.scenarioActive {
+  border-color: var(--ember-border-input);
+  background: var(--ember-bg-selected);
+  color: var(--ember-text-primary);
+}
+
+.hint {
+  margin: var(--space-sm) 0 0;
+  color: var(--ember-text-secondary);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-normal);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+}
+
+.primary,
+.quiet {
+  min-height: var(--control-height);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-sm);
+  background: var(--ember-control-bg);
+  box-shadow: var(--ember-control-inset);
+  font-family: var(--font-body);
+  font-size: var(--text-2xs);
+  cursor: pointer;
+}
+
+.primary {
+  border-color: var(--ember-border-strong);
+  color: var(--ember-text-primary);
+}
+
+.quiet {
+  color: var(--ember-text-secondary);
+}
+
+.primary:hover:not(:disabled),
+.quiet:hover:not(:disabled) {
+  background: var(--ember-bg-hover);
+  border-color: var(--ember-border-strong);
+  color: var(--ember-text-primary);
+}
+
+.primary:active:not(:disabled),
+.quiet:active:not(:disabled) {
+  background: var(--ember-bg-pressed);
+}
+
+.primary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.primary:focus-visible,
+.quiet:focus-visible,
+.scenario:focus-visible,
+.iconButton:focus-visible {
+  outline: var(--focus-ring-width) solid var(--ember-border-focus);
+  outline-offset: var(--focus-ring-gap);
+}
+
+.message,
+.messageWarning {
+  margin: var(--space-sm) 0 0;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  background: var(--ember-bg-surface);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-normal);
+}
+
+.message {
+  color: var(--ember-text-secondary);
+}
+
+.messageWarning {
+  border: 1px solid var(--ember-warning-border);
+  background: var(--ember-warning-tint);
+  color: var(--ember-warning);
+}
+
+.candidates,
+.excludedList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.candidates {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.candidate {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border: 1px solid var(--ember-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--ember-bg-surface);
+}
+
+.candidateMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.docId {
+  overflow-wrap: anywhere;
+  color: var(--ember-text-primary);
+  font-size: var(--text-2xs);
+}
+
+.hash {
+  color: var(--ember-text-muted);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.rowActions {
+  display: flex;
+  flex: none;
+  gap: var(--space-xs);
+}
+
+.decision {
+  flex: none;
+  color: var(--ember-text-secondary);
+  font-size: var(--text-2xs);
+}
+
+.excluded {
+  margin-top: var(--space-sm);
+  padding: var(--space-sm);
+  border: 1px solid var(--ember-border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.excludedTitle {
+  margin: 0 0 var(--space-xs);
+  color: var(--ember-text-muted);
+  font-size: var(--text-2xs);
+}
+
+.excludedList {
+  color: var(--ember-text-muted);
+  font-size: var(--text-2xs);
+  line-height: var(--leading-normal);
+}

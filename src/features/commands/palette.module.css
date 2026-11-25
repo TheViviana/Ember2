@@ -1,0 +1,107 @@
+/* ─── CR-20261119-13：⌘K 命令面板 ─────────────────────────── */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 3000; /* Z_MODAL：高于浮窗 1000、高于拖拽预览 2000（src/windows/layer-z.ts 对齐） */
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 18vh;
+  background-color: var(--ember-overlay-scrim);
+  backdrop-filter: blur(var(--ember-glass-blur));
+}
+
+.panel {
+  width: min(640px, 92vw);
+  max-height: 60vh;
+  /* 背景已由 scrim 模糊，面板本身用不透明二级表面，避免嵌套 backdrop-filter。 */
+  background-color: var(--ember-float-bg);
+  border: var(--ember-hairline) solid var(--ember-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--ember-panel-shadow);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.input {
+  width: 100%;
+  padding: var(--space-lg);
+  font-size: var(--text-lg);
+  font-family: var(--font-body);
+  color: var(--ember-text-primary);
+  background-color: transparent;
+  border: none;
+  border-bottom: 1px solid var(--ember-border);
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--ember-text-muted);
+  opacity: 1;
+}
+
+.input:focus-visible {
+  border-bottom-color: var(--ember-border-focus);
+  box-shadow: inset 0 calc(-1 * var(--focus-ring-width)) 0 var(--ember-border-focus);
+}
+
+.list {
+  overflow-y: auto;
+  flex: 1;
+  padding: 4px 0;
+}
+
+.empty {
+  padding: var(--space-xl);
+  text-align: center;
+  color: var(--ember-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  cursor: pointer;
+  color: var(--ember-text-primary);
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.item:hover {
+  background-color: var(--ember-menu-hover);
+}
+
+/* 键盘高亮用中性选中底，不能拿 border 色当背景（浅色下会变成深灰块）。 */
+.itemActive {
+  background-color: var(--ember-bg-selected);
+}
+
+.item:focus-visible {
+  outline: var(--focus-ring-width) solid var(--ember-border-focus);
+  outline-offset: calc(-1 * var(--focus-ring-gap));
+}
+
+.itemDisabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.title {
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.kbd {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ember-text-secondary);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--ember-border);
+  background-color: var(--ember-control-bg);
+  box-shadow: var(--ember-control-inset);
+}

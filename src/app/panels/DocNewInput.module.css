@@ -1,0 +1,118 @@
+/**
+ * CR-20261119-08：新建文档输入面板样式。
+ * 全走 tokens.css 变量，不写裸色/裸间距/裸圆角。
+ */
+.panel {
+  position: fixed;
+  z-index: var(--layer-menu);
+  width: 280px;
+  padding: var(--space-sm) var(--space-md) var(--space-md);
+  background: var(--ember-float-bg);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-md);
+  /* 与侧栏浮层同属二级表面。 */
+  box-shadow: var(--ember-panel-shadow);
+}
+
+.title {
+  font-size: var(--text-sm);
+  color: var(--ember-text-muted);
+  margin-bottom: var(--space-xs);
+}
+
+.input {
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--ember-bg-input);
+  color: var(--ember-text-primary);
+  border: 1px solid var(--ember-border-input);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-md);
+  font-family: var(--font-body);
+}
+
+.input::placeholder {
+  color: var(--ember-text-muted);
+  opacity: 1;
+}
+
+.input:hover:not(:disabled) {
+  border-color: var(--ember-border-strong);
+}
+
+.input:focus-visible {
+  outline: none;
+  border-color: var(--ember-border-focus);
+  box-shadow: 0 0 0 var(--focus-ring-width) var(--ember-border-focus);
+}
+
+.input:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.error {
+  font-size: var(--text-xs);
+  color: var(--ember-danger);
+  background: var(--ember-danger-tint);
+  border: 1px solid var(--ember-danger-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-xs) var(--space-sm);
+  margin: var(--space-xs) 0 0;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+  justify-content: flex-end;
+}
+
+.cancelBtn,
+.createBtn {
+  min-height: var(--control-height);
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-sm);
+  color: var(--ember-text-secondary);
+  font-size: var(--text-xs);
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+/* 取消＝中性控件表面；创建＝橙色主按钮，两者不再共用悬停色。 */
+.cancelBtn {
+  background: var(--ember-control-bg);
+  box-shadow: var(--ember-control-inset);
+}
+
+.cancelBtn:hover:not(:disabled) {
+  border-color: var(--ember-border-strong);
+  background: var(--ember-bg-hover);
+  color: var(--ember-text-primary);
+}
+
+.createBtn {
+  border-color: transparent;
+  background: var(--ember-primary);
+  color: var(--ember-text-on-accent);
+}
+
+.createBtn:hover:not(:disabled) {
+  background: var(--ember-primary-hover);
+  color: var(--ember-text-on-accent);
+}
+
+.createBtn:active:not(:disabled) {
+  background: var(--ember-primary-pressed);
+}
+
+.cancelBtn:disabled,
+.createBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

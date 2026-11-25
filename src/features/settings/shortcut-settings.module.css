@@ -1,0 +1,40 @@
+.host { position: fixed; inset: 0; }
+.backdrop { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--ember-overlay-scrim); backdrop-filter: blur(6px); }
+.panel { display: flex; flex-direction: column; width: min(760px, calc(100vw - 48px)); max-height: calc(100vh - 64px); padding: 20px; color: var(--ember-text-primary); background: var(--ember-float-bg); border: var(--ember-hairline) solid var(--ember-border); border-radius: var(--radius-lg); box-shadow: var(--ember-panel-shadow); font-family: var(--font-body); }
+.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.title { margin: 0; font-size: var(--text-base); color: var(--ember-text-primary); }
+.closeButton { width: 28px; height: 28px; color: var(--ember-text-secondary); background: var(--ember-control-bg); border: 1px solid var(--ember-border); border-radius: var(--radius-sm); box-shadow: var(--ember-control-inset); cursor: pointer; }
+.closeButton:hover:not(:disabled) { color: var(--ember-text-primary); background: var(--ember-bg-hover); border-color: var(--ember-border-strong); }
+.closeButton:active:not(:disabled) { background: var(--ember-bg-pressed); }
+.closeButton:focus-visible { outline: var(--focus-ring-width) solid var(--ember-border-focus); outline-offset: var(--focus-ring-gap); }
+.search { box-sizing: border-box; width: 100%; margin-bottom: 12px; padding: 8px 10px; color: var(--ember-text-primary); background: var(--ember-bg-input); border: 1px solid var(--ember-border-input); border-radius: var(--radius-sm); }
+.search::placeholder { color: var(--ember-text-muted); opacity: 1; }
+.search:hover:not(:disabled) { border-color: var(--ember-border-strong); }
+.search:focus-visible { outline: none; border-color: var(--ember-border-focus); box-shadow: 0 0 0 var(--focus-ring-width) var(--ember-border-focus); }
+.table { overflow-y: auto; border-top: 1px solid var(--ember-border-subtle); }
+.row, .rowConflict { display: grid; grid-template-columns: minmax(160px, 1fr) 130px auto; align-items: center; gap: 12px; min-height: 54px; padding: 8px 4px; border-bottom: 1px solid var(--ember-border-subtle); }
+.rowConflict { background: var(--ember-danger-tint); }
+.commandInfo { display: flex; flex-direction: column; gap: 3px; font-size: var(--text-sm); }
+.commandInfo span { color: var(--ember-text-secondary); font-size: var(--text-xs); }
+.binding { color: var(--ember-primary); font-size: var(--text-sm); text-align: center; font-variant-numeric: tabular-nums; }
+.rowActions { display: flex; gap: 4px; }
+.rowActions button, .footer button { min-height: var(--control-height); padding: 5px 8px; color: var(--ember-text-secondary); background: var(--ember-control-bg); border: 1px solid var(--ember-border); border-radius: var(--radius-sm); box-shadow: var(--ember-control-inset); cursor: pointer; }
+.rowActions button { min-height: 0; }
+.rowActions button:hover:not(:disabled), .footer button:hover:not(:disabled) { color: var(--ember-text-primary); background: var(--ember-bg-hover); border-color: var(--ember-border-strong); }
+.rowActions button:active:not(:disabled), .footer button:active:not(:disabled) { background: var(--ember-bg-pressed); }
+.rowActions button:focus-visible, .footer button:focus-visible { outline: var(--focus-ring-width) solid var(--ember-border-focus); outline-offset: var(--focus-ring-gap); }
+.footer { display: flex; gap: 8px; margin-top: 14px; }
+.footer .primary { color: var(--ember-text-on-accent); background: var(--ember-primary); border-color: var(--ember-primary); box-shadow: none; }
+.footer .primary:hover:not(:disabled) { color: var(--ember-text-on-accent); background: var(--ember-primary-hover); border-color: var(--ember-primary-hover); }
+.footer .primary:active:not(:disabled) { background: var(--ember-primary-pressed); border-color: var(--ember-primary-pressed); }
+.footer button:disabled { color: var(--ember-text-muted); cursor: default; }
+.footer .primary:disabled { color: var(--ember-text-muted); background: var(--ember-bg-pressed); border-color: var(--ember-border); }
+.spacer { flex: 1; }
+.error { margin: 10px 0 0; padding: 8px 10px; color: var(--ember-danger); background: var(--ember-danger-tint); border: 1px solid var(--ember-danger-border); border-radius: var(--radius-sm); font-size: var(--text-sm); }
+.error p { margin: 2px 0; }
+
+@media (max-width: 680px) {
+  .row, .rowConflict { grid-template-columns: 1fr auto; }
+  .binding { text-align: right; }
+  .rowActions { grid-column: 1 / -1; justify-content: flex-end; }
+}

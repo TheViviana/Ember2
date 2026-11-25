@@ -1,0 +1,215 @@
+/* 库管理设置面板（CR-20261120-35）。 */
+
+.host {
+  position: fixed;
+  inset: 0;
+}
+
+.backdrop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: var(--space-lg);
+  background: var(--ember-overlay-scrim);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: min(720px, 100%);
+  max-height: min(82vh, 680px);
+  overflow: hidden;
+  background: var(--ember-bg-elevated);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg) var(--space-sm);
+}
+
+.title {
+  margin: 0;
+  color: var(--ember-text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.subtitle {
+  margin: 2px 0 0;
+  color: var(--ember-text-muted);
+  font-size: var(--text-xs);
+}
+
+.closeButton {
+  width: var(--space-xl);
+  height: var(--space-xl);
+  padding: 0;
+  color: var(--ember-text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-lg);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.closeButton:hover {
+  color: var(--ember-text-primary);
+  background: var(--ember-bg-hover);
+}
+
+.tabs {
+  display: flex;
+  gap: var(--space-xs);
+  padding: 0 var(--space-lg);
+  border-bottom: 1px solid var(--ember-border-subtle);
+}
+
+.tab {
+  padding: var(--space-xs) var(--space-sm);
+  color: var(--ember-text-secondary);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--ember-text-primary);
+}
+
+.tabActive {
+  color: var(--ember-text-primary);
+  border-bottom-color: var(--ember-primary);
+}
+
+.vaults {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-height: 0;
+  padding: var(--space-md) var(--space-lg) var(--space-lg);
+  overflow-y: auto;
+}
+
+.addForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--ember-border-subtle);
+}
+
+.addRow {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-xs) var(--space-sm);
+  color: var(--ember-text-primary);
+  background: var(--ember-bg-surface);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+}
+
+.input:focus {
+  outline: 1px solid var(--ember-border-focus);
+  outline-offset: 0;
+}
+
+.input:disabled {
+  opacity: 0.5;
+}
+
+.addError {
+  margin: 0;
+  color: var(--ember-danger);
+  font-size: var(--text-xs);
+}
+
+.addActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.primaryButton {
+  min-height: var(--control-height);
+  padding: var(--space-xs) var(--space-md);
+  color: var(--ember-text-on-accent);
+  background: var(--ember-primary);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: var(--ember-primary-hover);
+}
+
+.primaryButton:active:not(:disabled) {
+  background: var(--ember-primary-pressed);
+}
+
+.primaryButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ghostButton {
+  flex-shrink: 0;
+  min-height: var(--control-height);
+  padding: var(--space-xs) var(--space-sm);
+  color: var(--ember-text-secondary);
+  background: var(--ember-control-bg);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: var(--ember-control-inset);
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.ghostButton:hover:not(:disabled) {
+  background: var(--ember-bg-hover);
+  border-color: var(--ember-border-strong);
+  color: var(--ember-text-primary);
+}
+
+.ghostButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.media {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+}

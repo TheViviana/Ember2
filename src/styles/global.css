@@ -1,0 +1,109 @@
+/* ============================================================
+ * Ember 全局基础层
+ * 只做重置、根节点尺寸、滚动条、选区、全局聚焦环；组件样式一律走 CSS Modules。
+ * 设计变量全部来自 tokens.css（深浅双主题，本地字体，无远程资源）。
+ * ============================================================ */
+
+@import './tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+:root {
+  /* 表单控件强调色（开关/进度/复选）与文本光标随主题强调档 */
+  accent-color: var(--ember-primary);
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  font-weight: 400;
+  line-height: var(--leading-normal);
+  color: var(--ember-text-primary);
+  background: var(--ember-bg-base);
+  /* 主界面四角圆角（macOS 标准，CR-20261121-44 追加裁定）：窗口透明，body 圆角 + overflow
+   * hidden 把内容裁进圆角内；overflow 裁切遵循 border-radius（圆角外为透明窗口区）。
+   * body 与 html 的底色链见 index.html 首帧内联样式（同一半径，防方角首帧）。 */
+  border-radius: var(--ember-window-radius);
+  caret-color: var(--ember-caret);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  /* WebKit（WKWebView）只认前缀版本；标准属性仅为未来兼容保留，必须双写。 */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input,
+textarea,
+[contenteditable='true'] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* 窗口为不透明实底（无边框直角，theme-v1.1.md 裁定：无 vibrancy、无圆角）。 */
+
+/* 画布细网格由无限画布自绘（engine/grid.ts 经 canvas-palette 解析令牌取色） */
+
+/* 文字选区：灰阶 25%，不覆盖文字色（CR-20261119-06 §2.3） */
+::selection {
+  background: var(--ember-selection);
+}
+
+/* 键盘聚焦环：离边 2px（--focus-ring-gap），选中态的贴边环由组件另行叠加成双环。
+ * 组件自有 :focus-visible 规则（如画布视口）优先于本条。
+ * 去发光：统一使用灰系 --ember-border-focus，保持聚焦可辨且避免高亮主色外晕。 */
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--ember-border-focus);
+  outline-offset: var(--focus-ring-gap);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: var(--radius-full);
+  background-clip: content-box;
+  background-color: var(--ember-scrollbar-thumb);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--ember-scrollbar-thumb-hover);
+}
+
+/* 数字等宽（UI 规范第 6 条）：番茄钟/计数/统计数字必须套用，禁止数字宽度参差 */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 主题切换助推（CR-20261121-45 项8）：切换瞬间短窗过渡让颜色渐变；由 appearance.ts 加/摘类，
+ * 不常驻全局 transition（避免干扰组件自有过渡与画布性能）。 */
+html.theme-transition,
+html.theme-transition * {
+  transition:
+    background-color var(--duration-fast) ease-out,
+    color var(--duration-fast) ease-out,
+    border-color var(--duration-fast) ease-out,
+    fill var(--duration-fast) ease-out,
+    stroke var(--duration-fast) ease-out;
+}

@@ -1,0 +1,218 @@
+/* P5-C2：浮窗窗框样式。只引用 token，不写裸色值/间距/圆角/字号（DESIGN 约束）。 */
+
+@keyframes windowEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.frame {
+  position: absolute;
+  box-sizing: border-box;
+  /* #window-layer 设了 pointer-events: none；子树必须显式恢复 auto，否则整窗不可交互（P0 修复）。 */
+  pointer-events: auto;
+}
+
+.frameInner {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--ember-float-bg);
+  border: var(--ember-hairline) solid var(--ember-border);
+  /* 二级表面：浮窗与侧栏/AI 面板同级，统一 12px 面板圆角与面板阴影。 */
+  border-radius: var(--radius-lg);
+  box-shadow: var(--ember-panel-shadow);
+  transform-origin: center center;
+  animation: windowEnter var(--duration-fast) var(--ease-out);
+}
+
+.frameFocused .frameInner {
+  border-color: var(--ember-border-strong);
+}
+
+/* C4：关闭协调中——弱化视觉，并停用拖动/缩放手柄（× 由 disabled 控制）。 */
+.frameClosing {
+  opacity: 0.85;
+}
+
+.frameClosing .titlebar {
+  cursor: default;
+}
+
+.frameClosing .handle {
+  pointer-events: none;
+}
+
+.titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-shrink: 0;
+  height: calc(var(--space-lg) + var(--space-xl));
+  padding: 0 var(--space-md);
+  border-bottom: 1px solid var(--ember-border-subtle);
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+}
+
+.titlebar:active {
+  cursor: grabbing;
+}
+
+.title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ember-text-primary);
+}
+
+.controls {
+  display: flex;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+}
+
+.controlButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-xl);
+  height: var(--space-xl);
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ember-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-lg);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.controlButton:hover {
+  background: var(--ember-bg-hover);
+  border-color: var(--ember-border-strong);
+  color: var(--ember-text-primary);
+}
+
+.controlButton:active {
+  background: var(--ember-bg-pressed);
+}
+
+.controlButton:focus-visible {
+  outline: var(--focus-ring-width) solid var(--ember-border-focus);
+  outline-offset: var(--focus-ring-gap);
+}
+
+/* CR-20261121-58：关闭钮悬停改中性软底——danger 令牌在 CR-44 已重映射为反色档
+ * （行内错误文字用），沿用会把关闭钮 hover 染成一大块白底白字。 */
+.controlButtonClose:hover {
+  background: var(--ember-bg-hover);
+  border-color: var(--ember-border-strong);
+  color: var(--ember-text-primary);
+}
+
+.content {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.selectGuard {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* 缩放手柄：热区用 --float-resize-hit（≥12 屏幕像素，ui-spec 第 8 条）。 */
+.handle {
+  position: absolute;
+  z-index: 1;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.handleN {
+  top: 0;
+  left: var(--float-resize-hit);
+  right: var(--float-resize-hit);
+  height: var(--float-resize-hit);
+  cursor: ns-resize;
+}
+
+.handleS {
+  bottom: 0;
+  left: var(--float-resize-hit);
+  right: var(--float-resize-hit);
+  height: var(--float-resize-hit);
+  cursor: ns-resize;
+}
+
+.handleE {
+  top: var(--float-resize-hit);
+  bottom: var(--float-resize-hit);
+  right: 0;
+  width: var(--float-resize-hit);
+  cursor: ew-resize;
+}
+
+.handleW {
+  top: var(--float-resize-hit);
+  bottom: var(--float-resize-hit);
+  left: 0;
+  width: var(--float-resize-hit);
+  cursor: ew-resize;
+}
+
+.handleNE {
+  top: 0;
+  right: 0;
+  width: var(--float-resize-hit);
+  height: var(--float-resize-hit);
+  cursor: nesw-resize;
+}
+
+.handleNW {
+  top: 0;
+  left: 0;
+  width: var(--float-resize-hit);
+  height: var(--float-resize-hit);
+  cursor: nwse-resize;
+}
+
+.handleSE {
+  bottom: 0;
+  right: 0;
+  width: var(--float-resize-hit);
+  height: var(--float-resize-hit);
+  cursor: nwse-resize;
+}
+
+.handleSW {
+  bottom: 0;
+  left: 0;
+  width: var(--float-resize-hit);
+  height: var(--float-resize-hit);
+  cursor: nesw-resize;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .frameInner {
+    animation: none;
+  }
+}

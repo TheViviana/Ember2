@@ -1,0 +1,151 @@
+.statusbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--layer-sidebar-overlay);
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  min-width: 0;
+  height: var(--statusbar-height);
+  padding: 0 var(--space-md);
+  background: transparent;
+  font-size: var(--text-2xs);
+  color: var(--ember-text-muted);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+  color: var(--ember-text-muted);
+  letter-spacing: var(--tracking-wide);
+}
+
+.dot {
+  width: var(--space-xs);
+  height: var(--space-xs);
+  border-radius: var(--radius-full);
+  background: currentColor;
+}
+
+.toneSuccess {
+  color: var(--ember-text-muted);
+}
+
+.toneSuccess .dot {
+  background: var(--ember-success);
+}
+
+.toneDanger {
+  color: var(--ember-text-muted);
+}
+
+.toneDanger .dot {
+  background: var(--ember-danger);
+}
+
+.toneMuted {
+  color: var(--ember-text-muted);
+}
+
+.readonly {
+  margin-left: var(--space-xs);
+  color: var(--ember-text-muted);
+}
+
+.unsaved {
+  color: var(--ember-text-secondary);
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.document {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.docPath {
+  max-width: 32vw;
+  overflow: hidden;
+  color: var(--ember-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docEmpty {
+  color: var(--ember-text-muted);
+}
+
+.phase {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--ember-text-secondary);
+}
+
+.phaseDot {
+  width: var(--space-xs);
+  height: var(--space-xs);
+  border-radius: var(--radius-full);
+  background: currentColor;
+}
+
+.phaseClean {
+  color: var(--ember-text-muted);
+}
+
+.phaseDirty {
+  color: var(--ember-text-secondary);
+}
+
+.phaseDirty .phaseDot {
+  background: var(--ember-warning);
+}
+
+.phaseSaving {
+  color: var(--ember-text-secondary);
+}
+
+.phaseSaving .phaseDot {
+  background: var(--ember-primary);
+}
+
+.phaseError {
+  color: var(--ember-text-secondary);
+}
+
+.phaseError .phaseDot {
+  background: var(--ember-danger);
+}
+
+.separator {
+  width: 1px;
+  height: var(--space-sm);
+  flex-shrink: 0;
+  background: var(--ember-border-subtle);
+}
+
+.root {
+  min-width: 0;
+  max-width: 36vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
