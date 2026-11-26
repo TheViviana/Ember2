@@ -48,6 +48,34 @@ void test('编辑目标仅允许命令面板等全局命令', () => {
   assert.deepEqual(executed, ['view.command_palette']);
 });
 
+void test('编辑目标中的 / 等可打印字符不被全局快捷键吞掉', () => {
+  const executed: string[] = [];
+  const commands = [{ id: 'view.command_palette', enabled: true }];
+  const bindings = { 'view.command_palette': [{ key: '/' }] };
+  const editable = event({
+    key: '/', code: 'Slash', metaKey: false, target: { tagName: 'TEXTAREA' },
+  });
+  assert.equal(dispatchCommandKeybinding(editable.value, commands, bindings, (id) => executed.push(id)), false);
+  assert.equal(editable.prevented(), 0);
+  assert.equal(editable.stopped(), 0);
+
+  const outside = event({ key: '/', code: 'Slash', metaKey: false, target: { tagName: 'DIV' } });
+  assert.equal(dispatchCommandKeybinding(outside.value, commands, bindings, (id) => executed.push(id)), true);
+  assert.deepEqual(executed, ['view.command_palette']);
+});
+
+void test('编辑目标仍允许带 Meta/Ctrl 的全局命令', () => {
+  const executed: string[] = [];
+  const e = event({ target: { isContentEditable: true } });
+  assert.equal(dispatchCommandKeybinding(
+    e.value,
+    [{ id: 'view.command_palette' }],
+    { 'view.command_palette': [{ key: 'K', meta: true }] },
+    (id) => executed.push(id),
+  ), true);
+  assert.deepEqual(executed, ['view.command_palette']);
+});
+
 void test('disabled、IME、未绑定与未命中均放行', () => {
   const executed: string[] = [];
   const commands = [{ id: 'view.command_palette', enabled: false }];

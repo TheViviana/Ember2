@@ -4,7 +4,6 @@
  * 纯编排逻辑抽到 ai-text-run.ts / backlinks-flow.ts。
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ReactElement } from 'react';
 import { EditorView } from '../../editor/EditorView';
 import { editorBindings } from '../../editor/binding';
 import type {
@@ -15,16 +14,11 @@ import type {
 } from '../../editor/host';
 import { registerEditorMediaInserter } from '../../editor/media-insert-registry.ts';
 import { registerEditorLocker } from '../editor-lock-registry.ts';
-import { releaseOnUnmount, type CloseFlowView } from '../window-close-flow.ts';
+import { releaseOnUnmount } from '../window-close-flow.ts';
 import {
-  cancelWindowClose,
-  confirmDiscardAndClose,
-  forceCloseWindow,
   registerCloseTarget,
   requestAcceptDeletion,
   requestWindowClose,
-  resolveWindowCloseConflict,
-  retryWindowClose,
   useCloseFlowStore,
 } from '../stores/close-flow-store';
 import { getViewport, openWindow } from '../../windows/use-window-manager.ts';
@@ -50,7 +44,8 @@ import { mapAiErrorCode } from '../../features/ai/ai-error-map.ts';
 import { useAiChatStore } from '../../features/ai/ai-chat-store.ts';
 import { createAiTextRun } from './ai-text-run.ts';
 import { createBacklinksFlow } from './backlinks-flow.ts';
-import styles from './EditorWindow.module.css';
+import { renderCloseOverlay } from './editor-close-panels.tsx';
+import { saveClipboardImage } from './editor-clipboard.ts';
 
 const AI_REQUEST_FAILURE_TEXT: Record<ChatRequestFailure, string> = {
   invalid_request_id: '请求编号无效，请重试',
@@ -280,6 +275,7 @@ export function EditorWindow({ record }: WindowContentProps) {
         throw error;
       }
     },
+    saveClipboardImage,
   };
 
   const doc: EditorDocSnapshot | null =
@@ -364,7 +360,9 @@ export function EditorWindow({ record }: WindowContentProps) {
       onOpenInternalLink={handleOpenInternalLink}
       libraryName={libraryName}
       documentTitle={documentTitle}
-      tagBar={<TagBar tags={tags} onChange={handleTagsChange} />}
+      tagBar={({ readOnly }) => (
+        <TagBar tags={tags} onChange={handleTagsChange} disabled={readOnly} />
+      )}
       backlinks={backlinksState}
       onBuildBacklinks={backlinksFlow.build}
       onTranslate={handleTranslate}
@@ -380,98 +378,5 @@ export function EditorWindow({ record }: WindowContentProps) {
       onAiTextAction={aiTextRun.run}
       overlay={renderCloseOverlay(closeFlow)}
     />
-  );
-}
-
-function renderCloseOverlay(view: CloseFlowView | null): ReactElement | null {
-  if (view === null) return null;
-  if (view.phase === 'working') return <WorkingPanel view={view} />;
-  if (view.phase === 'confirming') return <ConfirmPanel view={view} />;
-  return <FailurePanel view={view} />;
-}
-
-function WorkingPanel({ view }: { readonly view: CloseFlowView }) {
-  return (
-    <section className={styles.panel} role="status" aria-live="polite">
-      <p className={styles.panelTitle}>正在关闭窗口</p>
-      <p className={styles.panelHint}>{view.message ?? '正在保存并关闭…'}</p>
-    </section>
-  );
-}
-
-function ConfirmPanel({ view }: { readonly view: CloseFlowView }) {
-  return (
-    <section className={`${styles.panel} ${styles.panelAlert}`} role="alert">
-      <p className={styles.panelTitle}>确认丢弃本地改动？</p>
-      <p className={styles.panelHint}>{view.message}</p>
-      <div className={styles.panelActions}>
-        <button
-          type="button"
-          className={`${styles.button} ${styles.buttonDanger}`}
-          onClick={() => confirmDiscardAndClose(view.windowId)}
-        >
-          确认关闭并丢弃
-        </button>
-        <button
-          type="button"
-          className={`${styles.button} ${styles.buttonQuiet}`}
-          onClick={() => cancelWindowClose(view.windowId)}
-        >
-          取消
-        </button>
-      </div>
-    </section>
-  );
-}
-
-function FailurePanel({ view }: { readonly view: CloseFlowView }) {
-  const removed = view.reason === 'conflict-removed';
-  const updated = view.reason === 'conflict-updated';
-  return (
-    <section className={`${styles.panel} ${styles.panelAlert}`} role="alert">
-      <p className={styles.panelTitle}>关闭未完成</p>
-      <p className={styles.panelHint}>{view.message}</p>
-      <div className={styles.panelActions}>
-        <button
-          type="button"
-          className={styles.button}
-          onClick={() => retryWindowClose(view.windowId)}
-        >
-          重试
-        </button>
-        {removed ? (
-          <button
-            type="button"
-            className={`${styles.button} ${styles.buttonDanger}`}
-            onClick={() => requestAcceptDeletion(view.windowId)}
-          >
-            接受删除
-          </button>
-        ) : null}
-        {updated ? (
-          <button
-            type="button"
-            className={styles.button}
-            onClick={() => resolveWindowCloseConflict(view.windowId)}
-          >
-            处理冲突
-          </button>
-        ) : null}
-        <button
-          type="button"
-          className={`${styles.button} ${styles.buttonDanger}`}
-          onClick={() => forceCloseWindow(view.windowId)}
-        >
-          强制关闭
-        </button>
-        <button
-          type="button"
-          className={`${styles.button} ${styles.buttonQuiet}`}
-          onClick={() => cancelWindowClose(view.windowId)}
-        >
-          取消
-        </button>
-      </div>
-    </section>
   );
 }

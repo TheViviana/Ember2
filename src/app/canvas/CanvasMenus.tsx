@@ -10,7 +10,9 @@ import type { CanvasEngineEvent } from './engine.ts';
 import type { TreeNode } from '../tree/build-tree.ts';
 import { DocSubmenu } from './DocSubmenu.tsx';
 import { docSubmenuRegistry } from './doc-submenu-model.ts';
+import { canvasTextEditKeyAction } from './canvas-interactions.ts';
 import { useMenuKeyboard } from './use-menu-keyboard.ts';
+import { Icon } from '../../ui/icon.tsx';
 import styles from './CanvasView.module.css';
 
 /** C0-D：右键菜单状态。 */
@@ -21,6 +23,8 @@ export interface CanvasMenu {
   /** CR-20261121-45 项D：右键命中节点为文档时的路径/标题（null=非文档节点）。 */
   readonly nodeDocPath: string | null;
   readonly nodeLabel: string | null;
+  /** 原始节点类型：用于区分文本正文编辑与独立标题改名。 */
+  readonly nodeType: string | null;
   /** CR-20261121-53：右键命中节点的种类（ai/prompt），null=其他。 */
   readonly nodeKind: 'ai' | 'prompt' | null;
 }
@@ -33,13 +37,13 @@ export interface ConnectionMenuState {
   readonly from: { readonly nodeId: string; readonly portId: string };
 }
 
-/** C0-D：文本编辑状态。CR-20261121-53：kind='prompt' 为提示词多行编辑（text=初始正文）。 */
+/** C0-D：文本编辑状态。kind='text' 编辑自由文本；kind='prompt' 编辑提示词；其余为节点标题。 */
 export interface CanvasEditState {
   readonly nodeId: string;
   readonly nodeX: number;
   readonly nodeY: number;
   readonly label: string;
-  readonly kind?: 'prompt';
+  readonly kind?: 'text' | 'prompt';
   readonly text?: string;
 }
 
@@ -61,6 +65,8 @@ export interface CanvasOverlayRect {
   readonly top: number;
   readonly width: number;
   readonly height: number;
+  readonly fontSize?: number;
+  readonly title?: boolean;
 }
 
 /** 右键菜单悬停：由 pointermove 命中测试托管，避免 WKWebView 在菜单重排后残留 :hover。 */
@@ -166,9 +172,9 @@ export function CanvasContextMenu({
               disabled={disabled}
             >
               <span className={styles.menuIcon} aria-hidden="true">
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M2 3h8M2 6h8M2 9h5" strokeLinecap="round" />
-                </svg>
+                <Icon size={12} viewBox="0 0 12 12">
+                  <path d="M2 3h8M2 6h8M2 9h5" />
+                </Icon>
               </span>
               新建文本节点
               {disabled ? (
@@ -187,11 +193,11 @@ export function CanvasContextMenu({
               disabled={disabled}
             >
               <span className={styles.menuIcon} aria-hidden="true">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <Icon size={12}>
                   <path d="M10.5 3.5A2.3 2.3 0 0 0 8.2 5.6 2.3 2.3 0 0 0 6.3 8.7a2.3 2.3 0 0 0 .5 4.2A2.3 2.3 0 0 0 9 17h1.5v-13.5Z" />
                   <path d="M13.5 3.5A2.3 2.3 0 0 1 15.8 5.6 2.3 2.3 0 0 1 17.7 8.7a2.3 2.3 0 0 1-.5 4.2A2.3 2.3 0 0 1 15 17h-1.5v-13.5Z" />
                   <path d="M10.5 17v1.5a1.5 1.5 0 0 0 3 0V17" />
-                </svg>
+                </Icon>
               </span>
               新建 AI 节点
               {disabled ? (
@@ -210,10 +216,10 @@ export function CanvasContextMenu({
               disabled={disabled}
             >
               <span className={styles.menuIcon} aria-hidden="true">
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M2.5 1.5h5L10 4v6.5H2.5Z" strokeLinejoin="round" />
-                  <path d="M7.5 1.5V4H10M4 7h4M4 9h2.5" strokeLinecap="round" />
-                </svg>
+                <Icon size={12} viewBox="0 0 12 12">
+                  <path d="M2.5 1.5h5L10 4v6.5H2.5Z" />
+                  <path d="M7.5 1.5V4H10M4 7h4M4 9h2.5" />
+                </Icon>
               </span>
               创建新文章
               <MenuNote reason={disabledReason} />
@@ -325,6 +331,18 @@ export function CanvasContextMenu({
               </button>
             </li>
           ) : null}
+          <li>
+            <button
+              type="button"
+              role="menuitem"
+              className={styles.contextMenuItem}
+              disabled={disabled}
+              onClick={() => onAction(menu.nodeType === 'text' ? 'editText' : 'editLabel')}
+            >
+              {menu.nodeType === 'text' ? '编辑文本' : '修改标题'}
+              <MenuNote reason={disabledReason} />
+            </button>
+          </li>
           <li className={styles.contextMenuDivider} />
           <li>
             <button
@@ -336,9 +354,9 @@ export function CanvasContextMenu({
               disabled={disabled}
             >
               <span className={styles.menuIcon} aria-hidden="true">
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M2 3h8M4.5 3V2h3v1M3 3l.5 7h5L9 3" strokeLinejoin="round" />
-                </svg>
+                <Icon size={12} viewBox="0 0 12 12">
+                  <path d="M2 3h8M4.5 3V2h3v1M3 3l.5 7h5L9 3" />
+                </Icon>
               </span>
               删除节点
               <MenuNote reason={disabledReason} />
@@ -357,9 +375,9 @@ export function CanvasContextMenu({
             disabled={disabled}
           >
             <span className={styles.menuIcon} aria-hidden="true">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M2 3h8M4.5 3V2h3v1M3 3l.5 7h5L9 3" strokeLinejoin="round" />
-              </svg>
+              <Icon size={12} viewBox="0 0 12 12">
+                <path d="M2 3h8M4.5 3V2h3v1M3 3l.5 7h5L9 3" />
+              </Icon>
             </span>
             删除连线
             <MenuNote reason={disabledReason} />
@@ -484,6 +502,7 @@ export interface CanvasEditOverlayProps {
   readonly editing: CanvasEditState;
   readonly rect: CanvasOverlayRect;
   readonly onCommitLabel: (label: string) => void;
+  readonly onCommitText: (text: string) => void;
   readonly onCommitPrompt: (text: string) => void;
   readonly onCancel: () => void;
 }
@@ -493,6 +512,7 @@ export function CanvasEditOverlay({
   editing,
   rect,
   onCommitLabel,
+  onCommitText,
   onCommitPrompt,
   onCancel,
 }: CanvasEditOverlayProps) {
@@ -518,12 +538,40 @@ export function CanvasEditOverlay({
       />
     );
   }
+  if (editing.kind === 'text') {
+    return (
+      <textarea
+        autoFocus
+        aria-label="编辑文本节点"
+        className={`${styles.editTextarea} ${styles.editNodeText}`}
+        defaultValue={editing.label}
+        style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }}
+        onFocus={(event) => event.currentTarget.setSelectionRange(0, 0)}
+        onBlur={(event) => onCommitText(event.currentTarget.value)}
+        onKeyDown={(event) => {
+          const action = canvasTextEditKeyAction(event.nativeEvent);
+          if (action === 'newline') {
+            event.preventDefault();
+            const target = event.currentTarget;
+            target.setRangeText('\n', target.selectionStart, target.selectionEnd, 'end');
+          } else if (action === 'cancel') {
+            event.preventDefault();
+            onCancel();
+          } else if (action === 'submit') {
+            event.preventDefault();
+            onCommitText(event.currentTarget.value);
+          }
+        }}
+      />
+    );
+  }
   return (
     <input
       autoFocus
-      className={styles.editInput}
+      className={`${styles.editInput} ${rect.title === true ? styles.editTitleInput : ''}`}
       defaultValue={editing.label}
-      style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }}
+      aria-label="修改节点标题"
+      style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height, fontSize: rect.fontSize }}
       type="text"
       onFocus={(e) => e.currentTarget.select()}
       onBlur={(e) => onCommitLabel(e.target.value)}

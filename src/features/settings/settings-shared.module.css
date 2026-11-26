@@ -1,0 +1,72 @@
+/* 设置详情页共用骨架：统一分组标签与设置项卡片，避免各页各写一套。 */
+
+.groupLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin: 0 0 var(--space-sm);
+  color: var(--settings-text-muted);
+  font-family: var(--font-body);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+}
+
+/* 与左栏分组文字同一识别符号：短橙色竖线。 */
+.groupLabel::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 2px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: var(--settings-active-text);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: var(--space-md);
+  border: 1px solid var(--settings-border);
+  border-radius: var(--radius-md);
+  background: var(--settings-paper-raised);
+}
+
+/* 即时保存反馈：保留一行高度，出现时不推动上方卡片。 */
+.saved {
+  min-height: 1em;
+  margin: var(--space-sm) 0 0;
+  color: var(--ember-success);
+  font-family: var(--font-body);
+  font-size: var(--text-2xs);
+  text-align: right;
+}
+
+/* 危险区：永久删除等不可撤销操作单独成组，避免与常规设置混排。 */
+.dangerZone {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  border: 1px solid var(--ember-danger-border);
+  border-radius: var(--radius-md);
+  background: var(--ember-danger-tint);
+}
+
+.dangerTitle {
+  margin: 0;
+  color: var(--ember-danger);
+  font-family: var(--font-body);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+}
+
+.dangerHint {
+  margin: 0;
+  color: var(--ember-text-muted);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+}

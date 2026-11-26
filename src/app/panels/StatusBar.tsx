@@ -44,9 +44,10 @@ export interface StatusBarProps {
   /** 画布模式的节点/连线/缩放；非画布或引擎未就绪时为 null。 */
   readonly canvasStats?: CanvasStats | null;
   readonly onResetZoom?: () => void;
+  readonly onFitAll?: () => void;
 }
 
-export function StatusBar({ canvasStats = null, onResetZoom }: StatusBarProps): ReactNode {
+export function StatusBar({ canvasStats = null, onResetZoom, onFitAll }: StatusBarProps): ReactNode {
   const status = useEmberStore((s) => s.status);
   const docCount = useEmberStore((s) => s.index.docs.size);
   const unsavedCount = useEmberStore((s) => countUnsaved(s.docs.values()));
@@ -111,9 +112,10 @@ export function StatusBar({ canvasStats = null, onResetZoom }: StatusBarProps): 
             <button
               type="button"
               className={styles.zoom}
-              title="点击回到 100%"
-              aria-label={`当前缩放 ${canvasStats.zoomPercent}%，点击回到 100%`}
+              title="单击回到 100%；双击适配全部节点"
+              aria-label={`当前缩放 ${canvasStats.zoomPercent}%，单击回到 100%，双击适配全部节点`}
               onClick={onResetZoom}
+              onDoubleClick={onFitAll}
             >
               {canvasStats.zoomPercent}%
             </button>

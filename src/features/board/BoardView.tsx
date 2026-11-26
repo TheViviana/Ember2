@@ -68,6 +68,9 @@ import {
 } from './snapshot-store.ts';
 import { buildBoardStats, type StatsStorage } from './stats-store.ts';
 import { BOARD_STALE_DAYS, filterBoardDocs, type BoardQuickFilter } from './scope.ts';
+import { DEFAULT_BOARD_FILTERS, loadBoardFilters, saveBoardFilters } from './filters.ts';
+import { BoardFilterBar } from './BoardFilterBar.tsx';
+import { BoardActionList, type BoardActionItem } from './BoardActionList.tsx';
 import { buildHeatmapMonthLabels, buildHeatmapWeeks } from './calendar.ts';
 import { formatBytes } from '../media/media-format.ts';
 import styles from './BoardView.module.css';
@@ -561,6 +564,16 @@ function SectionToggle({ open, onToggle, label }: SectionToggleProps) {
   );
 }
 
+/** 建议条选中的处理项；只影响展开清单，不写持久化筛选。 */
+type BoardIssue = 'unclassified' | 'isolated' | 'broken' | 'stale' | null;
+
+const ISSUE_TITLE: Record<Exclude<BoardIssue, null>, string> = {
+  unclassified: '未分类文档',
+  isolated: '孤立文档',
+  broken: '断链来源',
+  stale: '长期未更新',
+};
+
 export function BoardView({ docs, vaultId, links, readDoc, onRevealDoc }: BoardViewProps) {
   const [now, setNow] = useState(() => Date.now());
   const storage = useMemo(() => boardStorage(), []);
@@ -605,6 +618,7 @@ export function BoardView({ docs, vaultId, links, readDoc, onRevealDoc }: BoardV
   const [rangeDays, setRangeDays] = useState<number | null>(null);
   const [quickFilter, setQuickFilter] = useState<QuickFilter>(null);
   const [query, setQuery] = useState('');
+  const [issue, setIssue] = useState<BoardIssue>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [networkSelectedId, setNetworkSelectedId] = useState<string | null>(null);
   const [networkDimensionFilter, setNetworkDimensionFilter] = useState<BoardDimensionId | null>(
@@ -620,6 +634,7 @@ export function BoardView({ docs, vaultId, links, readDoc, onRevealDoc }: BoardV
   const networkCardRef = useRef<HTMLElement | null>(null);
   const distributionCardRef = useRef<HTMLElement | null>(null);
   const radarCardRef = useRef<HTMLElement | null>(null);
+  const detailCardRef = useRef<HTMLDivElement | null>(null);
 
   // 切库 / 重连：重新读取覆盖层、规则与历史快照。
   useEffect(() => {
@@ -639,6 +654,21 @@ export function BoardView({ docs, vaultId, links, readDoc, onRevealDoc }: BoardV
     setRulesWarning(loadedRules.warning);
     setSnapshots(loadSnapshots(storage, vaultId));
   }, [storage, vaultId]);
+
+  // 统一筛选：切库时恢复上次视图；之后每次变化按库写回。
+  useEffect(() => {
+    const filters = vaultId === null ? DEFAULT_BOARD_FILTERS : loadBoardFilters(storage, vaultId);
+    setRangeDays(filters.rangeDays);
+    setActiveDate(filters.activeDate);
+    setQuickFilter(filters.quickFilter);
+    setListFilter(filters.listFilter);
+    setIssue(null);
+  }, [storage, vaultId]);
+
+  useEffect(() => {
+    if (vaultId === null) return;
+    saveBoardFilters(storage, vaultId, { rangeDays, activeDate, quickFilter, listFilter });
+  }, [activeDate, listFilter, quickFilter, rangeDays, storage, vaultId]);
 
   // T1：后台读取正文标签；并发 4、可取消，缓存命中时几乎无 IO。
   useEffect(() => {
@@ -859,6 +889,51 @@ export function BoardView({ docs, vaultId, links, readDoc, onRevealDoc }: BoardV
     () => Math.max(1, ...distribution.dimensions.map((row) => row.count)),
     [distribution],
   );
+  // 建议项展开的可执行清单：按命中原因取前 6 篇，避免只给数字不给入口。
+  const actionView = useMemo(() => {
+    if (issue === null) return { items: [] as readonly BoardActionItem[], total: 0 };
+    if (issue === 'unclassified') {
+      const rows = scopeStats.filter((doc) => !dimensionLookup.has(doc.path));
+      return {
+        items: rows.slice(0, 6).map((doc) => ({ path: doc.path, title: doc.title })),
+        total: rows.length,
+      };
+    }
+    if (issue === 'stale') {
+      const cutoff = now - BOARD_STALE_DAYS * DAY_MS_RENDER;
+      const rows = scopeStats
+        .filter((doc) => doc.modifiedMs < cutoff)
+        .sort((left, right) => left.modifiedMs - right.modifiedMs);
+      return {
+        items: rows.slice(0, 6).map((doc) => ({
+          path: doc.path,
+          title: doc.title,
+          detail: `${Math.floor((now - doc.modifiedMs) / DAY_MS_RENDER)} 天未更新`,
+        })),
+        total: rows.length,
+      };
+    }
+    if (issue === 'isolated') {
+      return {
+        items: distribution.isolated
+          .slice(0, 6)
+          .map((row) => ({ path: row.path, title: row.title })),
+        total: distribution.isolatedTotal,
+      };
+    }
+    const seen = new Set<string>();
+    const items: BoardActionItem[] = [];
+    for (const link of distribution.brokenLinks) {
+      if (seen.has(link.from)) continue;
+      seen.add(link.from);
+      items.push({ path: link.from, title: link.fromTitle, detail: `→ ${link.to}` });
+      if (items.length >= 6) break;
+    }
+    return {
+      items,
+      total: new Set(distribution.brokenLinks.map((link) => link.from)).size,
+    };
+  }, [dimensionLookup, distribution, issue, now, scopeStats]);
   const presentDimensions = useMemo(() => {
     const present = new Set<BoardDimensionId>();
     for (const node of networkGraph.nodes) {
@@ -997,12 +1072,14 @@ export function BoardView({ docs, vaultId, links, readDoc, onRevealDoc }: BoardV
     setQuickFilter(null);
     setRangeDays(null);
     setListFilter('all');
+    setIssue(null);
   }
 
   function selectRange(days: number | null): void {
     setRangeDays(days);
     setActiveDate(null);
     setQuickFilter(null);
+    setIssue(null);
   }
 
   function selectQuick(filter: QuickFilter): void {
@@ -1010,6 +1087,7 @@ export function BoardView({ docs, vaultId, links, readDoc, onRevealDoc }: BoardV
     setActiveDate(null);
     setQuickFilter((current) => (current === filter ? null : filter));
     setListFilter('all');
+    setIssue(null);
   }
 
   function focusCard(ref: { readonly current: HTMLElement | null }): void {
@@ -1065,28 +1143,11 @@ export function BoardView({ docs, vaultId, links, readDoc, onRevealDoc }: BoardV
           </section>
         ) : (
           <>
-            {activeDate === null && quickFilter === null ? null : (
-              <div className={styles.filterBar} role="status">
-                <span className={styles.filterChip}>
-                  {activeDate !== null
-                    ? `筛选：${activeDate}`
-                    : quickFilter === 'week'
-                      ? '近 7 天有修改'
-                      : '90 天未更新'}
-                </span>
-                <span className={styles.filterCount}>命中 {filteredDocs.length} 篇</span>
-                <button
-                  type="button"
-                  className={styles.filterClear}
-                  onClick={() => {
-                    setActiveDate(null);
-                    setQuickFilter(null);
-                  }}
-                >
-                  清除
-                </button>
-              </div>
-            )}
+            <BoardFilterBar
+              filters={{ rangeDays, activeDate, quickFilter, listFilter }}
+              matched={filteredDocs.length}
+              onClear={clearAllFilters}
+            />
 
             <section className={styles.suggestions} aria-label="建议处理">
               <span className={styles.suggestionsTitle}>建议处理</span>
@@ -1096,8 +1157,10 @@ export function BoardView({ docs, vaultId, links, readDoc, onRevealDoc }: BoardV
                     <button
                       type="button"
                       className={styles.suggestion}
+                      data-active={issue === 'unclassified' ? 'true' : 'false'}
                       onClick={() => {
                         setListFilter('unclassified');
+                        setIssue('unclassified');
                         focusCard(classifyCardRef);
                       }}
                     >
@@ -1110,8 +1173,10 @@ export function BoardView({ docs, vaultId, links, readDoc, onRevealDoc }: BoardV
                     <button
                       type="button"
                       className={styles.suggestion}
+                      data-active={issue === 'isolated' ? 'true' : 'false'}
                       onClick={() => {
                         setNetworkIsolatedOnly(true);
+                        setIssue('isolated');
                         focusCard(networkCardRef);
                       }}
                     >
@@ -1124,7 +1189,11 @@ export function BoardView({ docs, vaultId, links, readDoc, onRevealDoc }: BoardV
                     <button
                       type="button"
                       className={styles.suggestion}
-                      onClick={() => focusCard(distributionCardRef)}
+                      data-active={issue === 'broken' ? 'true' : 'false'}
+                      onClick={() => {
+                        setIssue('broken');
+                        focusCard(distributionCardRef);
+                      }}
                     >
                       断链 <strong>{distribution.brokenLinksTotal}</strong>
                     </button>
@@ -1135,8 +1204,10 @@ export function BoardView({ docs, vaultId, links, readDoc, onRevealDoc }: BoardV
                     <button
                       type="button"
                       className={styles.suggestion}
+                      data-active={issue === 'stale' ? 'true' : 'false'}
                       onClick={() => {
                         selectQuick('stale');
+                        setIssue('stale');
                         focusCard(classifyCardRef);
                       }}
                     >
@@ -1156,6 +1227,19 @@ export function BoardView({ docs, vaultId, links, readDoc, onRevealDoc }: BoardV
                   </li>
                 ) : null}
               </ul>
+              {issue !== null && actionView.total > 0 ? (
+                <BoardActionList
+                  title={ISSUE_TITLE[issue]}
+                  total={actionView.total}
+                  items={actionView.items}
+                  onSelect={(path) => {
+                    selectDocument(path);
+                    focusCard(detailCardRef);
+                  }}
+                  onReveal={onRevealDoc}
+                  onDismiss={() => setIssue(null)}
+                />
+              ) : null}
               {scopeMetrics.totals.unclassified === 0 &&
               scopeMetrics.totals.isolated === 0 &&
               distribution.brokenLinksTotal === 0 &&
@@ -1720,7 +1804,7 @@ export function BoardView({ docs, vaultId, links, readDoc, onRevealDoc }: BoardV
                       ) : null}
                     </div>
 
-                    <div className={styles.detailPane}>
+                    <div className={styles.detailPane} ref={detailCardRef}>
                       {selected === null ? (
                         <p className={styles.detailEmpty}>选择左侧文档，勾选它所属的知识维度。</p>
                       ) : (

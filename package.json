@@ -1,7 +1,7 @@
 {
   "name": "ember",
   "license": "PolyForm-Noncommercial-1.0.0",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@12.15.0",
@@ -23,6 +23,7 @@
     "lint": "eslint . --max-warnings=0",
     "test": "node --test \"tests/**/*.test.ts\"",
     "gate": "node scripts/gates/all.mjs",
+    "audit:tokens": "node scripts/audit-tokens.mjs",
     "audit:deps": "pnpm audit --audit-level=high --registry=https://registry.npmjs.org/",
     "audit:cargo": "cd src-tauri && cargo audit",
     "check:rust": "cd src-tauri && cargo fmt --check && cargo check && cargo clippy -- -D warnings && cargo test && cargo audit",
@@ -30,6 +31,8 @@
   },
   "dependencies": {
     "@codemirror/lang-markdown": "6.5.2",
+    "@codemirror/language": "6.13.1",
+    "@codemirror/search": "6.7.2",
     "@codemirror/state": "6.7.6",
     "@codemirror/view": "6.43.15",
     "@tauri-apps/api": "2.12.4",

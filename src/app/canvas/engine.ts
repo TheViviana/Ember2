@@ -58,6 +58,7 @@ import {
   mergeAutoHeights,
   nodeScreenRect,
   nodeSizeOf,
+  nodeWorldRects,
   readOrigin,
   type CanvasNodeView,
 } from './node-layout.ts';
@@ -1349,14 +1350,14 @@ export class CanvasEngine {
 
   /** CR-20261119-11：预览阶段同步更新单个节点的 x+y+w+h，不写历史、不触发 schema 校验。 */
   private setNodeRect(id: string, x: number, y: number, w: number, h: number): void {
-    let changed = false;
-    this.nodeViews = this.nodeViews.map((node) => {
-      if (node.id !== id) return node;
-      if (node.x === x && node.y === y && node.w === w && node.h === h) return node;
-      changed = true;
-      return { ...node, x, y, w, h };
-    });
-    if (!changed) return;
+    const previous = this.nodeViews.find((node) => node.id === id);
+    if (previous === undefined || (previous.x === x && previous.y === y && previous.w === w && previous.h === h)) return;
+    const next = { ...previous, x, y, w, h };
+    this.nodeViews = this.nodeViews.map((node) => node.id === id ? next : node);
+    if (next.docPath !== undefined && !isNodeContentMode(previous) &&
+      isNodeContentMode(next) && this.isDocNodeVisible(next)) {
+      void this.docPreview?.requestText(next.docPath);
+    }
     this.dirtyNodeIds.add(id);
     this.scheduleFrame();
   }
@@ -1695,6 +1696,12 @@ export class CanvasEngine {
     );
   }
 
+  /** 状态栏双击：适配并居中全部节点；只缩小，不改文档与历史。 */
+  fitAllNodes(): void {
+    this.finishInitialFit();
+    this.applyTransform(fitRectsToViewport(nodeWorldRects(this.nodeViews), this.size, this.transform));
+  }
+
   private finishInitialFit(): void {
     this.initialFit = null;
   }
@@ -1710,16 +1717,7 @@ export class CanvasEngine {
       this.initialFit = null;
       return;
     }
-    const rects = this.nodeViews.map((node): Rect => {
-      const size = nodeSizeOf(node);
-      return {
-        left: node.x,
-        top: node.y,
-        right: node.x + size.w,
-        bottom: node.y + size.h,
-      };
-    });
-    const next = fitRectsToViewport(rects, this.size, this.transform);
+    const next = fitRectsToViewport(nodeWorldRects(this.nodeViews), this.size, this.transform);
     const changed =
       next.tx !== this.transform.tx ||
       next.ty !== this.transform.ty ||

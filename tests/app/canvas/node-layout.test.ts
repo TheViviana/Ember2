@@ -16,15 +16,18 @@ import {
   composeScreenPosition,
   extractNodeViews,
   extractNodes,
+  hasOutsideNodeLabel,
   hitTestNodes,
   isNodeContentMode,
   marqueeNodeIds,
   mergeAutoHeights,
   NODE_HEIGHT,
   nodeLocalPosition,
+  nodeOutsideLabelLayout,
   nodeScreenPosition,
   nodeScreenRect,
   nodeSizeOf,
+  nodeWorldRects,
   readOrigin,
   worldContainerOffset,
   type CanvasNodeView,
@@ -122,6 +125,21 @@ void test('节点 left/top = absolute - origin', () => {
   assert.deepEqual(nodeLocalPosition({ x: 2400, y: -480 }, transform), { x: 0, y: 0 });
 });
 
+void test('外标题布局：标题行定位与低缩放字号补偿同源', () => {
+  const node: CanvasNodeView = { id: 'd', label: '草稿', x: 22, y: 50, w: 240, docPath: 'a.md' };
+  assert.equal(hasOutsideNodeLabel(node), true);
+  assert.deepEqual(
+    nodeOutsideLabelLayout(node, createViewportTransform(0, 0, 1, 10, 20)),
+    { x: 12, y: 10, width: 240, fontSize: null },
+  );
+  const low = nodeOutsideLabelLayout(node, createViewportTransform(0, 0, 0.5, 10, 20));
+  assert.ok(Math.abs(low.y - (-4.4)) < EPSILON);
+  assert.equal(low.fontSize, 22, '0.5 倍缩放下 22px 本地字号映射为 11px 屏幕字号');
+  assert.equal(hasOutsideNodeLabel({ ...node, docPath: undefined }), false);
+  assert.equal(hasOutsideNodeLabel({ id: 'm', label: 'a.png', x: 0, y: 0, media: { kind: 'image', path: 'media/a.png' } }), false);
+  assert.equal(hasOutsideNodeLabel({ id: 'm', label: '封面', x: 0, y: 0, media: { kind: 'image', path: 'media/a.png' } }), true);
+});
+
 void test('extractNodes：只取 id 非空且 x/y 有限的节点，label 缺省用 id', () => {
   const document = parseCanvasDocument(
     '{"schemaVersion":2,"edges":[],"nodes":[{"id":"a","x":24,"y":48,"label":"草稿"},{"id":"b","x":-1,"y":2},{"id":"","x":1,"y":2},{"id":"c","x":"1","y":2},{"x":1,"y":2},"bad"]}',
@@ -142,6 +160,16 @@ void test('容器平移 = tx + origin * s；origin 为 0 时与 C1 输出一致'
   assert.equal(worldTransformCss(c1), 'translate3d(40px, -80px, 0) scale(1.5)');
   assert.deepEqual(worldContainerOffset(rebased), { x: 3640, y: -800 });
   assert.equal(worldTransformCss(rebased), 'translate3d(3640px, -800px, 0) scale(1.5)');
+});
+
+void test('fit-all 世界矩形复用节点实际尺寸与文档 autoH', () => {
+  assert.deepEqual(nodeWorldRects([
+    { id: 'a', label: 'a', x: 10, y: 20, w: 200, h: 120 },
+    { id: 'd', label: 'd', x: -30, y: 40, autoH: 180, docPath: 'd.md' },
+  ]), [
+    { left: 10, top: 20, right: 210, bottom: 140 },
+    { left: -30, top: 40, right: 130, bottom: 220 },
+  ]);
 });
 
 void test('C4 节点命中：zoom 0.05/8 边界含端点，重叠取数组靠后者', () => {

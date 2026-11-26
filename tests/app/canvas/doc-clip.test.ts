@@ -21,3 +21,21 @@ void test('文档内容有独立裁切壳：overflow hidden + 小一阶内表面
   assert.match(rule, /background:\s*var\(--ember-doc-content-bg\)/, '正文表面独立适配主题');
   assert.match(engine, /clip:\s*classOf\('docClip'\)/, 'engine 注入哈希类名');
 });
+
+void test('快照正文、标题、代码与表格使用可读字号和自然换行', () => {
+  const body = canvasCss.match(/\.docText\s*\{[^}]*\}/)?.[0] ?? '';
+  assert.match(body, /font-size:\s*var\(--text-base\)/);
+  assert.match(body, /line-height:\s*var\(--leading-article-zh\)/);
+  assert.match(body, /overflow-wrap:\s*break-word/);
+  assert.match(body, /word-break:\s*normal/);
+
+  const h1 = canvasCss.match(/\.docText h1\s*\{[^}]*\}/)?.[0] ?? '';
+  const h2 = canvasCss.match(/\.docText h2\s*\{[^}]*\}/)?.[0] ?? '';
+  assert.match(h1, /font-size:\s*var\(--text-xl\)/);
+  assert.match(h2, /font-size:\s*var\(--text-lg\)/);
+
+  for (const [selector, size] of [['pre', '--text-sm'], ['table', '--text-sm'], ['th', '--text-xs']] as const) {
+    const rule = canvasCss.match(new RegExp(`\\.docText ${selector}\\s*\\{[^}]*\\}`))?.[0] ?? '';
+    assert.match(rule, new RegExp(`font-size:\\s*var\\(\\${size}\\)`), `${selector} 字号不得过小`);
+  }
+});

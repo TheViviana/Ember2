@@ -270,6 +270,21 @@ export function createUpdateLabelCommand(id: string, label: string): CanvasComma
   return { kind: 'updateNode', id, changes: { label } };
 }
 
+export type CanvasTextEditKeyAction = 'newline' | 'submit' | 'cancel' | null;
+
+/** 文本节点：Shift+Enter 显式换行，普通 Enter 提交，Escape 取消。 */
+export function canvasTextEditKeyAction(event: {
+  readonly key: string;
+  readonly shiftKey: boolean;
+  readonly isComposing?: boolean;
+}): CanvasTextEditKeyAction {
+  if (event.isComposing === true) return null;
+  if (event.key === 'Escape') return 'cancel';
+  if (event.key === 'Enter' && event.shiftKey) return 'newline';
+  if (event.key === 'Enter') return 'submit';
+  return null;
+}
+
 /**
  * CR-20261118-05 §4.4：拉线落空新建节点的显式端口。
  * 这是调用方显式给出的字段，不是格式层在 addNode 时补默认值。

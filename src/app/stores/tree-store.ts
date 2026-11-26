@@ -8,7 +8,9 @@ export interface TreeUiState {
   readonly expanded: ReadonlySet<string>;
   readonly activePath: string | null;
   readonly openError: string | null;
-  /** CR-20261121-57：右键新建、尚无文件的目录（扫描不含空目录，前端兜底展示）。 */
+  /** 从 vault_list 递归读取的真实目录；重启后空目录也由此恢复。 */
+  readonly knownDirs: ReadonlySet<string>;
+  /** 本地新建目录的即时 overlay；真实目录刷新完成后移除。 */
   readonly pendingDirs: ReadonlySet<string>;
   /** CR-20261121-57：原位重命名中的文档行（新建文章后自动进入；null=无）。 */
   readonly editingPath: string | null;
@@ -16,6 +18,8 @@ export interface TreeUiState {
   readonly expandAncestors: (path: string) => void;
   readonly setActivePath: (path: string | null) => void;
   readonly setOpenError: (message: string | null) => void;
+  readonly setKnownDirs: (paths: ReadonlySet<string>) => void;
+  readonly removeKnownDirs: (paths: readonly string[]) => void;
   readonly addPendingDir: (path: string) => void;
   readonly removePendingDirs: (paths: readonly string[]) => void;
   readonly setEditingPath: (path: string | null) => void;
@@ -27,6 +31,7 @@ export const useTreeStore = create<TreeUiState>()((set) => ({
   expanded: new Set<string>(),
   activePath: null,
   openError: null,
+  knownDirs: new Set<string>(),
   pendingDirs: new Set<string>(),
   editingPath: null,
   toggleDir: (path) =>
@@ -56,6 +61,16 @@ export const useTreeStore = create<TreeUiState>()((set) => ({
     }),
   setActivePath: (path) => set({ activePath: path }),
   setOpenError: (message) => set({ openError: message }),
+  setKnownDirs: (paths) => set({ knownDirs: new Set(paths) }),
+  removeKnownDirs: (paths) =>
+    set((state) => {
+      const next = new Set(state.knownDirs);
+      let changed = false;
+      for (const path of paths) {
+        if (next.delete(path)) changed = true;
+      }
+      return changed ? { knownDirs: next } : state;
+    }),
   addPendingDir: (path) =>
     set((state) => {
       if (state.pendingDirs.has(path)) return state;
@@ -81,6 +96,7 @@ export const useTreeStore = create<TreeUiState>()((set) => ({
       };
       return {
         expanded: new Set([...state.expanded].map(map)),
+        knownDirs: new Set([...state.knownDirs].map(map)),
         pendingDirs: new Set([...state.pendingDirs].map(map)),
         activePath: state.activePath === null ? null : map(state.activePath),
         editingPath: state.editingPath === null ? null : map(state.editingPath),

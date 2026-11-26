@@ -10,7 +10,7 @@ const treeRow = readFileSync(join(ROOT, 'src/app/panels/TreeRow.tsx'), 'utf8');
 
 void test('无效画布不可打开，但保留右键删除入口', () => {
   assert.match(list, /aria-disabled=\{entry\.valid \? undefined : true\}/);
-  assert.match(list, /if \(!entry\.valid\) return;/);
+  assert.match(list, /if \(event\.detail > 1 \|\| !entry\.valid\) return;/);
   // 右键不再按 valid 分流；无效行也进入同一个菜单。
   assert.match(list, /onContextMenu=\{\(event\) => \{/);
   assert.match(list, /valid: entry\.valid/);
@@ -25,6 +25,12 @@ void test('文档库右键菜单按文件/文件夹给出删除，空白区不�
   assert.match(list, /\{treeMenu\.target\.kind === 'blank' \? null : \(/);
   assert.match(list, /treeMenu\.target\.kind === 'dir' \? '删除文件夹' : '删除文章'/);
   assert.match(list, /path: info\.path/, '右键目标必须携带真实路径');
+});
+
+void test('只有文章右键显示“在访达中查看”，并交给原生命令动作', () => {
+  assert.match(list, /treeMenu\.target\.kind === 'file' \? \(/);
+  assert.match(list, /void actions\.revealDoc\(target\.path\)/);
+  assert.match(list, /在访达中查看/);
 });
 
 void test('删除先经受控确认框，确认后才调用一次 vaultApi.remove', () => {

@@ -109,14 +109,14 @@
 .editor :global(.cm-editor) {
   height: 100%;
   background: transparent;
-  color: var(--ember-text-primary);
+  color: var(--ember-article-body);
   font-family: var(--font-body);
-  font-size: calc(var(--text-base) * var(--article-font-scale));
+  font-size: calc(var(--text-lg) * var(--article-font-scale));
 }
 
 .editor :global(.cm-editor .cm-scroller) {
   font-family: var(--font-body);
-  line-height: var(--leading-editor);
+  line-height: var(--leading-article-zh);
   /* 显式声明纵向滚动：保证长文可用滚轮/触控板翻阅。 */
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -202,9 +202,11 @@
   font-size: var(--text-xs);
 }
 
+/* CodeMirror 默认高亮给 heading 加了下划线；文章排版只用字号与字重分层。 */
 .editor :global(.cm-editor .tok-heading) {
   color: var(--ember-text-primary);
   font-weight: 600;
+  text-decoration: none;
 }
 
 .editor :global(.cm-editor .tok-strong) {
@@ -232,6 +234,86 @@
 
 .editor :global(.cm-editor .tok-string) {
   color: var(--ember-success);
+}
+
+/* 编辑模式 live-preview：只改装饰，光标进入结构后仍由同一 CodeMirror 文档编辑源码。 */
+.editor :global(.cm-editor .ember-live-heading-1),
+.editor :global(.cm-editor .ember-live-heading-2),
+.editor :global(.cm-editor .ember-live-heading-3),
+.editor :global(.cm-editor .ember-live-heading-4),
+.editor :global(.cm-editor .ember-live-heading-5),
+.editor :global(.cm-editor .ember-live-heading-6) {
+  color: var(--ember-article-ink);
+  font-family: var(--font-serif);
+  font-weight: 600;
+  line-height: var(--leading-tight);
+}
+
+.editor :global(.cm-editor .ember-live-heading-1) {
+  font-size: calc(var(--text-2xl) * var(--article-font-scale));
+}
+
+.editor :global(.cm-editor .ember-live-heading-2) {
+  font-size: calc(var(--text-xl) * var(--article-font-scale));
+}
+
+.editor :global(.cm-editor .ember-live-heading-3) {
+  font-size: calc(var(--text-lg) * var(--article-font-scale));
+}
+
+.editor :global(.cm-editor .ember-live-heading-4) {
+  font-size: calc(var(--text-base) * var(--article-font-scale));
+}
+
+.editor :global(.cm-editor .ember-live-heading-5) {
+  font-size: calc(var(--text-md) * var(--article-font-scale));
+}
+
+.editor :global(.cm-editor .ember-live-heading-6) {
+  color: var(--ember-article-2nd);
+  font-size: calc(var(--text-sm) * var(--article-font-scale));
+}
+
+.editor :global(.cm-editor .ember-live-strong) {
+  color: var(--ember-article-ink);
+  font-weight: 600;
+}
+
+.editor :global(.cm-editor .ember-live-emphasis) {
+  font-style: italic;
+}
+
+.editor :global(.cm-editor .ember-live-inline-code) {
+  border-radius: var(--radius-sm);
+  background: var(--ember-bg-elevated);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.editor :global(.cm-editor .ember-live-link) {
+  color: var(--ember-primary);
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+
+.editor :global(.cm-editor .ember-live-list-bullet),
+.editor :global(.cm-editor .ember-live-ordered-list-mark) {
+  color: var(--ember-primary);
+}
+
+.editor :global(.cm-editor .ember-live-list-bullet) {
+  display: inline-block;
+  width: 1em;
+  text-align: center;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.editor :global(.cm-editor .ember-live-quote) {
+  padding-left: var(--space-md);
+  border-left: 2px solid var(--ember-primary);
+  color: var(--ember-article-quote);
+  font-family: var(--font-serif);
 }
 
 .placeholder {

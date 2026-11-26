@@ -7,7 +7,7 @@
  * immersive（沉浸阅读：主区画布降至 40% 不透明度）为全局单开关，随浮窗并入迁此。
  */
 import { create } from 'zustand';
-import type { EditorMode } from '../../editor/EditorView.tsx';
+import type { EditorMode } from '../../editor/mode.ts';
 
 export interface EditorModeRequestState {
   /** 待消费的模式请求，按窗口 id（=文档路径）记账；消费后移除。 */

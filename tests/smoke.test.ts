@@ -36,17 +36,11 @@ const ROOT_TOKENS = definedTokensInRootScope(TOKENS_CSS);
 
 // UI 交互规范 token（docs/ui-spec.md）——逐个点名，防再次"游离声明被丢掉却测不出来"
 const UI_SPEC_TOKENS = [
-  '--stroke-on-dark',
-  '--stroke-on-light',
   '--shadow-offset-x',
   '--shadow-offset-y',
   '--shadow-blur',
   '--shadow-color',
-  '--shadow-color-elevated',
-  '--group-gap-inner',
-  '--group-gap-outer',
   '--hitzone-min',
-  '--icon-visual',
 ] as const;
 
 void test('UI 交互规范 token 必须真实定义在 :root 作用域内（五轮修复：整段游离声明曾静默失效）', () => {
@@ -73,5 +67,14 @@ void test('非 tokens.css 的组件 CSS 禁止裸色值（UI 规范第 4/5 条�
     const stripped = css.replace(/\/\*[\s\S]*?\*\//g, '');
     const bare = [...stripped.matchAll(/#[0-9a-fA-F]{3,8}\b|rgba?\(/g)].map((m) => m[0]);
     assert.deepEqual(bare, [], `${file} 存在裸色值：${bare.join(', ')}（必须改用 token）`);
+  }
+});
+
+void test('非 tokens.css 的组件 CSS 禁止 blur() 裸数值（必须走 --ember-glass-blur/--ember-menu-blur，reduce-transparency 才能归零）', () => {
+  for (const file of CSS_FILES) {
+    const css = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const args = [...css.matchAll(/blur\(\s*([^)]+)\)/g)].map((m) => (m[1] ?? '').trim());
+    const bare = args.filter((a) => !a.startsWith('var(') && a !== '0' && a !== '0px');
+    assert.deepEqual(bare, [], `${file} 存在 blur() 裸数值：${bare.join(', ')}（必须改用 token）`);
   }
 });

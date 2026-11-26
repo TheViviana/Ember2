@@ -22,6 +22,7 @@ import type {
   BackupDestinationDto,
   BackupInspectDto,
   BackupReportDto,
+  DirEntryDto,
   HistoryDeleteDto,
   HistoryPurgeDto,
   HistoryReadDto,
@@ -61,6 +62,12 @@ export const docApi = Object.freeze({
 
 /** 库目录结构写：建目录 / 移入回收站 / 改名 / 导入外部文件 / 全库扫描 / 批量替换。 */
 export const vaultApi = Object.freeze({
+  list(path?: string): Promise<DirEntryDto[]> {
+    return ipcClient.invoke('vault_list', path === undefined ? {} : { path });
+  },
+  reveal(path: string): Promise<null> {
+    return ipcClient.invoke('vault_reveal', { path });
+  },
   mkdir(path: string): Promise<null> {
     return ipcClient.invoke('vault_mkdir', { path });
   },
@@ -112,6 +119,10 @@ export const libraryApi = Object.freeze({
 export const mediaApi = Object.freeze({
   save(sourcePath: string): Promise<MediaSaveDto> {
     return ipcClient.invoke('media_save', { sourcePath });
+  },
+  /** 内存字节入库（粘贴截图）；判型与去重仍在后端。 */
+  saveBytes(data: string): Promise<MediaSaveDto> {
+    return ipcClient.invoke('media_save_bytes', { data });
   },
   list(): Promise<MediaEntryDto[]> {
     return ipcClient.invoke('media_list');

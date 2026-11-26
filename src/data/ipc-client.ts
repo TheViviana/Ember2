@@ -52,6 +52,7 @@ import type {
   LibraryRemoveRequest,
   MediaDeleteRequest,
   MediaEntryDto,
+  MediaSaveBytesRequest,
   MediaSaveDto,
   MediaSaveRequest,
   ReadCanvasDto,
@@ -69,6 +70,7 @@ import type {
   VaultImportRequest,
   VaultListRequest,
   VaultReadRequest,
+  VaultRevealRequest,
   VaultMkdirRequest,
   VaultRemoveRequest,
   VaultRenameRequest,
@@ -106,6 +108,7 @@ export interface IpcCommandMap {
   vault_identity: { args: undefined; result: VaultIdentityDto };
   vault_constants: { args: undefined; result: VaultConstantsDto };
   vault_read: { args: VaultReadRequest; result: ReadDocDto };
+  vault_reveal: { args: VaultRevealRequest; result: null };
   vault_write: { args: VaultWriteRequest; result: WriteDocDto };
   vault_replace: { args: VaultReplaceRequest; result: ReplaceDocDto };
   vault_import: { args: VaultImportRequest; result: ImportDocDto };
@@ -119,6 +122,7 @@ export interface IpcCommandMap {
   canvas_rename: { args: { id: string; newId: string }; result: ReadCanvasDto };
 
   media_save: { args: MediaSaveRequest; result: MediaSaveDto };
+  media_save_bytes: { args: MediaSaveBytesRequest; result: MediaSaveDto };
   media_list: { args: undefined; result: MediaEntryDto[] };
   media_delete: { args: MediaDeleteRequest; result: TrashResultDto };
 

@@ -32,6 +32,17 @@ import { RecoveryDemoBody } from '../../windows/RecoveryDemoPanel.tsx';
 import { SETTINGS_ENTRIES } from './settings-registry.ts';
 import { buildSettingsNav, findSettingsNavEntry, type SettingsPageId } from './settings-nav.ts';
 import { SETTINGS_HOME_ID, SettingsShell } from './SettingsShell.tsx';
+import { useAiChatStore } from '../../features/ai/ai-chat-store.ts';
+import { readArticleFontSize } from '../../core/article-font.ts';
+import { readThemePreference } from '../../features/settings/appearance.ts';
+import { loadTranslateSettings } from '../../features/translate/translate-settings.ts';
+
+const FONT_BADGE = {
+  small: '较小字号',
+  default: '默认字号',
+  large: '较大字号',
+  xlarge: '特大字号',
+} as const;
 
 export interface SettingsShellHostProps {
   readonly open: boolean;
@@ -168,12 +179,28 @@ export function SettingsShellHost({
   };
 
   const activeEntry = findSettingsNavEntry(sections, entry);
+  const aiModel = useAiChatStore((state) => state.config.model);
+  // 每次渲染重读本地偏好：返回首页、重新打开时都能看到最新值。
+  const theme = readThemePreference();
+  const font = readArticleFontSize();
+  const translate = loadTranslateSettings();
+  const badges: Record<string, string> = {
+    appearance: theme === 'system' ? '跟随系统' : theme === 'light' ? '浅色' : '深色',
+    editor: FONT_BADGE[font],
+    ai: aiModel === null || aiModel === '' ? '未配置' : aiModel,
+    translate: translate.targetLang,
+    library:
+      vaultId === null
+        ? '未连接'
+        : (vaultId.split('/').filter((part) => part !== '').at(-1) ?? vaultId),
+  };
 
   return (
     <SettingsShell
       open={open}
       sections={sections}
       activeId={entry}
+      badges={badges}
       onSelect={handleSelect}
       onClose={onClose}
     >

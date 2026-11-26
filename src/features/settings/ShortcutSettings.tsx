@@ -92,7 +92,11 @@ export function ShortcutSettingsBody({ definitions, bindings, onSave }: Shortcut
                 <span>{definition.category}</span>
               </div>
               <span className={styles.binding}>
-                {recording === definition.id ? '请按新快捷键…' : formatBindingList(current)}
+                {recording === definition.id ? (
+                  <span className={styles.recording}>录制中 · 按下新按键</span>
+                ) : (
+                  formatBindingList(current)
+                )}
               </span>
               <div className={styles.rowActions}>
                 <button
@@ -127,6 +131,14 @@ export function ShortcutSettingsBody({ definitions, bindings, onSave }: Shortcut
           );
         })}
       </div>
+      {visible.length === 0 ? (
+        <div className={styles.empty}>
+          <p>没有匹配的快捷键</p>
+          <button type="button" onClick={() => setQuery('')}>
+            清除搜索
+          </button>
+        </div>
+      ) : null}
       {conflicts.length > 0 ? (
         <div className={styles.error} role="alert">
           {conflicts.map((conflict) => (

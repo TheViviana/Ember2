@@ -10,6 +10,7 @@ import {
   type WorkbenchTrashEntry,
 } from './health-flow.ts';
 import styles from './health.module.css';
+import shared from '../settings/settings-shared.module.css';
 
 export type { HealthPanelEffects, WorkbenchTrashEntry } from './health-flow.ts';
 
@@ -148,18 +149,24 @@ export function HealthSettingsBody({ effects, confirmCleanup }: HealthSettingsBo
             })}
           </div>
 
-          <footer className={styles.footer}>
-            <span className={styles.selection}>已选择 {selected.size} 项</span>
-            <span className={styles.spacer} />
-            <button
-              type="button"
-              className={styles.dangerButton}
-              onClick={() => { void cleanup(); }}
-              disabled={busy !== null || selected.size === 0}
-            >
-              {busy === 'cleanup' ? '正在永久删除…' : '永久删除所选'}
-            </button>
-          </footer>
+          <section className={shared.dangerZone} aria-label="危险区：永久删除">
+            <h3 className={shared.dangerTitle}>危险区</h3>
+            <p className={shared.dangerHint}>
+              永久删除会移除 Workbench 回收站中的文件，无法撤销；请先确认勾选项。
+            </p>
+            <footer className={styles.footer}>
+              <span className={styles.selection}>已选择 {selected.size} 项</span>
+              <span className={styles.spacer} />
+              <button
+                type="button"
+                className={styles.dangerButton}
+                onClick={() => { void cleanup(); }}
+                disabled={busy !== null || selected.size === 0}
+              >
+                {busy === 'cleanup' ? '正在永久删除…' : '永久删除所选'}
+              </button>
+            </footer>
+          </section>
     </div>
   );
 }

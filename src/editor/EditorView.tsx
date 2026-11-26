@@ -32,6 +32,11 @@ import {
   shouldWriteBack,
 } from './sync.ts';
 import { mediaPreviewExtension } from './media-preview.ts';
+import { search } from '@codemirror/search';
+import { frontmatterConceal } from './frontmatter-conceal.ts';
+import { livePreviewExtension } from './live-preview.ts';
+import { EditorSearchPanel } from './EditorSearchPanel.tsx';
+import { hostPasteExtension } from './paste.ts';
 import type { PreviewTranslation } from './MarkdownPreview.tsx';
 import type { AiSelectionCardState, AiTextRunner } from './AiSelectionMenu.tsx';
 import {
@@ -52,6 +57,7 @@ import { readGutterVisible, subscribeGutterVisible } from '../core/gutter-prefer
 import { EDITOR_STYLE_NONCE } from './csp-nonce.ts';
 import { ArticleOutline } from './ArticleOutline.tsx';
 import { parseArticleOutline } from './article-outline.ts';
+import { editorIsReadOnly, useEditorMode, type EditorMode } from './mode.ts';
 import type {
   EditorConflictChoice,
   EditorControl,
@@ -86,8 +92,8 @@ const PHASE_CLASS: Record<SavePhase, string> = {
   error: styles.phaseError ?? '',
 };
 
-/** 浮窗三态：编辑 / 专注（隐藏外壳）/ 阅读（安全预览）。 */
-export type EditorMode = 'edit' | 'focus' | 'read';
+/** 内容模式：源码 / 阅读；专注是可叠加的独立开关。 */
+export type { EditorMode } from './mode.ts';
 
 const EMPTY_BACKLINKS: BacklinksState = Object.freeze({
   status: 'idle',
@@ -112,8 +118,8 @@ export interface EditorViewProps {
   /** 面包屑展示用：库名与文档标题（标题回退文件名由 app 层计算）。 */
   readonly libraryName?: string | null;
   readonly documentTitle?: string;
-  /** 标签栏由 app 层（EditorWindow）渲染后注入；本层不直接引标签组件。 */
-  readonly tagBar?: ReactNode;
+  /** 标签栏由 app 层渲染；本层提供内容模式的只读状态。 */
+  readonly tagBar?: (state: { readonly readOnly: boolean }) => ReactNode;
   /** 反向链接（按需建立索引，未建立时 status 为 idle）。 */
   readonly backlinks?: BacklinksState;
   readonly onBuildBacklinks?: () => void;
@@ -178,8 +184,10 @@ export function EditorView({
   const onModeRequestConsumedRef = useRef(onModeRequestConsumed);
   const [resolving, setResolving] = useState<EditorConflictChoice | null>(null);
   const [conflictError, setConflictError] = useState<string | null>(null);
-  /** CR-20261120-34：编辑 / 专注 / 阅读三态；阅读模式不卸载 CodeMirror。 */
-  const [mode, setMode] = useState<EditorMode>('edit');
+  /** 源码/阅读与专注正交；阅读模式不卸载 CodeMirror。 */
+  const { state: modeState, dispatch: dispatchMode, changeMode, toggleFocus } = useEditorMode();
+  const mode = modeState.mode;
+  const focusMode = modeState.focus;
   const [backlinksOpen, setBacklinksOpen] = useState(false);
   /**
    * §10 衬线阅读（原浮窗功能随迁）：仅作用于阅读模式预览。
@@ -266,15 +274,15 @@ export function EditorView({
   // 译文只存在于阅读模式的正文末尾：翻译一出现就自动切到阅读模式。
   const translationActive = translation !== null;
   useEffect(() => {
-    if (translationActive) setMode('read');
-  }, [translationActive]);
+    if (translationActive) dispatchMode({ type: 'content', mode: 'read' });
+  }, [translationActive, dispatchMode]);
 
-  // §10 统一单窗口：外部模式请求（画布「打开阅读浮窗」→ read）应用后即消费。
+  // 外部打开请求明确指定源码/阅读，并退出专注，避免复用窗口沿用旧状态。
   useEffect(() => {
     if (modeRequest === null) return;
-    setMode(modeRequest);
+    dispatchMode({ type: 'request', mode: modeRequest });
     onModeRequestConsumedRef.current?.();
-  }, [modeRequest]);
+  }, [modeRequest, dispatchMode]);
 
   // 生命周期内只创建一次 CodeMirror 实例；卸载时销毁。
   useEffect(() => {
@@ -292,7 +300,11 @@ export function EditorView({
       // 会被拦截（2026-11-23 打包版行号/滚动回归的根因）。
       CodeMirrorView.cspNonce.of(EDITOR_STYLE_NONCE),
       markdown(),
+      frontmatterConceal,
+      livePreviewExtension(),
       mediaPreviewExtension(readMediaReferences),
+      search({ top: true }),
+      hostPasteExtension(() => hostRef.current, () => onNoticeRef.current),
       CodeMirrorView.lineWrapping,
       CodeMirrorView.updateListener.of((update) => {
         if (update.selectionSet) reportAiSelectionRef.current?.(update.view);
@@ -300,6 +312,7 @@ export function EditorView({
           (transaction) => transaction.annotation(externalUpdate) === true,
         );
         if (!shouldWriteBack({ docChanged: update.docChanged, external })) return;
+        if (update.view.state.readOnly || modeRef.current === 'read') return;
         hostRef.current.writeBack(windowIdRef.current, update.state.doc.toString());
       }),
     ];
@@ -308,7 +321,7 @@ export function EditorView({
     const view = new CodeMirrorView({
       state: EditorState.create({
         doc: '',
-        extensions: [...extensions, lockCompartment.of(lockExtensions(false))],
+        extensions: [...extensions, lockCompartment.of(lockExtensions(modeRef.current === 'read'))],
       }),
       parent,
     });
@@ -350,7 +363,9 @@ export function EditorView({
         lockedRef.current = locked;
         const current = viewRef.current;
         if (!current) return;
-        current.dispatch({ effects: lockCompartment.reconfigure(lockExtensions(locked)) });
+        current.dispatch({
+          effects: lockCompartment.reconfigure(lockExtensions(locked || modeRef.current === 'read')),
+        });
       },
       insertMedia: (media, point) => {
         insertMediaAt(
@@ -446,7 +461,10 @@ export function EditorView({
       view.setState(
         EditorState.create({
           doc: doc.text,
-          extensions: [...extensions, lockCompartment.of(lockExtensions(lockedRef.current))],
+          extensions: [
+            ...extensions,
+            lockCompartment.of(lockExtensions(lockedRef.current || modeRef.current === 'read')),
+          ],
         }),
       );
       initializedRef.current = true;
@@ -460,6 +478,25 @@ export function EditorView({
       annotations: externalUpdate.of(true),
     });
   }, [loadState, doc]);
+
+  // 阅读是写入边界，不只是预览外观；关窗锁定与阅读锁定取并集。
+  useEffect(() => {
+    const view = viewRef.current;
+    const lockCompartment = lockCompartmentRef.current;
+    if (view !== null && lockCompartment !== null) {
+      view.dispatch({
+        effects: lockCompartment.reconfigure(
+          lockExtensions(editorIsReadOnly(modeState, lockedRef.current)),
+        ),
+      });
+    }
+    if (modeState.mode !== 'read') return;
+    aiCancelRef.current?.();
+    aiCancelRef.current = null;
+    aiRangeRef.current = null;
+    setAiMenu(null);
+    setAiCard(null);
+  }, [modeState]);
 
   const handleResolve = (choice: EditorConflictChoice): void => {
     if (doc === null || doc.externalKind === null) return;
@@ -486,7 +523,6 @@ export function EditorView({
   const external = doc?.externalKind ?? null;
   const showPlaceholder = loadState !== 'ready' || doc === null;
   const savePhase = deriveSavePhase(doc);
-  const focusMode = mode === 'focus';
   const chromeHidden = focusMode;
 
   /* 专注态 Esc 退出（顶栏已隐藏，键盘必须留逃生通道）；AI 浮层打开时先关浮层。 */
@@ -496,11 +532,11 @@ export function EditorView({
       if (event.key !== 'Escape') return;
       if (aiPopupOpenRef.current) return;
       event.preventDefault();
-      setMode('read');
+      dispatchMode({ type: 'exit-focus' });
     };
     window.addEventListener('keydown', handleKey, true);
     return () => window.removeEventListener('keydown', handleKey, true);
-  }, [focusMode]);
+  }, [focusMode, dispatchMode]);
 
   // CR-20261121-49：阅读模式的原生选区 → 动作浮层（预览是 DOM 渲染，走 selectionchange）。
   useEffect(() => {
@@ -586,6 +622,10 @@ export function EditorView({
     const range = aiRangeRef.current;
     const view = viewRef.current;
     if (card === null || card.status !== 'done' || range === null || view === null) return;
+    if (view.state.readOnly || modeRef.current === 'read') {
+      onNoticeRef.current?.('阅读模式为只读，无法替换正文', 'warning');
+      return;
+    }
     const current = view.state.doc.toString();
     let from = range.from;
     let to = range.to;
@@ -609,30 +649,11 @@ export function EditorView({
     aiCancelRef.current = null;
     setAiCard(null);
     setAiMenu(null);
-    if (modeRef.current !== 'read') view.focus();
+    view.focus();
   };
 
   const documentTitleText = documentTitle
     ?? (doc === null ? '' : doc.path.split('/').pop() ?? doc.path);
-
-  // ⌘1/2/3 在编辑 / 专注 / 阅读之间切换。
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
-      if (event.key === '1') {
-        event.preventDefault();
-        setMode('edit');
-      } else if (event.key === '2') {
-        event.preventDefault();
-        setMode('focus');
-      } else if (event.key === '3') {
-        event.preventDefault();
-        setMode('read');
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   const readSelectedText = (): string | null => {
     if (mode === 'read') {
@@ -695,7 +716,8 @@ export function EditorView({
           backlinks={backlinks}
           onToggleBacklinks={() => setBacklinksOpen((open) => !open)}
           mode={mode}
-          onModeChange={setMode}
+          onModeChange={changeMode}
+          onToggleFocus={toggleFocus}
           serif={serif}
           immersive={immersive}
           onToggleSerif={() => setSerif((prev) => !prev)}
@@ -703,7 +725,9 @@ export function EditorView({
         />
       ) : null}
 
-      {!chromeHidden && loadState === 'ready' && doc !== null ? tagBar : null}
+      {!chromeHidden && loadState === 'ready' && doc !== null
+        ? tagBar?.({ readOnly: mode === 'read' })
+        : null}
 
       {!chromeHidden && mode === 'edit' && loadState === 'ready' && doc !== null ? (
         <EditorToolbar disabled={lockedRef.current} onAction={applyFormat} />
@@ -725,6 +749,7 @@ export function EditorView({
           ref={hostElementRef}
           className={`${styles.editor} ${mode === 'read' ? styles.editorHidden : ''}`}
         />
+        <EditorSearchPanel viewRef={viewRef} onNotice={onNotice} enabled={mode !== 'read'} />
         {mode === 'read' && loadState === 'ready' && doc !== null ? (
           <EditorPreviewPane
             text={doc.text}
@@ -734,7 +759,7 @@ export function EditorView({
             serif={serif}
           />
         ) : null}
-        {loadState === 'ready' && doc !== null && mode !== 'focus' ? (
+        {loadState === 'ready' && doc !== null && !focusMode ? (
           <ArticleOutline
             items={outlineItems}
             mode={mode}

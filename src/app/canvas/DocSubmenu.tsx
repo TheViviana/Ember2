@@ -12,6 +12,7 @@ import {
   type RefObject,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { Icon } from '../../ui/icon.tsx';
 import type { TreeDirNode, TreeNode } from '../tree/build-tree.ts';
 import {
   closeDocSubmenuFrom,
@@ -195,9 +196,9 @@ function DirectoryItem({
       >
         <span className={styles.label}>{node.name}</span>
         <span className={styles.arrow} aria-hidden="true">
-          <svg width="10" height="10" viewBox="0 0 8 8" fill="none" aria-hidden="true">
-            <path d="M2.5 1.5L5.5 4L2.5 6.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <Icon size={12} viewBox="0 0 8 8">
+            <path d="M2.5 1.5 5.5 4 2.5 6.5" />
+          </Icon>
         </span>
       </button>
       {open ? (
@@ -345,9 +346,9 @@ export function DocSubmenu({
             <span className={styles.reason}>{disabledReason}</span>
           ) : (
             <span className={styles.arrow} aria-hidden="true">
-              <svg width="10" height="10" viewBox="0 0 8 8" fill="none" aria-hidden="true">
-                <path d="M2.5 1.5L5.5 4L2.5 6.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <Icon size={12} viewBox="0 0 8 8">
+                <path d="M2.5 1.5 5.5 4 2.5 6.5" />
+              </Icon>
             </span>
           )}
         </button>

@@ -25,10 +25,18 @@ void test('拉线落空菜单有「创建新文章」并自动连边', () => {
 });
 
 void test('空文章写到库根「未命名文章.md」，重名自动编号', () => {
-  assert.match(article, /未命名文章\.md/);
-  assert.match(article, /未命名文章-\$\{attempt \+ 1\}\.md/);
+  assert.match(article, /createUniqueArticle\('未命名文章'\)/);
+  assert.match(article, /\$\{baseName\}\.md/);
+  assert.match(article, /\$\{baseName\}-\$\{attempt \+ 1\}\.md/);
   assert.match(article, /store\.createDoc\(candidate\)/);
   assert.match(article, /result\.reason !== 'EXISTS'/);
+});
+
+void test('AI 回答先写入真实 Markdown，再在同一画布添加文档节点', () => {
+  assert.match(article, /createUniqueArticle\('AI 回答'\)/);
+  assert.match(article, /store\.writeDocText\(rel, text, sha256\)/);
+  assert.match(article, /canvas\.getEngine\(\) !== engine/);
+  assert.match(article, /canvas\.addNodeCentered\('document', rel\)/);
 });
 
 void test('创建后挂载 document 节点；右键只加节点，拉线再加边', () => {

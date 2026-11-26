@@ -17,8 +17,8 @@ import type { CSSProperties, RefObject, WheelEvent as ReactWheelEvent } from 're
 import type { ArticleOutlineItem } from './article-outline.ts';
 import styles from './ArticleOutline.module.css';
 
-/** 与 EditorView 的三态同名，避免 editor 内部类型循环依赖。 */
-export type OutlineSurface = 'edit' | 'focus' | 'read';
+/** 大纲只关心源码或阅读内容；专注开关不影响定位方式。 */
+export type OutlineSurface = 'edit' | 'read';
 
 const HEADING_SELECTOR = 'h1, h2, h3, h4, h5, h6';
 const PREVIEW_SELECTOR = '[data-markdown-preview]';
@@ -75,7 +75,7 @@ export function ArticleOutline({
   const dotListRef = useRef<HTMLDivElement | null>(null);
   const dotRefs = useRef(new Map<string, HTMLButtonElement>());
 
-  const active = items.length > 0 && mode !== 'focus';
+  const active = items.length > 0;
 
   // 滚动高亮：最后一个越过阅读线的标题即当前章节。
   useEffect(() => {

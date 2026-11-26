@@ -33,11 +33,20 @@ void test('指针、滚轮、键盘与重置/缩放命令都会优先结束初�
     const body = source.slice(start, start + 700);
     assert.match(body, /this\.finishInitialFit\(\)/, `${handler} 应结束初始适配`);
   }
-  for (const method of ['resetPrecisionView', 'resetView', 'zoomAtCenter']) {
+  for (const method of ['resetPrecisionView', 'resetView', 'zoomAtCenter', 'fitAllNodes']) {
     const start = source.indexOf(`  ${method}(`);
     assert.ok(start >= 0, `缺少 ${method}`);
     assert.match(source.slice(start, start + 260), /this\.finishInitialFit\(\)/);
   }
+});
+
+void test('文档节点 resize 跨内容阈值时直接请求快照，不等待浮窗填充 live text', () => {
+  const start = source.indexOf('  private setNodeRect(');
+  const body = source.slice(start, source.indexOf('  private updateMarquee(', start));
+  assert.match(body, /!isNodeContentMode\(previous\)/);
+  assert.match(body, /isNodeContentMode\(next\)/);
+  assert.match(body, /this\.docPreview\?\.requestText\(next\.docPath\)/);
+  assert.match(body, /this\.isDocNodeVisible\(next\)/);
 });
 
 void test('每次 doMount 都创建新的初始适配周期，dispose 则清理', () => {

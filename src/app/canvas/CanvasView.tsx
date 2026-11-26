@@ -50,7 +50,6 @@ import {
   createUpdateAiTextCommand,
   createUpdateDocPathCommand,
   createUpdateLabelCommand,
-  createUpdatePromptTextCommand,
   documentTitleFromPath,
   isSafeLibraryDocPath,
   resolveFinderDocumentPath,
@@ -58,7 +57,7 @@ import {
 } from './canvas-interactions.ts';
 import { useAiChatStore } from '../../features/ai/ai-chat-store.ts';
 import { POINTER_DRAG_DROP_EVENT, readPointerDragDropDetail } from '../dnd/pointer-drag.ts';
-import { hitTestNodes, nodeSizeOf } from './node-layout.ts';
+import { hasOutsideNodeLabel, hitTestNodes, nodeOutsideLabelLayout, nodeScreenPosition, nodeSizeOf } from './node-layout.ts';
 import { pushNotice } from '../stores/notice-store';
 import { openLibraryDocument } from '../doc-open.ts';
 import { createDropTargetRegistry, readPayload } from '../dnd/index.ts';
@@ -72,6 +71,8 @@ import {
 import { aiApi, docApi, mediaApi } from '../../data/app-api.ts';
 import type { DragDropDropEvent } from '../../data/drag-drop-port';
 import { useEmberStore } from '../stores/ember-store';
+import { useTreeStore } from '../stores/tree-store.ts';
+import { useEditorModeRequestStore } from '../stores/editor-mode-requests.ts';
 import { useTranslateStore } from '../translate/translate-store.ts';
 import { buildTree } from '../tree/build-tree.ts';
 import { buildMediaMenuTree } from './media-menu-tree.ts';
@@ -80,7 +81,6 @@ import {
   CanvasContextMenu,
   CanvasEditOverlay,
   CanvasModelMenu,
-  type CanvasEditState,
   type CanvasMenu,
   type CanvasModelChoices,
   type CanvasModelPickerState,
@@ -96,6 +96,7 @@ import { modelFieldRect, modelMenuLayout } from './model-menu.ts';
 import { clampMenuPoint } from './menu-position.ts';
 import { useCreateEmptyArticle } from './use-create-empty-article.ts';
 import { useConnectionNodeChoice } from './use-connection-node-choice.ts';
+import { useCanvasEditing } from './use-canvas-editing.ts';
 import { PromptEditorWindow } from './PromptEditorWindow.tsx';
 import styles from './CanvasView.module.css';
 import { formatUnknownError } from '../../core/errors.ts';
@@ -203,8 +204,8 @@ export interface CanvasViewController {
   resetZoom(): void;
   /** CR-20261119-13：命令总线委托——取消手势。 */
   cancelGesture(): void;
-  /** 命令总线委托——视口中心新建文本或 AI 节点。 */
-  addNodeCentered(kind: 'text' | 'ai'): void;
+  /** 视口中心新建文本、AI 或文档节点；文档节点传 docPath。 */
+  addNodeCentered(kind: 'text' | 'ai' | 'document', docPath?: string): boolean;
   /** S4：看板定位——按文档路径查找节点，选中并居中；未找到返回 false。 */
   revealDoc(docPath: string): boolean;
   /** CR-20261119-13：命令总线委托——是否有选中。 */
@@ -264,17 +265,23 @@ function noticeTone(notice: CanvasNotice): 'info' | 'warning' | 'error' {
   return 'info';
 }
 
-/** C0-D：节点编辑浮层的屏幕定位（对齐节点盒，随视口变换）。 */
+/** C0-D：文本铺满节点；独立标题只覆盖外标题所在行。 */
 function editOverlayRect(
   nodeId: string,
   nodeX: number,
   nodeY: number,
   engine: CanvasEngine,
 ): CanvasOverlayRect {
-  const { tx, ty, scale, originX, originY } = engine.getTransform();
+  const transform = engine.getTransform();
   const current = engine.getNodeViews().find((node) => node.id === nodeId);
+  if (current !== undefined && hasOutsideNodeLabel(current)) {
+    const label = nodeOutsideLabelLayout(current, transform);
+    const point = nodeScreenPosition(label, transform);
+    const fontSize = (label.fontSize ?? 13) * transform.scale;
+    return { left: point.x, top: point.y, width: label.width * transform.scale, height: fontSize * 1.2, fontSize, title: true };
+  }
+  const { tx, ty, scale, originX, originY } = transform;
   const size = nodeSizeOf(current ?? {});
-  // CR-20261121-59：编辑浮层铺满节点矩形（原位修改，不再是节点内的「另一个框」）。
   return {
     left: (nodeX + originX) * scale + tx,
     top: (nodeY + originY) * scale + ty,
@@ -304,7 +311,8 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
   const [mediaEntries, setMediaEntries] = useState<readonly MediaEntry[]>([]);
   /** 内容驱动背景：恰好选中一个图片节点时的媒体地址。 */
   const [ambientSource, setAmbientSource] = useState<AmbientPhotoSource | null>(null);
-  const [editing, setEditing] = useState<CanvasEditState | null>(null);
+  const { editing, setEditing, commitPromptEdit, commitEdit, commitTextEdit, cancelEdit } =
+    useCanvasEditing(sessionRef, readOnly);
   const [docViewer, dispatchDocViewer] = useReducer(docViewerReducer, undefined, createDocViewerState);
   const [rebindNodeId, setRebindNodeId] = useState<string | null>(null);
 
@@ -319,7 +327,13 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
     () => (path: string): boolean => index.docs.has(path),
     [index],
   );
-  const docTree = useMemo(() => buildTree(index.docs), [index]);
+  const knownDirs = useTreeStore((state) => state.knownDirs);
+  const pendingDirs = useTreeStore((state) => state.pendingDirs);
+  const docDirs = useMemo(
+    () => new Set([...knownDirs, ...pendingDirs]),
+    [knownDirs, pendingDirs],
+  );
+  const docTree = useMemo(() => buildTree(index.docs, { dirs: docDirs }), [index, docDirs]);
   const mediaTree = useMemo(
     () => buildMediaMenuTree(mediaEntries),
     [mediaEntries],
@@ -449,6 +463,12 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
           hit.kind === 'node'
             ? (engine.getNodeViews().find((view) => view.id === hit.id) ?? null)
             : null;
+        const rawNode = hit.kind === 'node'
+          ? engine.getDocument().nodes.find(
+              (node) => node !== null && typeof node === 'object' &&
+                (node as { readonly id?: unknown }).id === hit.id,
+            ) as { readonly type?: unknown } | undefined
+          : undefined;
         const host = hostRef.current;
         const point = clampMenuPoint(
           event.screenPoint,
@@ -461,6 +481,7 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
           target: event,
           nodeDocPath: hitNode?.docPath ?? null,
           nodeLabel: hitNode?.label ?? null,
+          nodeType: typeof rawNode?.type === 'string' ? rawNode.type : null,
           nodeKind: hitNode?.kind ?? null,
         });
         return;
@@ -527,11 +548,9 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
             pushNotice(`文档不存在：${link.effectivePath}`, 'error');
             return;
           }
-          openWindow(
-            link.kind === 'ok' ? link.effectivePath : node.docPath,
-            EDITOR_WINDOW_CONTENT,
-            getViewport(),
-          );
+          const targetPath = link.kind === 'ok' ? link.effectivePath : node.docPath;
+          openWindow(targetPath, EDITOR_WINDOW_CONTENT, getViewport());
+          useEditorModeRequestStore.getState().requestMode(targetPath, 'edit');
           return;
         }
         // 媒体库 PDF/HTML 附件：双击复用只读查看器，不进入文本编辑。
@@ -558,53 +577,22 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
           return;
         }
         setEditing({
+          ...(node.type === 'text' ? { kind: 'text' as const } : {}),
           nodeId: node.id,
           nodeX: node.x,
           nodeY: node.y,
-          label:
-            typeof node.label === 'string' && node.label !== '' ? node.label : node.id,
+          label: typeof node.label === 'string'
+            ? node.label
+            : node.type === 'text' ? '' : node.id,
         });
       }
     },
-    [],
-  );
-
-  // CR-20261121-53：提示词编辑提交（空串=清空为占位；换行统一 \n）。
-  const commitPromptEdit = useCallback(
-    (text: string): boolean => {
-      const session = sessionRef.current;
-      if (session === null || editing === null) return false;
-      if (readOnly) {
-        pushNotice('画布只读，无法编辑提示词', 'warning');
-        setEditing(null);
-        return true;
-      }
-      const normalized = text.replace(/\r\n/g, '\n');
-      const ok = session.engine.executeCommands([
-        createUpdatePromptTextCommand(editing.nodeId, normalized),
-      ]);
-      if (!ok) {
-        pushNotice('提示词保存失败，请查看画布通知', 'error');
-        return false;
-      }
-      setEditing(null);
-      return true;
-    },
-    [editing, readOnly],
+    [setEditing],
   );
 
   // CR-20261121-53：AI 节点模型选择浮层；打开时按当前 AI 设置拉取模型列表。
   const [modelPicker, setModelPicker] = useState<CanvasModelPickerState | null>(null);
   const [modelChoices, setModelChoices] = useState<CanvasModelChoices>({ state: 'loading' });
-
-  // 2026-11-23：模型选择改为原位下拉，不再覆盖节点；只有文本编辑才隐藏底层装饰。
-  useEffect(() => {
-    const engine = sessionRef.current?.engine;
-    engine?.setEditingNode(
-      editing !== null && editing.kind !== 'prompt' ? editing.nodeId : null,
-    );
-    return () => engine?.setEditingNode(null);
-  }, [editing]);
 
   useEffect(() => {
     if (modelPicker === null) return;
@@ -854,6 +842,36 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
           }
           return;
         }
+        case 'editText':
+        case 'editLabel': {
+          if (tgt.kind !== 'contextMenu' || tgt.target.kind !== 'node') {
+            closeMenu();
+            return;
+          }
+          const editingNodeId = tgt.target.id;
+          const node = engine.getDocument().nodes.find(
+            (candidate) => candidate !== null && typeof candidate === 'object' &&
+              (candidate as { readonly id?: unknown }).id === editingNodeId,
+          ) as {
+            readonly id: string;
+            readonly x?: unknown;
+            readonly y?: unknown;
+            readonly label?: unknown;
+          } | undefined;
+          if (node === undefined || typeof node.x !== 'number' || typeof node.y !== 'number') {
+            closeMenu();
+            return;
+          }
+          setEditing({
+            ...(action === 'editText' ? { kind: 'text' as const } : {}),
+            nodeId: node.id,
+            nodeX: node.x,
+            nodeY: node.y,
+            label: typeof node.label === 'string' ? node.label : '',
+          });
+          closeMenu();
+          return;
+        }
         case 'editPrompt': {
           if (tgt.kind !== 'contextMenu' || tgt.target.kind !== 'node') {
             closeMenu();
@@ -986,7 +1004,10 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
           openLibraryDocument(docNode.docPath, {
             hasDoc,
             resolveDocPath,
-            open: (path) => openWindow(path, EDITOR_WINDOW_CONTENT, getViewport()),
+            open: (path) => {
+              openWindow(path, EDITOR_WINDOW_CONTENT, getViewport());
+              useEditorModeRequestStore.getState().requestMode(path, 'edit');
+            },
             onMissing: (path) => {
               pushNotice(`文档不存在：${path}`, 'error');
               closeMenu();
@@ -1016,7 +1037,9 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
         } else if (createdEdit !== null) {
           // 新节点直接进入编辑：文本节点输入框为空；提示词节点进多行编辑（⌘/Ctrl+Enter 提交）。
           setEditing({
-            ...(createdEdit.prompt === true ? { kind: 'prompt' as const, text: '' } : {}),
+            ...(createdEdit.prompt === true
+              ? { kind: 'prompt' as const, text: '' }
+              : { kind: 'text' as const }),
             nodeId: createdEdit.id,
             nodeX: createdEdit.x,
             nodeY: createdEdit.y,
@@ -1037,6 +1060,7 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
       runAiNode,
       cancelAiRun,
       createEmptyArticleAt,
+      setEditing,
     ],
   );
 
@@ -1175,34 +1199,6 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
     if (current === null) return;
     void createEmptyArticleAt({ x: current.x, y: current.y }, current.from, current.worldPoint);
   }, [connectionMenu, createEmptyArticleAt]);
-
-  // C0-D：文本编辑提交/取消。
-  const commitEdit = useCallback(
-    (label: string): void => {
-      const session = sessionRef.current;
-      if (session === null || editing === null) return;
-      const trimmed = label.trim();
-      if (trimmed === '') {
-        pushNotice('节点名称不能为空', 'warning');
-        return;
-      }
-      if (readOnly) {
-        pushNotice('画布只读，无法编辑标签', 'warning');
-        setEditing(null);
-        return;
-      }
-      const ok = session.engine.executeCommands([createUpdateLabelCommand(editing.nodeId, trimmed)]);
-      if (!ok) {
-        pushNotice('更新失败，请查看画布通知', 'error');
-        // 不关闭 editing，让用户再试一次；或用户可 Esc 取消
-        return;
-      }
-      setEditing(null);
-    },
-    [editing, readOnly],
-  );
-
-  const cancelEdit = useCallback((): void => setEditing(null), []);
 
   // CR-20261121-58：右键菜单「离开即闭」——指针离开菜单根起 180ms 定时器，
   // 进入菜单/子面板（pointerenter 冒泡回根）即取消；超时未回才关闭。不驻留、不误伤子菜单。
@@ -1405,7 +1401,7 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
       setReadOnly(engine.isReadOnly());
       setCanvasStatus(engine.getCanvasStatus());
     },
-    [store, registry, handleEngineEvent, onOpenReadMode],
+    [store, registry, handleEngineEvent, onOpenReadMode, setEditing],
   );
 
   useEffect(() => {
@@ -1707,29 +1703,30 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
       cancelGesture: (): void => {
         sessionRef.current?.engine.cancelGesture();
       },
-      addNodeCentered: (kind: 'text' | 'ai'): void => {
+      addNodeCentered: (kind: 'text' | 'ai' | 'document', docPath?: string): boolean => {
         const session = sessionRef.current;
         const host = hostRef.current;
-        if (session === null || host === null) return;
+        if (session === null || host === null || (kind === 'document' && docPath === undefined)) return false;
         if (readOnly || session.engine.isReadOnly()) {
           pushNotice('画布只读，无法新建节点', 'warning');
-          return;
+          return false;
         }
         const rect = host.getBoundingClientRect();
         const world = session.engine.screenToWorld({
           x: rect.width / 2,
           y: rect.height / 2,
         });
-        const command = kind === 'text'
-          ? createAddTextNodeCommand(world.x, world.y)
-          : createAddAiNodeCommand(world.x, world.y);
+        const command = kind === 'document'
+          ? createAddDocumentNodeCommand(world.x, world.y, docPath ?? '')
+          : kind === 'text' ? createAddTextNodeCommand(world.x, world.y) : createAddAiNodeCommand(world.x, world.y);
         if (!session.engine.executeCommands([command])) {
           pushNotice('画布操作失败，未应用更改', 'error');
-          return;
+          return false;
         }
         if (command.kind === 'addNode' && kind === 'text') {
           setEditing({ nodeId: command.node.id, nodeX: world.x, nodeY: world.y, label: '' });
         }
+        return true;
       },
       revealDoc: (docPath: string): boolean => {
         const session = sessionRef.current;
@@ -1750,7 +1747,7 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
       },
       handleFinderDrop,
     }),
-    [deactivateSession, handleFinderDrop, readOnly],
+    [deactivateSession, handleFinderDrop, readOnly, setEditing],
   );
 
   const pickerField =
@@ -1856,9 +1853,11 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
           />
         ) : (
           <CanvasEditOverlay
+            key={`${editing.nodeId}:${editing.kind ?? 'label'}`}
             editing={editing}
             rect={editOverlayRect(editing.nodeId, editing.nodeX, editing.nodeY, sessionRef.current.engine)}
             onCommitLabel={commitEdit}
+            onCommitText={commitTextEdit}
             onCommitPrompt={commitPromptEdit}
             onCancel={cancelEdit}
           />

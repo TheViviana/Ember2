@@ -3,6 +3,11 @@ import { test } from 'node:test';
 import {
   aiPanelReducer,
   AI_PANEL_INITIAL,
+  clampAiPanelHeight,
+  defaultAiPanelHeight,
+  maxAiPanelHeight,
+  readAiPanelHeight,
+  writeAiPanelHeight,
   type AiPanelAction,
   type AiPanelState,
   type AiPanelError,
@@ -25,6 +30,29 @@ void test('初始状态', () => {
   assert.equal(s.models.length, 0);
   assert.equal(s.selectedModel, null);
   assert.equal(s.error, null);
+});
+
+void test('AI 面板高度：保留默认尺寸，拖拽值按视口钳制并持久化', () => {
+  assert.equal(defaultAiPanelHeight(900), 414);
+  assert.equal(defaultAiPanelHeight(1600), 560);
+  assert.equal(maxAiPanelHeight(900), 720);
+  assert.equal(clampAiPanelHeight(1200, 900), 720);
+  assert.equal(clampAiPanelHeight(100, 900), 320);
+
+  const values = new Map<string, string>();
+  const storage: Storage = {
+    get length() { return values.size; },
+    clear: () => values.clear(),
+    getItem: (key: string) => values.get(key) ?? null,
+    key: (index: number) => [...values.keys()][index] ?? null,
+    removeItem: (key: string) => values.delete(key),
+    setItem: (key: string, value: string) => { values.set(key, value); },
+  };
+  writeAiPanelHeight(510.4, 900, storage);
+  assert.equal(readAiPanelHeight(900, storage), 510);
+  assert.equal(readAiPanelHeight(600, storage), 448, '窗口变矮后仍留在可用区域');
+  values.set('ember.ai.panel.height.v1', 'broken');
+  assert.equal(readAiPanelHeight(900, storage), null);
 });
 
 // ─── Provider / Base URL / allowInsecureHttp ────────────────────────

@@ -5,6 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  canvasTextEditKeyAction,
   classifyDocLink,
   createAddAiNodeCommand,
   createAddDocumentNodeCommand,
@@ -85,6 +86,26 @@ void test('createUpdateLabelCommand / createUpdateDocPathCommand：updateNode �
   assert.equal(pathCmd.kind, 'updateNode');
   assert.equal(pathCmd.id, 'n1');
   assert.deepEqual(pathCmd.changes, { docPath: 'docs/bar.md' });
+});
+
+void test('文本节点 Shift+Enter 保留换行，普通 Enter 提交，Escape 取消', () => {
+  assert.equal(canvasTextEditKeyAction({ key: 'Enter', shiftKey: true }), 'newline');
+  assert.equal(canvasTextEditKeyAction({ key: 'Enter', shiftKey: false }), 'submit');
+  assert.equal(canvasTextEditKeyAction({ key: 'Escape', shiftKey: false }), 'cancel');
+  assert.equal(
+    canvasTextEditKeyAction({ key: 'Enter', shiftKey: false, isComposing: true }),
+    null,
+    'IME 组合期间不得提交',
+  );
+});
+
+void test('文本节点正文命令保留换行和空正文', () => {
+  assert.deepEqual(createUpdateLabelCommand('text', '第一行\n第二行'), {
+    kind: 'updateNode', id: 'text', changes: { label: '第一行\n第二行' },
+  });
+  assert.deepEqual(createUpdateLabelCommand('text', ''), {
+    kind: 'updateNode', id: 'text', changes: { label: '' },
+  });
 });
 
 // ── dead-link 四分支 ────────────────────────────────────────────────

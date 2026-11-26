@@ -5,7 +5,7 @@
  *
  * AI 设置已迁到设置壳；本宿主只承载对话。
  */
-import type { CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import type { AiKeyStatusDto } from '../../types/ipc.ts';
 import { Z_MODAL } from '../../windows/layer-z.ts';
 import { AiPanel, type AiPanelEffects } from './AiPanel.tsx';
@@ -23,10 +23,18 @@ export interface AiPanelHostProps {
 }
 
 export function AiPanelHost({ open, onClose, onOpenSettings, effects, initialStatus }: AiPanelHostProps) {
-  // 关闭时整层卸载。固定定位的宿主若常驻，会以 Z_MODAL 覆盖全屏并截获
-  // 所有指针事件——界面无法点选、顶栏无法拖窗（2026-11-19 回归）。
-  // CR-20261121-49：宿主指针穿透（pointer-events:none 在 .backdrop），只由面板接管交互。
-  if (!open) return null;
+  const [rendered, setRendered] = useState(open);
+  useEffect(() => {
+    if (open) {
+      setRendered(true);
+      return;
+    }
+    if (!rendered) return;
+    const timer = window.setTimeout(() => setRendered(false), 160);
+    return () => window.clearTimeout(timer);
+  }, [open, rendered]);
+  // 收起动画结束后整层卸载；宿主持久 pointer-events:none，不拦截画布。
+  if (!rendered) return null;
   // style 只设 zIndex；颜色交给 AiPanel.module.css
   const style: CSSProperties = {
     position: 'fixed',

@@ -33,6 +33,44 @@ export interface AiPanelError {
   readonly message: string;
 }
 
+export const AI_PANEL_HEIGHT_KEY = 'ember.ai.panel.height.v1';
+export const MIN_AI_PANEL_HEIGHT = 320;
+
+export function maxAiPanelHeight(viewportHeight: number): number {
+  return Math.max(MIN_AI_PANEL_HEIGHT, Math.min(720, viewportHeight - 152));
+}
+
+export function clampAiPanelHeight(height: number, viewportHeight: number): number {
+  return Math.round(Math.max(MIN_AI_PANEL_HEIGHT, Math.min(maxAiPanelHeight(viewportHeight), height)));
+}
+
+export function defaultAiPanelHeight(viewportHeight: number): number {
+  return Math.round(Math.max(MIN_AI_PANEL_HEIGHT, Math.min(560, viewportHeight * 0.46)));
+}
+
+export function readAiPanelHeight(viewportHeight: number, storage?: Storage | null): number | null {
+  const target = storage ?? (typeof window === 'undefined' ? null : window.localStorage);
+  if (target === null) return null;
+  try {
+    const raw = target.getItem(AI_PANEL_HEIGHT_KEY);
+    if (raw === null) return null;
+    const value = Number(raw);
+    return Number.isFinite(value) && value > 0 ? clampAiPanelHeight(value, viewportHeight) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeAiPanelHeight(height: number, viewportHeight: number, storage?: Storage | null): void {
+  const target = storage ?? (typeof window === 'undefined' ? null : window.localStorage);
+  if (target === null || !Number.isFinite(height)) return;
+  try {
+    target.setItem(AI_PANEL_HEIGHT_KEY, String(clampAiPanelHeight(height, viewportHeight)));
+  } catch {
+    /* 本地存储不可用时仅本次会话生效 */
+  }
+}
+
 export interface AiPanelState {
   readonly status: AiPanelStatus;
 

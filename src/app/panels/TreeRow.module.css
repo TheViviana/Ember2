@@ -40,12 +40,26 @@
 }
 
 .marker {
+  display: flex;
   flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
   width: var(--space-md);
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
   color: var(--ember-text-muted);
-  text-align: center;
+}
+
+.markerIcon {
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.marker[data-expanded='true'] .markerIcon {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .markerIcon {
+    transition: none;
+  }
 }
 
 /* CR-20261121-56：文件夹/文件图标（与箭头、文字严格同列对齐） */

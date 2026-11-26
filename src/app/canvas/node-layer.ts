@@ -7,11 +7,12 @@
  * - 不定义节点 schema：`extractNodes` 负责从文档取可渲染视图。
  */
 import {
+  hasOutsideNodeLabel,
   isFixedSizeNodeKind,
   isNodeContentMode,
-  mediaFileName,
   mediaUrlForPath,
   nodeLocalPosition,
+  nodeOutsideLabelLayout,
   nodeScreenRect,
   NODE_WIDTH,
   type CanvasNodeView,
@@ -1165,11 +1166,7 @@ export function createNodeLayer(parent: NodeLayerParent, options: NodeLayerOptio
           }
         }
         // 外标题：文档=文档名；媒体=自定义名（内容寻址文件名仍在卡内底部）；文本节点无
-        let outsideLabel = '';
-        if (node.docPath !== undefined) outsideLabel = node.label;
-        else if (node.media !== undefined && node.label !== '' && node.label !== mediaFileName(node.media.path)) {
-          outsideLabel = node.label;
-        }
+        const outsideLabel = hasOutsideNodeLabel(node) ? node.label : '';
         if (outsideLabel === '') {
           const el = labelEls.get(node.id);
           if (el !== undefined) {
@@ -1186,16 +1183,11 @@ export function createNodeLayer(parent: NodeLayerParent, options: NodeLayerOptio
             element.append(labelEl);
           }
           if (labelEl.textContent !== outsideLabel) labelEl.textContent = outsideLabel;
-          const localLabel = nodeLocalPosition(node, transform);
-          labelEl.style.left = `${localLabel.x}px`;
-          // 缩放补偿：屏幕字号低于 11px 时会被放大，行高与间隙需按同一比例换算，
-          // 否则低缩放下标签会压到节点边框（表现为一条横穿文字的线）。
-          const labelGap = transform.scale * 13 < 11 ? 17.2 / transform.scale : 20;
-          labelEl.style.top = `${localLabel.y - labelGap}px`; /* 下移贴节点：13px 行高 + 4px 间隙 */
-          labelEl.style.width = `${node.w === undefined ? NODE_WIDTH : node.w}px`;
-          // 缩放补偿：屏幕字号不低于 11px（theme-v1.1.md §5.4）
-          labelEl.style.fontSize =
-            transform.scale * 13 < 11 ? `${(11 / transform.scale).toFixed(2)}px` : '';
+          const label = nodeOutsideLabelLayout(node, transform);
+          labelEl.style.left = `${label.x}px`;
+          labelEl.style.top = `${label.y}px`;
+          labelEl.style.width = `${label.width}px`;
+          labelEl.style.fontSize = label.fontSize === null ? '' : `${label.fontSize}px`;
         }
         applyFlags(item, node.id);
         const local = nodeLocalPosition(node, transform);

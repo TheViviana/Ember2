@@ -23,6 +23,12 @@ export interface PaletteDocument {
   readonly path: string;
   readonly name: string;
   readonly modifiedMs: number;
+  readonly tags: readonly string[];
+}
+
+interface PaletteTag {
+  readonly name: string;
+  readonly count: number;
 }
 
 type Visible = {
@@ -58,10 +64,28 @@ function scoreCommand(query: string, cmd: Command): number {
 function scoreDocument(query: string, doc: PaletteDocument): number {
   const q = query.trim().toLowerCase();
   if (q.length === 0) return 0;
+  if (q.startsWith('#')) {
+    const needle = q.replace(/^#+/, '');
+    if (needle.length === 0) return 0;
+    return doc.tags.some((tag) => {
+      const name = tag.toLowerCase();
+      return name === needle || name.startsWith(`${needle}/`);
+    }) ? 400 : 0;
+  }
   const name = doc.name.toLowerCase();
   if (name.startsWith(q)) return 400;
   if (name.includes(q)) return 300 - name.indexOf(q) * 0.5;
   if (doc.path.toLowerCase().includes(q)) return 200;
+  if (doc.tags.some((tag) => tag.toLowerCase().includes(q))) return 150;
+  return 0;
+}
+
+function scoreTag(query: string, tag: PaletteTag): number {
+  const q = query.trim().toLowerCase().replace(/^#+/, '');
+  if (q.length === 0) return 0;
+  const name = tag.name.toLowerCase();
+  if (name.startsWith(q)) return 400;
+  if (name.includes(q)) return 300 - name.indexOf(q) * 0.5;
   return 0;
 }
 
@@ -130,10 +154,16 @@ interface RowDocument {
   readonly doc: PaletteDocument;
 }
 
-type PaletteRow = RowCommand | RowDocument;
+interface RowTag {
+  readonly kind: 'tag';
+  readonly key: string;
+  readonly tag: PaletteTag;
+}
+
+type PaletteRow = RowCommand | RowDocument | RowTag;
 
 interface PaletteGroup {
-  readonly id: 'documents' | 'commands';
+  readonly id: 'documents' | 'commands' | 'tags';
   readonly label: string;
   readonly rows: readonly PaletteRow[];
   readonly total: number;
@@ -150,6 +180,7 @@ export function CommandPaletteComponent(props: CommandPaletteComponentProps): Re
   const [activeIndex, setActiveIndex] = useState(0);
   const [docsExpanded, setDocsExpanded] = useState(false);
   const [commandsExpanded, setCommandsExpanded] = useState(false);
+  const [tagsExpanded, setTagsExpanded] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const preOpenActiveRef = useRef<Element | null>(null);
@@ -162,6 +193,7 @@ export function CommandPaletteComponent(props: CommandPaletteComponentProps): Re
       setActiveIndex(0);
       setDocsExpanded(false);
       setCommandsExpanded(false);
+      setTagsExpanded(false);
       // 自动聚焦搜索框
       setTimeout(() => inputRef.current?.focus(), 0);
     }
@@ -177,6 +209,13 @@ export function CommandPaletteComponent(props: CommandPaletteComponentProps): Re
   }, [isOpen]);
 
   const docPool = useMemo<readonly PaletteDocument[]>(() => documents ?? [], [documents]);
+  const tagPool = useMemo<readonly PaletteTag[]>(() => {
+    const counts = new Map<string, number>();
+    for (const doc of docPool) {
+      for (const tag of doc.tags) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+    return [...counts].map(([name, count]) => ({ name, count }));
+  }, [docPool]);
 
   // 搜索排序 + 分组
   const groups = useMemo<readonly PaletteGroup[]>(() => {
@@ -196,6 +235,13 @@ export function CommandPaletteComponent(props: CommandPaletteComponentProps): Re
             .filter((entry) => entry.score > 0)
             .sort((a, b) => b.score - a.score)
             .map((entry) => entry.doc);
+
+    const matchedTags = q.length === 0 ? [] : tagPool
+      .map((tag) => ({ tag, score: scoreTag(query, tag) }))
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => b.score - a.score || b.tag.count - a.tag.count)
+      .slice(0, MAX_RESULTS)
+      .map((entry) => entry.tag);
 
     const out: PaletteGroup[] = [];
     if (onOpenDocument !== undefined && matchedDocs.length > 0) {
@@ -222,8 +268,17 @@ export function CommandPaletteComponent(props: CommandPaletteComponentProps): Re
         })),
       });
     }
+    if (onOpenDocument !== undefined && matchedTags.length > 0) {
+      const shown = tagsExpanded ? matchedTags : matchedTags.slice(0, GROUP_LIMIT);
+      out.push({
+        id: 'tags',
+        label: '标签',
+        total: matchedTags.length,
+        rows: shown.map((tag) => ({ kind: 'tag', key: `tag:${tag.name}`, tag })),
+      });
+    }
     return out;
-  }, [registry, snapshot, query, docPool, docsExpanded, commandsExpanded, onOpenDocument]);
+  }, [registry, snapshot, query, docPool, tagPool, docsExpanded, commandsExpanded, tagsExpanded, onOpenDocument]);
 
   const flat = useMemo<readonly PaletteRow[]>(
     () => groups.flatMap((group) => group.rows),
@@ -288,6 +343,12 @@ export function CommandPaletteComponent(props: CommandPaletteComponentProps): Re
             onOpenDocument?.(target.doc.path);
             return;
           }
+          if (target.kind === 'tag') {
+            setQuery(`#${target.tag.name}`);
+            setActiveIndex(0);
+            inputRef.current?.focus();
+            return;
+          }
           void onExecute(target.cmd.id);
           break;
         }
@@ -317,8 +378,8 @@ export function CommandPaletteComponent(props: CommandPaletteComponentProps): Re
           ref={inputRef}
           type="text"
           className={styles.input}
-          placeholder="搜索命令或文档..."
-          aria-label="搜索命令或文档"
+          placeholder="搜索命令、文档或标签..."
+          aria-label="搜索命令、文档或标签"
           autoComplete="off"
           autoCorrect="off"
           autoCapitalize="off"
@@ -330,10 +391,10 @@ export function CommandPaletteComponent(props: CommandPaletteComponentProps): Re
         <div
           className={styles.list}
           role="listbox"
-          aria-label="可用命令与文档"
+          aria-label="可用命令、文档与标签"
         >
           {flat.length === 0 ? (
-            <div className={styles.empty}>没有匹配的命令或文档</div>
+            <div className={styles.empty}>没有匹配的命令、文档或标签</div>
           ) : (
             groups.map((group) => (
               <div key={group.id} className={styles.group} role="group" aria-label={group.label}>
@@ -349,7 +410,7 @@ export function CommandPaletteComponent(props: CommandPaletteComponentProps): Re
                       role="option"
                       aria-selected={active}
                       aria-disabled={disabled || undefined}
-                      title={row.kind === 'command' ? row.disabledReason : row.doc.path}
+                      title={row.kind === 'command' ? row.disabledReason : row.kind === 'document' ? row.doc.path : `#${row.tag.name}`}
                       aria-activedescendant={active ? `ember-cmd-item-${row.key}` : undefined}
                       id={active ? `ember-cmd-item-${row.key}` : undefined}
                       onClick={() => {
@@ -357,11 +418,17 @@ export function CommandPaletteComponent(props: CommandPaletteComponentProps): Re
                           onOpenDocument?.(row.doc.path);
                           return;
                         }
+                        if (row.kind === 'tag') {
+                          setQuery(`#${row.tag.name}`);
+                          setActiveIndex(0);
+                          inputRef.current?.focus();
+                          return;
+                        }
                         if (row.enabled) void onExecute(row.cmd.id);
                       }}
                     >
                       <span className={styles.title}>
-                        {row.kind === 'command' ? row.cmd.title : row.doc.name}
+                        {row.kind === 'command' ? row.cmd.title : row.kind === 'document' ? row.doc.name : `#${row.tag.name}`}
                       </span>
                       {row.kind === 'command' && (bindings[row.cmd.id] ?? []).length > 0 ? (
                         <kbd className={styles.kbd}>
@@ -371,6 +438,9 @@ export function CommandPaletteComponent(props: CommandPaletteComponentProps): Re
                       {row.kind === 'document' ? (
                         <span className={styles.itemMeta}>{row.doc.path}</span>
                       ) : null}
+                      {row.kind === 'tag' ? (
+                        <span className={styles.itemMeta}>{row.tag.count} 篇文档</span>
+                      ) : null}
                     </div>
                   );
                 })}
@@ -378,11 +448,11 @@ export function CommandPaletteComponent(props: CommandPaletteComponentProps): Re
                   <button
                     type="button"
                     className={styles.more}
-                    onClick={() =>
-                      group.id === 'documents'
-                        ? setDocsExpanded(true)
-                        : setCommandsExpanded(true)
-                    }
+                    onClick={() => {
+                      if (group.id === 'documents') setDocsExpanded(true);
+                      else if (group.id === 'commands') setCommandsExpanded(true);
+                      else setTagsExpanded(true);
+                    }}
                   >
                     查看全部 {group.total} 条
                   </button>

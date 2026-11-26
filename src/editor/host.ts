@@ -63,4 +63,6 @@ export interface EditorHost {
   reportNotice(message: string, tone?: NoticeTone): void;
   /** 收集箱文件只在能解析为当前库内文档/媒体时返回安全引用。 */
   resolveFileReference(sourcePath: string): Promise<EditorFileReference | null>;
+  /** 粘贴截图：写入媒体库并返回库内引用；未实现时不接管图片粘贴。 */
+  saveClipboardImage?(file: File): Promise<EditorFileReference | null>;
 }

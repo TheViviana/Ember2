@@ -101,6 +101,17 @@ pub fn save(gate: &WriteGate, root: &Path, source: &Path) -> VaultResult<SavedMe
         return Err(VaultError::MediaTooLarge);
     }
 
+    publish_media(gate, root, &staging, sniffed, temp)
+}
+
+/// 发布临时文件到内容寻址路径；命中已有 hash 时删除临时文件并标记 deduped。
+fn publish_media(
+    gate: &WriteGate,
+    root: &Path,
+    staging: &Path,
+    sniffed: Sniffed,
+    temp: atomic::TempWrite,
+) -> VaultResult<SavedMedia> {
     let hash = temp.sha256.clone();
     let target = staging
         .join(&hash[..2])
@@ -137,6 +148,79 @@ pub fn save(gate: &WriteGate, root: &Path, source: &Path) -> VaultResult<SavedMe
         bytes: temp.bytes,
         deduped: false,
     })
+}
+
+/// 粘贴截图直接入库：不落临时源文件，内存字节走与磁盘导入相同的判型/去重管线。
+pub fn save_bytes(gate: &WriteGate, root: &Path, bytes: &[u8]) -> VaultResult<SavedMedia> {
+    if gate.readonly_reason().is_some() {
+        return Err(VaultError::Readonly);
+    }
+    if bytes.is_empty() {
+        return Err(VaultError::InvalidArg("图片数据为空".to_string()));
+    }
+    let prefix_len = bytes.len().min(PREFIX_BYTES);
+    let sniffed = sniff(&bytes[..prefix_len]).ok_or(VaultError::MediaType)?;
+    let max_bytes = sniffed.kind.max_bytes();
+    if bytes.len() as u64 > max_bytes {
+        return Err(VaultError::MediaTooLarge);
+    }
+
+    let staging = root.join("media").join(sniffed.kind.dir());
+    atomic::ensure_space(&staging, bytes.len() as u64)?;
+    let mut cursor = std::io::Cursor::new(bytes);
+    let temp = atomic::write_stream_to_temp(&staging, &mut cursor)
+        .map_err(|error| gate::map_write_result(gate, error))?;
+    publish_media(gate, root, &staging, sniffed, temp)
+}
+
+/// 严格 base64 解码（仅标准字母表与 `=` 尾填充，不接受换行/空白）。
+pub fn decode_base64(input: &str) -> VaultResult<Vec<u8>> {
+    let bytes = input.as_bytes();
+    if bytes.is_empty() {
+        return Err(VaultError::InvalidArg("图片数据为空".to_string()));
+    }
+    if bytes.len() % 4 != 0 {
+        return Err(VaultError::InvalidArg(
+            "图片数据不是合法 base64".to_string(),
+        ));
+    }
+    let chunk_count = bytes.len() / 4;
+    let mut out = Vec::with_capacity(chunk_count * 3);
+    for (index, chunk) in bytes.chunks(4).enumerate() {
+        let padding = chunk.iter().rev().take_while(|byte| **byte == b'=').count();
+        if padding > 2 || (padding > 0 && index + 1 != chunk_count) {
+            return Err(VaultError::InvalidArg(
+                "图片数据不是合法 base64".to_string(),
+            ));
+        }
+        let data_len = 4 - padding;
+        let mut acc: u32 = 0;
+        for (slot, byte) in chunk.iter().enumerate() {
+            let value =
+                if slot < data_len {
+                    u32::from(base64_value(*byte).ok_or_else(|| {
+                        VaultError::InvalidArg("图片数据不是合法 base64".to_string())
+                    })?)
+                } else {
+                    0
+                };
+            acc = (acc << 6) | value;
+        }
+        let triple = [(acc >> 16) as u8, (acc >> 8) as u8, acc as u8];
+        out.extend_from_slice(&triple[..data_len - 1]);
+    }
+    Ok(out)
+}
+
+fn base64_value(byte: u8) -> Option<u8> {
+    match byte {
+        b'A'..=b'Z' => Some(byte - b'A'),
+        b'a'..=b'z' => Some(byte - b'a' + 26),
+        b'0'..=b'9' => Some(byte - b'0' + 52),
+        b'+' => Some(62),
+        b'/' => Some(63),
+        _ => None,
+    }
 }
 
 /// 列媒体：类型分目录（`media/image|audio|video`）与旧版平铺 `media/*` 都返回。
@@ -626,6 +710,54 @@ mod tests {
         assert_eq!(entries[1].hash, "legacy");
         assert_eq!(entries[2].kind, MediaKind::Video);
         assert!(entries.iter().all(|entry| entry.bytes > 0));
+    }
+
+    #[test]
+    fn save_bytes_dedupes_and_rejects_non_media() {
+        let vault = tempdir().expect("vault");
+        let gate = WriteGate::new(None);
+        let bytes = png_prefix();
+
+        let first = save_bytes(&gate, vault.path(), &bytes).expect("首次保存");
+        assert_eq!(first.kind, MediaKind::Image);
+        assert!(!first.deduped);
+        assert_eq!(first.bytes, bytes.len() as u64);
+        assert_eq!(
+            fs::read(vault.path().join(&first.path)).expect("读回"),
+            bytes
+        );
+
+        let second = save_bytes(&gate, vault.path(), &bytes).expect("重复保存");
+        assert!(second.deduped, "同 hash 必须命中去重");
+        assert_eq!(second.path, first.path);
+
+        let error = save_bytes(&gate, vault.path(), b"not media").expect_err("非媒体应拒绝");
+        assert_eq!(error.code(), "E_MEDIA_TYPE");
+        let files = all_files(vault.path());
+        assert_eq!(files.len(), 1, "只保留一个内容文件：{files:?}");
+    }
+
+    #[test]
+    fn decode_base64_round_trips_and_rejects_invalid() {
+        assert_eq!(decode_base64("aGVsbG8=").expect("decode"), b"hello");
+        assert_eq!(decode_base64("aGk=").expect("decode"), b"hi");
+        assert_eq!(decode_base64("aA==").expect("decode"), b"h");
+        assert_eq!(
+            decode_base64("").expect_err("空数据").code(),
+            "E_INVALID_ARG"
+        );
+        assert_eq!(
+            decode_base64("aGVsbG8").expect_err("长度非 4 倍数").code(),
+            "E_INVALID_ARG"
+        );
+        assert_eq!(
+            decode_base64("aG=sbG8=").expect_err("填充位置非法").code(),
+            "E_INVALID_ARG"
+        );
+        assert_eq!(
+            decode_base64("aGV$bG8=").expect_err("非法字符").code(),
+            "E_INVALID_ARG"
+        );
     }
 
     fn image_bytes_path(root: &Path, hash: &str) -> PathBuf {

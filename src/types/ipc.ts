@@ -201,6 +201,10 @@ export interface VaultReadRequest {
   path: string;
 }
 
+export interface VaultRevealRequest {
+  path: string;
+}
+
 export interface VaultWriteRequest {
   path: string;
   text: string;
@@ -302,6 +306,11 @@ export interface MediaEntryDto {
 export interface MediaSaveRequest {
   /** 绝对路径（来自拖放 / 文件选择器），不经过库内 resolve。 */
   sourcePath: string;
+}
+
+export interface MediaSaveBytesRequest {
+  /** 标准 base64（无 data URL 前缀）；用于粘贴截图等内存字节。 */
+  data: string;
 }
 
 export interface MediaDeleteRequest {

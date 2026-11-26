@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildTree, dirChildrenNames, flattenVisible } from '../../src/app/tree/build-tree.ts';
+import { buildTree, collectDirectoryPaths, dirChildrenNames, flattenVisible } from '../../src/app/tree/build-tree.ts';
 import type { DocMeta } from '../../src/core/vault-index.ts';
+import type { DirEntryDto } from '../../src/types/ipc.ts';
 
 function meta(path: string): DocMeta {
   return { path, bytes: 0, sha256: 'sha', modifiedMs: 0 };
@@ -34,6 +35,18 @@ void test('buildTree：dirs 中的占位路径按目录节点处理（新建文�
 
 void test('buildTree：空 Map 返回空树', () => {
   assert.deepEqual(buildTree(new Map()), []);
+});
+
+void test('buildTree：dirs 无需占位文章即可生成嵌套空目录', () => {
+  assert.deepEqual(buildTree(new Map(), { dirs: new Set(['empty', 'nested/child']) }), [
+    { kind: 'dir', name: 'empty', path: 'empty', children: [] },
+    {
+      kind: 'dir',
+      name: 'nested',
+      path: 'nested',
+      children: [{ kind: 'dir', name: 'child', path: 'nested/child', children: [] }],
+    },
+  ]);
 });
 
 void test('buildTree：根目录文件按名称码点排序', () => {
@@ -177,4 +190,42 @@ void test('dirChildrenNames：取目录直接子节点名，找不到返回空',
   assert.deepEqual([...dirChildrenNames(tree, '')], ['a', 'z.md']);
   assert.deepEqual([...dirChildrenNames(tree, 'a')], ['c', 'b.md']);
   assert.deepEqual([...dirChildrenNames(tree, 'missing')], []);
+});
+
+function dirEntry(path: string, kind: 'dir' | 'file' = 'dir'): DirEntryDto {
+  return { name: path.slice(path.lastIndexOf('/') + 1), path, kind, bytes: 0, modifiedMs: 0 };
+}
+
+void test('collectDirectoryPaths：递归保留空目录、跳过文件与顶层 media', async () => {
+  const listing = new Map<string, readonly DirEntryDto[]>([
+    ['', [dirEntry('a.md', 'file'), dirEntry('media'), dirEntry('notes')]],
+    ['notes', [dirEntry('notes/empty')]],
+    ['notes/empty', []],
+  ]);
+  const visited: string[] = [];
+  const dirs = await collectDirectoryPaths((path) => {
+    const key = path ?? '';
+    visited.push(key);
+    return Promise.resolve(listing.get(key) ?? []);
+  }, 4);
+  assert.deepEqual([...dirs].sort(), ['notes', 'notes/empty']);
+  assert.deepEqual(visited, ['', 'notes', 'notes/empty']);
+});
+
+void test('collectDirectoryPaths：遵守扫描深度，子目录并发删除不推翻整次结果', async () => {
+  const shallow = await collectDirectoryPaths(
+    (path) => Promise.resolve(path === undefined ? [dirEntry('notes')] : []),
+    0,
+  );
+  assert.deepEqual([...shallow], ['notes']);
+
+  let calls = 0;
+  const dirs = await collectDirectoryPaths((path) => {
+    calls += 1;
+    if (path === undefined) return Promise.resolve([dirEntry('gone'), dirEntry('kept')]);
+    if (path === 'gone') return Promise.reject(Object.assign(new Error('gone'), { code: 'E_NOT_FOUND' }));
+    return Promise.resolve([]);
+  }, 4);
+  assert.equal(calls, 3);
+  assert.deepEqual([...dirs].sort(), ['gone', 'kept']);
 });

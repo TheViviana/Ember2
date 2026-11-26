@@ -11,6 +11,8 @@ import {
   type AmbientMotionPreference,
 } from './ambient-motion.ts';
 import styles from './appearance-panel.module.css';
+import shared from './settings-shared.module.css';
+import { useSavedFlash } from './use-saved-flash.ts';
 
 const OPTIONS: ReadonlyArray<{ readonly value: ThemePreference; readonly label: string }> = [
   { value: 'system', label: '跟随系统' },
@@ -33,38 +35,54 @@ export function AppearanceSettingsBody() {
     readAmbientMotionPreference(),
   );
 
+  const savedFlash = useSavedFlash();
+
   const select = (value: ThemePreference): void => {
     setPreference(value);
     applyThemePreference(value);
+    savedFlash.flash();
   };
 
   const selectAmbient = (value: AmbientMotionPreference): void => {
     setAmbient(value);
     writeAmbientMotionPreference(value);
+    savedFlash.flash();
   };
 
   return (
     <div className={styles.body}>
-      <div className={styles.segmented} role="radiogroup" aria-label="主题">
-        {OPTIONS.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            role="radio"
-            aria-checked={preference === option.value}
-            className={`${styles.option} ${preference === option.value ? styles.optionActive : ''}`}
-            onClick={() => select(option.value)}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
-      <p className={styles.hint}>
-        「跟随系统」时主题随 macOS 外观自动切换；手动选择立即生效并记住偏好。
-      </p>
+      <section className={shared.card}>
+        <h3 className={shared.groupLabel}>主题</h3>
+        <div className={styles.themeGrid} role="radiogroup" aria-label="主题">
+          {OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={preference === option.value}
+              className={`${styles.themeCard} ${preference === option.value ? styles.themeCardActive : ''}`}
+              onClick={() => select(option.value)}
+            >
+              <span
+                className={styles.themePreview}
+                data-theme-preview={option.value}
+                aria-hidden="true"
+              >
+                <span className={styles.themeBar} />
+                <span className={styles.themeLine} />
+                <span className={styles.themeLineShort} />
+              </span>
+              <span className={styles.themeLabel}>{option.label}</span>
+            </button>
+          ))}
+        </div>
+        <p className={styles.hint}>
+          「跟随系统」时主题随 macOS 外观自动切换；手动选择立即生效并记住偏好。
+        </p>
+      </section>
 
-      <div className={styles.group}>
-        <span className={styles.groupLabel}>动态背景</span>
+      <section className={shared.card}>
+        <h3 className={shared.groupLabel}>动态背景</h3>
         <div className={styles.segmented} role="radiogroup" aria-label="动态背景">
           {AMBIENT_OPTIONS.map((option) => (
             <button
@@ -83,7 +101,10 @@ export function AppearanceSettingsBody() {
           「动态」会跟随画布上选中的图片节点缓慢换色；关闭后仍保留底色、点阵、暗角与颗粒。
           系统开启「减少动态效果」时自动按静态显示。
         </p>
-      </div>
+      </section>
+      <p className={shared.saved} role="status" aria-live="polite">
+        {savedFlash.visible ? '已保存' : ''}
+      </p>
     </div>
   );
 }

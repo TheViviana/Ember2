@@ -28,6 +28,79 @@
   border: 1px solid var(--ember-menu-border);
   border-radius: var(--radius-menu);
   box-shadow: var(--ember-menu-shadow);
+  transform-origin: bottom right;
+}
+
+.panel[data-open='true'] {
+  animation: ai-panel-enter 220ms var(--ease-out) both;
+}
+
+.panel[data-open='false'] {
+  pointer-events: none;
+  animation: ai-panel-exit 160ms var(--ease-out) both;
+}
+
+.resizeHandle {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: var(--space-sm);
+  left: var(--space-sm);
+  height: 6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  outline: none;
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.resizeHandle::after {
+  position: absolute;
+  top: 1px;
+  right: 40%;
+  left: 40%;
+  height: 2px;
+  border-radius: var(--radius-full);
+  background: transparent;
+  content: '';
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.resizeHandle:hover::after,
+.resizeHandle:focus-visible::after,
+.resizeHandle:active::after {
+  background: var(--ember-ai);
+}
+
+.resizeHandle:focus-visible {
+  outline: 1px solid var(--ember-primary);
+  outline-offset: 2px;
+}
+
+@keyframes ai-panel-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ai-panel-exit {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(8px); }
+}
+
+@keyframes ai-panel-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ai-panel-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel[data-open='true'] { animation-name: ai-panel-fade-in; }
+  .panel[data-open='false'] { animation-name: ai-panel-fade-out; }
+  .resizeHandle::after { transition: none; }
 }
 
 /* §4.3：头部单行 38px——青色火星 + 标题 + 模型 chip + ⋯ + 收起。 */
@@ -480,7 +553,8 @@
 }
 
 .chatRowAssistant {
-  justify-content: flex-start;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .chatBubble {
@@ -521,6 +595,33 @@
   50% {
     opacity: 0;
   }
+}
+
+/* 助手消息操作行：加入画布/复制/重试，小号弱化，hover 提亮。 */
+.msgActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.msgAction {
+  padding: 2px 6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ember-text-muted);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.msgAction:hover:not(:disabled) {
+  color: var(--ember-text-primary);
+  background: var(--ember-bg-hover);
+}
+
+.msgAction:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .chatComposer {

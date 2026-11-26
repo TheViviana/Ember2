@@ -47,6 +47,7 @@ import { KEY_ZOOM_FACTOR } from '../canvas/engine';
 import type { CanvasDocumentStore } from '../canvas/engine';
 import { collapsePinnedLeftPanel, createEdgePanelController, type EdgePanelController } from './edge-panel-state';
 import { useCanvasStats } from './use-canvas-stats.ts';
+import { usePaletteTags } from './use-palette-tags.ts';
 import { EdgePanel } from './EdgePanel';
 import {
   createCommandRegistry,
@@ -77,6 +78,7 @@ import { NEXT_WINDOW_TARGET, armRenderFault } from '../../windows/dev-render-fau
 import { createTauriDragDropPort } from '../../data/drag-drop-port.ts';
 import { routeNativeDrop } from '../dnd/native-drop-router.ts';
 import { resolveFinderDocumentPath } from '../canvas/canvas-interactions.ts';
+import { insertAiAnswerToCanvas } from '../canvas/use-create-empty-article.ts';
 import { AiPanelHost, type AiPanelEffects } from '../../features/ai/AiPanelHost';
 import { aiApi, backupApi, docApi, historyApi, trashApi, vaultApi } from '../../data/app-api.ts';
 import type { EmberIpcError } from '../../data/ipc-client.ts';
@@ -257,19 +259,6 @@ export function AppShell({ closeError, guardError }: AppShellProps) {
         bytes: doc.bytes,
         modifiedMs: doc.modifiedMs,
       })),
-    [vaultDocs],
-  );
-
-  // §8.5：命令面板的文档结果，按最近修改排序（空输入时作为「最近文档」）。
-  const paletteDocs = useMemo(
-    () =>
-      [...vaultDocs.values()]
-        .map((doc) => ({
-          path: doc.path,
-          name: doc.path.slice(doc.path.lastIndexOf('/') + 1).replace(/\.md$/i, ''),
-          modifiedMs: doc.modifiedMs,
-        }))
-        .sort((a, b) => b.modifiedMs - a.modifiedMs),
     [vaultDocs],
   );
 
@@ -457,6 +446,20 @@ export function AppShell({ closeError, guardError }: AppShellProps) {
 
   // palette 可见性
   const palette = useCommandPalette(executor);
+  const paletteTags = usePaletteTags(palette.isOpen, vaultDocs);
+  // §8.5：文档按最近修改排序；标签索引打开面板时惰性刷新。
+  const paletteDocs = useMemo(
+    () =>
+      [...vaultDocs.values()]
+        .map((doc) => ({
+          path: doc.path,
+          name: doc.path.slice(doc.path.lastIndexOf('/') + 1).replace(/\.md$/i, ''),
+          modifiedMs: doc.modifiedMs,
+          tags: paletteTags.get(doc.path) ?? [],
+        }))
+        .sort((a, b) => b.modifiedMs - a.modifiedMs),
+    [vaultDocs, paletteTags],
+  );
   const paletteOpenRef = useRef(palette.open);
   paletteOpenRef.current = palette.open;
 
@@ -542,6 +545,13 @@ export function AppShell({ closeError, guardError }: AppShellProps) {
       } catch (e) {
         throw rethrow(e);
       }
+    },
+    insertToCanvas(text) {
+      return insertAiAnswerToCanvas(
+        canvasRef.current,
+        useCanvasSessionStore.getState().mode === 'canvas',
+        text,
+      );
     },
   }), []);
 
@@ -890,6 +900,7 @@ export function AppShell({ closeError, guardError }: AppShellProps) {
       <StatusBar
         canvasStats={canvasStats}
         onResetZoom={() => canvasRef.current?.resetZoom()}
+        onFitAll={() => canvasRef.current?.getEngine()?.fitAllNodes()}
       />
       <WindowLayer
         notices={notices}

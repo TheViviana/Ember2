@@ -1,0 +1,102 @@
+/* 浮窗内查找替换：悬浮在正文右上角，不挤占编辑区。只引用 token。 */
+.panel {
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  width: min(26rem, calc(100% - var(--space-xl)));
+  padding: var(--space-sm);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-md);
+  background: var(--ember-bg-elevated);
+  box-shadow: var(--ember-panel-shadow);
+  color: var(--ember-text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--control-height);
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--ember-border-input);
+  border-radius: var(--radius-sm);
+  background: var(--ember-control-bg);
+  color: var(--ember-text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+}
+
+.input:focus {
+  border-color: var(--ember-border-focus);
+  outline: none;
+}
+
+.count {
+  flex: 0 0 auto;
+  min-width: 4.5rem;
+  color: var(--ember-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.iconButton,
+.textButton {
+  flex: 0 0 auto;
+  height: var(--control-height);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-sm);
+  background: var(--ember-control-bg);
+  color: var(--ember-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.iconButton {
+  width: var(--control-height);
+}
+
+.textButton {
+  padding: 0 var(--space-sm);
+}
+
+.iconButton:hover,
+.textButton:hover,
+.textButton[aria-pressed='true'] {
+  border-color: var(--ember-border-strong);
+  background: var(--ember-bg-hover);
+  color: var(--ember-text-primary);
+}
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  padding: 0 var(--space-xs);
+  color: var(--ember-text-muted);
+}
+
+.option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  cursor: pointer;
+}
+
+.option input {
+  margin: 0;
+  accent-color: var(--ember-primary);
+}

@@ -167,6 +167,27 @@ export function mediaFileName(path: string): string {
   return base === '' ? normalized : base;
 }
 
+/** 文档与自定义媒体名称显示在节点外上方；其它节点没有这层外标题。 */
+export function hasOutsideNodeLabel(node: CanvasNodeView): boolean {
+  if (node.docPath !== undefined) return true;
+  return node.media !== undefined && node.label !== '' && node.label !== mediaFileName(node.media.path);
+}
+
+/** 外标题的本地坐标、宽度与缩放补偿字号；null 表示沿用 CSS 的 13px。 */
+export function nodeOutsideLabelLayout(
+  node: CanvasNodeView,
+  transform: ViewportTransform,
+): Point & { readonly width: number; readonly fontSize: number | null } {
+  const local = nodeLocalPosition(node, transform);
+  const compensated = transform.scale * 13 < 11;
+  return {
+    x: local.x,
+    y: local.y - (compensated ? 17.2 / transform.scale : 20),
+    width: nodeSizeOf(node).w,
+    fontSize: compensated ? Number((11 / transform.scale).toFixed(2)) : null,
+  };
+}
+
 function readMediaView(
   raw: Readonly<Record<string, unknown>>,
 ): CanvasNodeView['media'] {
@@ -256,6 +277,14 @@ export function nodeScreenPosition(local: Point, transform: ViewportTransform): 
  */
 export function worldContainerOffset(transform: ViewportTransform): Point {
   return composeScreenPosition({ x: 0, y: 0 }, transform);
+}
+
+/** 初始适配与手动 fit-all 共用的绝对世界矩形集（含文档 autoH）。 */
+export function nodeWorldRects(nodes: readonly CanvasNodeView[]): readonly Rect[] {
+  return nodes.map((node) => {
+    const size = nodeSizeOf(node);
+    return { left: node.x, top: node.y, right: node.x + size.w, bottom: node.y + size.h };
+  });
 }
 
 /** C4 节点屏幕 AABB：盒尺寸随 scale 缩放，命中统一使用 CSS px。 */

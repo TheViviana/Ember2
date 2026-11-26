@@ -24,6 +24,7 @@ import { Z_DRAG } from './layer-z.ts';
 import { EDITOR_WINDOW_CONTENT, MEDIA_LIBRARY_WINDOW_CONTENT } from './content-types.ts';
 import { ErrorBoundary } from './ErrorBoundary.tsx';
 import { DevRenderFault } from './DevRenderFault.tsx';
+import { Icon } from '../ui/icon.tsx';
 import styles from './WindowFrame.module.css';
 
 type ResizeEdge = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
@@ -33,19 +34,19 @@ const RESIZE_EDGES: ReadonlyArray<ResizeEdge> = ['n', 's', 'e', 'w', 'ne', 'nw',
 
 /** 标题栏类型砖图标（§8.6）：14px、1.5 描边，颜色继承类型砖。 */
 const EDITOR_ICON = (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+  <Icon size={14}>
     <path d="M6 3.5h7l5 5V20a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 5 20V5a1.5 1.5 0 0 1 1.5-1.5Z" />
     <path d="M13 3.5V9h5" />
     <path d="M8.5 13h7M8.5 16.5h5" />
-  </svg>
+  </Icon>
 );
 
 const MEDIA_ICON = (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+  <Icon size={14}>
     <rect x="3" y="4" width="18" height="16" rx="2" />
     <circle cx="8.5" cy="9" r="1.5" />
     <path d="m4 17 5-5 4 4 3-3 4 4" />
-  </svg>
+  </Icon>
 );
 
 function typeIconFor(contentType: string): ReactNode {
@@ -306,7 +307,9 @@ export function WindowFrame({
               title="最小化"
               aria-label="最小化窗口"
             >
-              −
+              <Icon size={12} viewBox="0 0 12 12">
+                <path d="M2.5 6h7" />
+              </Icon>
             </button>
             <button
               type="button"
@@ -316,7 +319,9 @@ export function WindowFrame({
               title="关闭"
               aria-label="关闭窗口"
             >
-              ×
+              <Icon size={12} viewBox="0 0 12 12">
+                <path d="m2.5 2.5 7 7M9.5 2.5l-7 7" />
+              </Icon>
             </button>
           </div>
         </header>

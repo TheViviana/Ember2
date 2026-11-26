@@ -5,7 +5,13 @@
  * 纯 features 组件：零 @tauri-apps、零 app imports、零 zustand（store 为 features 内部）。
  * 所有 IPC 调用由 AppShell 通过 effects props 注入。
  */
-import { useEffect, useRef, useState } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import type {
   AiEndpointRequest,
   AiKeySaveDto,
@@ -13,8 +19,17 @@ import type {
   AiModelsDto,
   AiTestConnectionDto,
 } from '../../types/ipc.ts';
+import { Icon } from '../../ui/icon.tsx';
 import { AiChatView, type AiChatEffects } from './AiChatView.tsx';
 import { useAiChatStore } from './ai-chat-store.ts';
+import {
+  clampAiPanelHeight,
+  defaultAiPanelHeight,
+  maxAiPanelHeight,
+  MIN_AI_PANEL_HEIGHT,
+  readAiPanelHeight,
+  writeAiPanelHeight,
+} from './ai-panel-reducer.ts';
 import styles from './ai-panel.module.css';
 
 // ─── Effects（AppShell 注入的 IPC 桥）──────────────────────────────
@@ -44,6 +59,10 @@ export interface AiPanelProps {
 export function AiPanel({ open, onClose, onOpenSettings, effects, initialStatus }: AiPanelProps) {
   const config = useAiChatStore((state) => state.config);
   const [configured, setConfigured] = useState(initialStatus?.configured ?? false);
+  const [height, setHeight] = useState(() => (
+    readAiPanelHeight(window.innerHeight) ?? defaultAiPanelHeight(window.innerHeight)
+  ));
+  const resizeRef = useRef<{ pointerId: number; startY: number; startHeight: number } | null>(null);
   const lastStatusCheck = useRef(0);
 
   useEffect(() => {
@@ -85,7 +104,47 @@ export function AiPanel({ open, onClose, onOpenSettings, effects, initialStatus 
     };
   }, [open, effects, config.provider, config.baseUrl, config.allowInsecureHttp]);
 
-  if (!open) return null;
+  useEffect(() => {
+    const clampToViewport = (): void => {
+      setHeight((current) => clampAiPanelHeight(current, window.innerHeight));
+    };
+    window.addEventListener('resize', clampToViewport);
+    return () => window.removeEventListener('resize', clampToViewport);
+  }, []);
+
+  function resizeTo(next: number): void {
+    const value = clampAiPanelHeight(next, window.innerHeight);
+    setHeight(value);
+    writeAiPanelHeight(value, window.innerHeight);
+  }
+
+  function beginResize(event: ReactPointerEvent<HTMLDivElement>): void {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    resizeRef.current = { pointerId: event.pointerId, startY: event.clientY, startHeight: height };
+  }
+
+  function moveResize(event: ReactPointerEvent<HTMLDivElement>): void {
+    const drag = resizeRef.current;
+    if (drag === null || drag.pointerId !== event.pointerId) return;
+    setHeight(clampAiPanelHeight(drag.startHeight + drag.startY - event.clientY, window.innerHeight));
+  }
+
+  function endResize(event: ReactPointerEvent<HTMLDivElement>): void {
+    const drag = resizeRef.current;
+    if (drag === null || drag.pointerId !== event.pointerId) return;
+    resizeRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    resizeTo(drag.startHeight + drag.startY - event.clientY);
+  }
+
+  function resizeWithKeyboard(event: ReactKeyboardEvent<HTMLDivElement>): void {
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+    event.preventDefault();
+    resizeTo(height + (event.key === 'ArrowUp' ? 16 : -16));
+  }
 
   const model = (config.model ?? '').trim();
   const modelLabel =
@@ -98,24 +157,32 @@ export function AiPanel({ open, onClose, onOpenSettings, effects, initialStatus 
         id="ai-panel"
         role="dialog"
         aria-label="AI 面板"
+        data-open={open}
+        style={{ height }}
         onClick={(event) => event.stopPropagation()}
       >
+        <div
+          className={styles.resizeHandle}
+          role="separator"
+          aria-label="调整 AI 面板高度"
+          aria-orientation="horizontal"
+          aria-valuemin={MIN_AI_PANEL_HEIGHT}
+          aria-valuemax={maxAiPanelHeight(window.innerHeight)}
+          aria-valuenow={height}
+          tabIndex={0}
+          onKeyDown={resizeWithKeyboard}
+          onPointerDown={beginResize}
+          onPointerMove={moveResize}
+          onPointerUp={endResize}
+          onPointerCancel={endResize}
+        />
         <header className={styles.header}>
           <h2 className={styles.title}>
-            <svg
-              className={styles.titleIcon}
-              viewBox="0 0 24 24"
-              width="16"
-              height="16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              aria-hidden="true"
-            >
+            <Icon size={16} className={styles.titleIcon}>
               <path d="M10.5 3.5A2.3 2.3 0 0 0 8.2 5.6 2.3 2.3 0 0 0 6.3 8.7a2.3 2.3 0 0 0 .5 4.2A2.3 2.3 0 0 0 9 17h1.5v-13.5Z" />
               <path d="M13.5 3.5A2.3 2.3 0 0 1 15.8 5.6 2.3 2.3 0 0 1 17.7 8.7a2.3 2.3 0 0 1-.5 4.2A2.3 2.3 0 0 1 15 17h-1.5v-13.5Z" />
               <path d="M10.5 17v1.5a1.5 1.5 0 0 0 3 0V17" />
-            </svg>
+            </Icon>
             AI 助手
             <span className={styles.modelChip} title={modelLabel}>
               {modelLabel}
@@ -140,19 +207,9 @@ export function AiPanel({ open, onClose, onOpenSettings, effects, initialStatus 
             title="收起"
             onClick={onClose}
           >
-            <svg
-              viewBox="0 0 24 24"
-              width="14"
-              height="14"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
+            <Icon size={14}>
               <path d="m6 9 6 6 6-6" />
-            </svg>
+            </Icon>
           </button>
         </header>
 

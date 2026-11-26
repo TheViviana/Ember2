@@ -8,6 +8,7 @@
  * - 不读写任何状态，不依赖 React，便于单元测试。
  */
 import type { DocMeta } from '../../core/vault-index';
+import type { DirEntryDto } from '../../types/ipc.ts';
 
 export interface BuildTreeOptions {
   /** 返回某目录的登记子节点顺序；未登记返回 undefined → 走默认排序。 */
@@ -56,33 +57,72 @@ export function buildTree(
   options: BuildTreeOptions = {},
 ): readonly TreeNode[] {
   const root = createDir('', '');
+  for (const path of options.dirs ?? []) ensureDir(root, path);
 
   for (const meta of docs.values()) {
     const segments = meta.path.split('/').filter((segment) => segment.length > 0);
     const fileName = segments.pop();
     if (fileName === undefined) continue;
 
-    let dir = root;
-    for (const segment of segments) {
-      const childPath = dir.path === '' ? segment : `${dir.path}/${segment}`;
-      let child = dir.dirs.get(segment);
-      if (!child) {
-        child = createDir(segment, childPath);
-        dir.dirs.set(segment, child);
-      }
-      dir = child;
-    }
-
+    const dir = ensureDir(root, segments.join('/'));
     const filePath = segments.length === 0 ? fileName : `${segments.join('/')}/${fileName}`;
     if (options.dirs?.has(filePath)) {
-      // CR-20261123：空目录以占位 meta 传入，按目录节点登记，避免被当成同名文件。
-      dir.dirs.set(fileName, createDir(fileName, filePath));
+      // 兼容已有占位 meta：目录已创建时保留其子树，不覆盖成空目录。
+      ensureDir(root, filePath);
       continue;
     }
     dir.files.set(fileName, { kind: 'file', name: fileName, path: filePath });
   }
 
   return materialize(root, options.orderFor);
+}
+
+function ensureDir(root: MutableDir, path: string): MutableDir {
+  let dir = root;
+  for (const segment of path.split('/').filter((part) => part.length > 0)) {
+    const childPath = dir.path === '' ? segment : `${dir.path}/${segment}`;
+    let child = dir.dirs.get(segment);
+    if (child === undefined) {
+      child = createDir(segment, childPath);
+      dir.dirs.set(segment, child);
+    }
+    dir = child;
+  }
+  return dir;
+}
+
+export type DirectoryLister = (path?: string) => Promise<readonly DirEntryDto[]>;
+
+/** 递归收集真实目录；与文档扫描一致跳过顶层 media，并遵守同一下发深度上限。 */
+export async function collectDirectoryPaths(
+  list: DirectoryLister,
+  maxDepth: number,
+): Promise<ReadonlySet<string>> {
+  const dirs = new Set<string>();
+  const walk = async (path: string | undefined, depth: number): Promise<void> => {
+    const entries = await list(path);
+    const children: string[] = [];
+    for (const entry of entries) {
+      if (entry.kind !== 'dir' || (depth === 0 && entry.path === 'media')) continue;
+      dirs.add(entry.path);
+      children.push(entry.path);
+    }
+    if (depth >= maxDepth) return;
+    for (const child of children) {
+      try {
+        await walk(child, depth + 1);
+      } catch (error: unknown) {
+        // 递归期间目录被外部删除不是整次刷新失败；其它 I/O 错误继续上抛。
+        if (!isNotFound(error)) throw error;
+      }
+    }
+  };
+  await walk(undefined, 0);
+  return dirs;
+}
+
+function isNotFound(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'E_NOT_FOUND';
 }
 
 /** 取某目录在树中的直接子节点名（dir 为空串返回根层）。找不到目录返回空数组。 */

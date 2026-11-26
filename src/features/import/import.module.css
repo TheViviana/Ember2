@@ -1,5 +1,5 @@
 .host { position: fixed; inset: 0; }
-.backdrop { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--ember-overlay-scrim); backdrop-filter: blur(6px); }
+.backdrop { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--ember-overlay-scrim); backdrop-filter: blur(var(--ember-glass-blur)); }
 .panel { display: flex; flex-direction: column; width: min(720px, calc(100vw - 48px)); max-height: calc(100vh - 64px); padding: 20px; color: var(--ember-text-primary); background: var(--ember-float-bg); border: var(--ember-hairline) solid var(--ember-border); border-radius: var(--radius-lg); box-shadow: var(--ember-panel-shadow); font-family: var(--font-body); }
 .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .title { margin: 0; color: var(--ember-text-primary); font-size: var(--text-base); }

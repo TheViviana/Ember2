@@ -92,21 +92,20 @@
   --ref-l-canvas: #f6f3ee; /* 画布/首帧：暖纸底，与深色暖石墨同一语感 */
   --ref-l-surface: #f1ede7; /* 侧栏/顶栏/状态栏 */
   --ref-l-deep: #eae5de; /* 凹陷区/代码块底 */
-  --ref-l-ink-strong: #1f1c18; /* ≥28px 大标题 */
   --ref-l-ink: #34302b; /* 正文（ui-spec §5：浅色正文禁纯黑） */
   /* 主题升级 v2.0（2026-11-23）：强调色由黑白灰改为橙色全局主色。
      浅色用深橙保证白底与反色文字对比度；深色用亮橙保证黑底可读。 */
   --ref-l-accent: #c2410c; /* 橙色主色（浅色：主按钮底/选中/链接，白字对比 5.18:1） */
   --ref-l-accent-hover: #9a3412;
   --ref-l-accent-pressed: #7c2d12;
+  /* 强调/链接文字专用深橙：浅底对比 5.35:1（按钮/选中底仍用 --ref-l-accent，不动主色阶梯） */
+  --ref-l-accent-text: #b33b0a;
   --ref-l-accent-soft: rgba(234, 88, 12, 0.08); /* 橙色弱底（选中/图标底） */
   /* 次级文字在浅色卡片上仍需 ≥4.5:1（10–11px 的模型名/字数/快捷键使用该档）。 */
   --ref-l-text-2: #67635d;
   --ref-l-text-3: #6f6b64;
   --ref-l-annotation: #6b675f;
   --ref-l-edge: #a09b92;
-  --ref-l-edge-hover: #6f6b64;
-  --ref-l-port: #7d786f;
   --ref-l-hairline: rgba(0, 0, 0, 0.09);
   --ref-l-hairline-subtle: rgba(0, 0, 0, 0.05);
   --ref-l-hairline-strong: rgba(0, 0, 0, 0.2);
@@ -117,9 +116,7 @@
   --ref-d-surface: #201c19;
   --ref-d-card: #25211e;
   --ref-d-menu: #292521;
-  --ref-d-note: #2b2723;
   --ref-d-float: #2d2925;
-  --ref-d-ink-strong: #f4f1ec; /* 非纯白（ui-spec §5 等值裁决），暖白贴合暖石墨 */
   --ref-d-ink: #e5e1da;
   --ref-d-accent: #fb923c; /* 亮橙（深色主色，黑底可读） */
   --ref-d-accent-hover: #fdba74;
@@ -129,17 +126,13 @@
   --ref-d-text-3: #968f88;
   --ref-d-annotation: #9a948d;
   --ref-d-edge: rgba(255, 255, 255, 0.27); /* 连线在暖黑底上保持可辨的结构线 */
-  --ref-d-edge-hover: #9a948d;
-  --ref-d-port: #9a948d;
   --ref-d-hairline: rgba(255, 255, 255, 0.15);
   --ref-d-hairline-subtle: rgba(255, 255, 255, 0.08);
   --ref-d-hairline-strong: rgba(255, 255, 255, 0.28);
 
   /* ---------- 参考层：品牌强调色（v2.0 新增，有彩语义） ---------- */
   --ref-l-accent-secondary: #7c3aed; /* 薰衣草紫（次强调：信息/睡眠类） */
-  --ref-l-accent-secondary-soft: rgba(124, 58, 237, 0.12);
   --ref-d-accent-secondary: #a78bfa;
-  --ref-d-accent-secondary-soft: rgba(167, 139, 250, 0.16);
   --ref-l-positive: #166534; /* 正向绿：浅底通知文字对比 5.95:1 */
   --ref-l-positive-soft: rgba(22, 101, 52, 0.12);
   --ref-d-positive: #4ade80;
@@ -161,8 +154,8 @@
   --ember-bg-elevated: light-dark(var(--ref-l-card), var(--ref-d-card));
   /* 2026-11-23 主题精修：画布/看板的轻微暖光与底部暗角（不是整块渐变底，网格仍透出主底色） */
   --ember-ambient-warm: light-dark(rgba(234, 88, 12, 0.035), rgba(251, 146, 60, 0.055));
-  --ember-ambient-cool: light-dark(rgba(124, 58, 237, 0.018), rgba(167, 139, 250, 0.028));
-  --ember-ambient-vignette: light-dark(rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.22));
+  --ember-ambient-cool: light-dark(rgba(124, 58, 237, 0.018), rgba(167, 139, 250, 0.028)); /* @keep 氛围模式预留（doc §3.3 冷色偏色） */
+  --ember-ambient-vignette: light-dark(rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.22)); /* @keep 氛围模式预留（doc §3.3 暗角） */
   /* 2026-11-24：选中节点的一层跟随光斑（GPU 只改 transform，不重绘渐变）。 */
   --ember-ambient-glow: light-dark(rgba(234, 88, 12, 0.05), rgba(251, 146, 60, 0.13));
   --ember-bg-menu: light-dark(var(--ref-l-float), var(--ref-d-menu));
@@ -174,7 +167,6 @@
   --ember-overlay-scrim: light-dark(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.5));
 
   /* ---------- 语义层：文字 ---------- */
-  --ember-text-strong: light-dark(var(--ref-l-ink-strong), var(--ref-d-ink-strong));
   --ember-text-primary: light-dark(var(--ref-l-ink), var(--ref-d-ink));
   --ember-text-secondary: light-dark(var(--ref-l-text-2), var(--ref-d-text-2));
   --ember-text-muted: light-dark(var(--ref-l-text-3), var(--ref-d-text-3));
@@ -186,8 +178,7 @@
   --ember-primary-hover: light-dark(var(--ref-l-accent-hover), var(--ref-d-accent-hover));
   --ember-primary-pressed: light-dark(var(--ref-l-accent-pressed), var(--ref-d-accent-pressed));
   --ember-text-on-accent: light-dark(#ffffff, #1a0b02); /* 橙底上的文字用白（浅）／深暖黑（深）保证对比 */
-  --ember-text-accent: light-dark(var(--ref-l-accent), var(--ref-d-accent-pressed));
-  --ember-secondary: var(--ember-text-secondary);
+  --ember-text-accent: light-dark(var(--ref-l-accent-text), var(--ref-d-accent-pressed));
   --ember-primary-glow: light-dark(rgba(234, 88, 12, 0.24), rgba(251, 146, 60, 0.28));
   --ember-primary-tint-weak: light-dark(rgba(234, 88, 12, 0.06), rgba(251, 146, 60, 0.08));
   --ember-primary-tint-soft: light-dark(var(--ref-l-accent-soft), var(--ref-d-accent-soft));
@@ -195,15 +186,14 @@
 
   /* ---------- 语义层：品牌次强调（v2.0 薰衣草紫，信息/睡眠类） ---------- */
   --ember-accent-secondary: light-dark(var(--ref-l-accent-secondary), var(--ref-d-accent-secondary));
-  --ember-accent-secondary-tint: light-dark(var(--ref-l-accent-secondary-soft), var(--ref-d-accent-secondary-soft));
 
   /* ---------- 语义层：火花青（Cinematic Ember §2.4：AI / 生成 / 流式专用） ----------
    * 橙色只表达「选中 / 主操作」，AI 运行态一律取青色，避免两种语义互相抢。
    * 组件接线在节点状态阶段完成；此处先提供唯一色源。 */
-  --ember-ai: light-dark(#0e7490, #22d3ee);
+  --ember-ai: light-dark(#0b647d, #22d3ee); /* 浅色压深：画布底对比 4.84→6.06，消除 AA 贴线 */
   --ember-ai-bright: light-dark(#0891b2, #67e8f9);
-  --ember-ai-tint: light-dark(rgba(14, 116, 144, 0.1), rgba(34, 211, 238, 0.14));
-  --ember-ai-border: light-dark(rgba(14, 116, 144, 0.45), rgba(34, 211, 238, 0.55));
+  --ember-ai-tint: light-dark(rgba(11, 100, 125, 0.1), rgba(34, 211, 238, 0.14));
+  --ember-ai-border: light-dark(rgba(11, 100, 125, 0.45), rgba(34, 211, 238, 0.55));
 
   /* ---------- 语义层：彩色语义态（v2.0 从灰阶恢复为有彩） ----------
    * 行内文字与浅底通知均使用对应语义色文字；实心按钮才搭配 text-on-accent。 */
@@ -227,9 +217,6 @@
   --ember-article-quote: light-dark(#8a4a2a, #e2b99f);
 
   /* ---------- 兼容别名（v1.0 组件引用点仍在用；收敛后删除） ---------- */
-  --ember-bg-glass: var(--ember-glass-topbar);
-  --ember-secondary-glow: var(--ember-primary-glow);
-  --ember-border-glow: var(--ember-border-focus);
   --shadow-lg: var(--ember-shadow-lg);
 
   /* ---------- 语义层：轮廓（ui-spec §4，只用透明度） ---------- */
@@ -242,20 +229,12 @@
   --ember-border-focus: var(--ember-text-secondary);
   --ember-hairline: 0.5px; /* 1x 屏回退 1px，见文末媒体查询 */
 
-  /* ui-spec §4 描边别名（既有引用点兼容） */
-  --stroke-on-light: rgba(0, 0, 0, 0.09);
-  --stroke-on-dark: rgba(255, 255, 255, 0.15);
-
   /* ---------- 阴影（ui-spec §3：左上 45°，blur = offset × 2–3，α ≤ 0.30，高层更淡更柔） ----------
    * 基础档 = 浮窗；elevated 档 = 菜单（z 更高 → 更柔更淡）。 */
   --shadow-offset-x: 6px;
   --shadow-offset-y: 6px;
   --shadow-blur: 15px; /* = 6 × 2.5 */
   --shadow-color: light-dark(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.3));
-  --shadow-offset-x-elevated: 8px;
-  --shadow-offset-y-elevated: 8px;
-  --shadow-blur-elevated: 24px; /* = 8 × 3 */
-  --shadow-color-elevated: light-dark(rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.24));
   --ember-shadow-lg: var(--shadow-offset-x) var(--shadow-offset-y) var(--shadow-blur) var(--shadow-color);
   /* 菜单阴影（Cinematic Ember §3.5）：单层大范围扩散，不做接触阴影堆叠。 */
   --ember-menu-shadow: light-dark(0 16px 40px rgba(0, 0, 0, 0.14), 0 16px 40px rgba(0, 0, 0, 0.45));
@@ -282,7 +261,7 @@
   --text-xl: 20px;
   --text-title: 22px; /* 新增：面板/页面标题 */
   --text-2xl: 28px;
-  --text-display: 48px;
+  --text-display: 48px; /* @keep 基础排版阶梯档（最大标题），保持阶梯完整 */
   --text-article-serif: 17px; /* 衬线阅读模式正文 */
   /* 文章正文字号比例（设置→外观→正文字号）；1 = 设计基准，由 core/article-font.ts 覆写 */
   --article-font-scale: 1;
@@ -294,15 +273,15 @@
   --leading-normal: 1.5;
   --leading-editor: 1.65; /* 编辑态 Markdown 源码行高（2026-11-23 阅读排版精修） */
   --leading-article-zh: 1.7;
-  --leading-article-en: 1.65;
+  --leading-article-en: 1.65; /* @keep 文章行高阶梯档（英文正文） */
   --leading-article-serif-zh: 1.85;
-  --leading-article-serif-en: 1.7;
+  --leading-article-serif-en: 1.7; /* @keep 文章行高阶梯档（英文衬线） */
   --tracking-wide: 0.02em;
   --tracking-caps: 0.04em; /* 全大写小标签专用 */
   --tracking-display: 0.12em;
   /* 兼容别名（v1.0 引用点：AppShell/DocumentList） */
-  --tracking-wider: 0.04em;
-  --tracking-widest: 0.08em;
+  --tracking-wider: 0.04em; /* @keep 字距阶梯档 */
+  --tracking-widest: 0.08em; /* @keep 字距阶梯档 */
 
   /* ---------- 间距（4/8/12/16/24/32/48） ---------- */
   --space-xs: 4px;
@@ -311,19 +290,15 @@
   --space-lg: 16px;
   --space-xl: 24px;
   --space-2xl: 32px;
-  --space-3xl: 48px;
-  --group-gap-inner: var(--space-sm);
-  --group-gap-outer: 36px;
+  --space-3xl: 48px; /* @keep 4px 基网间距阶梯档，保持阶梯完整 */
 
   /* ---------- 圆角（同心圆角推导链见 theme-v1.1.md §3.1） ---------- */
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
-  --radius-xl: 16px;
+  --radius-xl: 16px; /* @keep 圆角阶梯档 */
   --radius-item: 5px; /* 菜单项 */
   --radius-menu: 12px; /* 菜单容器（Cinematic Ember §3.5：12px） */
-  --radius-inner-md: 12px; /* 内嵌媒体/代码块 */
-  --radius-inner-sm: 6px; /* 内部按钮/标签 */
   --radius-full: 9999px;
   /* 节点圆角 18px：与 8px 壳内缩组成同心圆角（内表面 = 18 − 8 = 10，推导见 docBody/docClip/mediaSurface）。 */
   --ember-node-radius: 18px;
@@ -333,15 +308,14 @@
   --menu-padding: 4px; /* 菜单容器内边距（CR-20261121-58：iOS/macOS 紧凑档） */
   --focus-ring-width: 2px;
   --focus-ring-gap: 2px; /* 聚焦环离边间隙（选中环贴边，二者并存成双环） */
-  --focus-ring-gap-color: var(--ember-bg-void); /* 间隙色＝所在容器底色；组件按表面覆写 */
   --ember-caret: var(--ember-primary); /* 文本光标；表单 accent-color 同取 primary */
 
   /* ---------- 过渡 ---------- */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1); /* @keep 缓动阶梯档 */
   --duration-fast: 150ms;
   --duration-base: 170ms;
-  --duration-slow: 200ms;
+  --duration-slow: 200ms; /* @keep 过渡时长阶梯档 */
 
   /* ---------- 布局尺寸（主题不改） ---------- */
   --sidebar-width: 250px;
@@ -349,16 +323,8 @@
   --statusbar-height: 32px;
   --menu-width: 220px;
   --menu-item-height: 28px; /* Cinematic Ember §3.5：行高 28 */
-  --float-width: 560px; /* 侧栏浮窗卡片：默认几何维持现行（CR-20261119-06 §7-15 已确认） */
-  --float-height: 420px;
-  --float-min-width: 480px;
-  --float-min-height: 320px;
   --float-resize-hit: 16px;
-  --window-control-size: 12px;
-  --window-controls-inset: 14px;
-  --window-resize-grip: 6px;
-  --hitzone-min: 44px;
-  --icon-visual: 18px;
+  --hitzone-min: 44px; /* @keep a11y 触达尺寸规范锚点（44px） */
 
   /* ---------- 无限画布 ---------- */
   /* 主区由 .root 使用 --ember-canvas-base 单色兜底；网格画布保持透明并真清屏，避免叠画。 */
@@ -393,7 +359,6 @@
   --ember-canvas-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='128' height='128' filter='url(%23g)'/%3E%3C/svg%3E");
   /* L4 点阵：24px 间距、1px 点、6% 白（点阵比线更易让半透明卡片显形）。 */
   --ember-canvas-grid: light-dark(rgba(0, 0, 0, 0.06), rgba(255, 255, 255, 0.06));
-  --ember-canvas-grid-gap: 24px;
   /* 节点材质（Cinematic Ember §3.7）：深色哑光玻璃，0.86 既透出背景又不牺牲正文对比。
      只有 rgba + 1px 半透明边框 + 上缘内高光，不使用 backdrop-filter。 */
   /* 2026-11-25：整体提亮（用户反馈偏闷）——浅色 0.72 / 深色 0.58，保留底色透出与正文对比。 */
@@ -404,36 +369,21 @@
   --ember-doc-shell-border: light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.14));
   --ember-doc-content-bg: light-dark(rgba(255, 253, 249, 0.86), rgba(17, 14, 11, 0.78));
   --ember-doc-content-border: light-dark(rgba(0, 0, 0, 0.09), rgba(255, 255, 255, 0.09));
-  --ember-node-bg-note: light-dark(var(--ref-l-float), var(--ref-d-note));
   --ember-node-border: light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.1));
-  --ember-node-border-active: var(--ember-primary);
-  --ember-node-kicker: var(--ember-text-annotation);
   --ember-node-shadow: light-dark(0 10px 30px rgba(70, 52, 34, 0.12), 0 10px 30px rgba(0, 0, 0, 0.34)),
     inset 0 1px 0 light-dark(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.055));
   /* 节点内 key-value 字段行（Cinematic Ember §3.8.2）：32px 高、8px 圆角、3.5% 底。 */
   --ember-field-bg: light-dark(rgba(0, 0, 0, 0.035), rgba(255, 255, 255, 0.035));
   --ember-field-bg-hover: light-dark(rgba(0, 0, 0, 0.055), rgba(255, 255, 255, 0.055));
-  --ember-node-handle: 8px; /* 四角控制点边长（交互项落地时启用视觉） */
-  --ember-node-ring: 0 0 0 2px var(--ember-primary); /* 选中贴边环 */
   --ember-edge: light-dark(var(--ref-l-edge), var(--ref-d-edge));
-  --ember-edge-hover: light-dark(var(--ref-l-edge-hover), var(--ref-d-edge-hover));
   --ember-edge-active: var(--ember-primary);
   /* 2026-11-24：连线柔光。用同路径宽描边模拟发光，避免逐边 filter 离屏。 */
   --ember-edge-glow: light-dark(rgba(0, 0, 0, 0.035), rgba(255, 255, 255, 0.055));
   --ember-edge-pulse: light-dark(rgba(180, 83, 9, 0.9), rgba(255, 211, 164, 0.96));
   --ember-edge-pulse-glow: light-dark(rgba(217, 119, 6, 0.2), rgba(251, 146, 60, 0.28));
-  --ember-edge-width: 1.5px;
-  /* 连线命中区屏幕宽度：Canvas 屏幕空间直用；交互判定在 engine（当前为实现内常量） */
-  --ember-edge-hit-width: 14px;
-  --ember-edge-label-halo: 4px;
-  --ember-edge-label-bg: var(--ember-bg-menu);
-  --ember-edge-label-border: var(--ember-border);
-  --ember-edge-label-text: var(--ember-text-secondary);
   /* 端口圆点直径（对齐修复：CSS 的 width/height 与 left/right 都用它，
      中心落在节点 border-box 外边缘，与 edge-layout 锚点重合）。 */
   --ember-port-size: 10px;
-  --ember-port-border: light-dark(var(--ref-l-port), var(--ref-d-port));
-  --ember-port-border-active: var(--ember-primary);
   /* 2026-11-25：端口改为「实色核心 + 隔离缝 + 半透明材质外环」三层。
      深色核心取浅桃橙（对齐参考稿），浅色取深橙保证暖纸底可读。 */
   --ember-port-core: light-dark(#c2410c, #f6c9a4);
@@ -442,23 +392,14 @@
   --ember-port-halo-active: light-dark(rgba(194, 65, 12, 0.26), rgba(251, 146, 60, 0.34));
   --ember-marquee-fill: light-dark(rgba(0, 0, 0, 0.045), rgba(255, 255, 255, 0.06));
   --ember-marquee-border: light-dark(rgba(0, 0, 0, 0.2), rgba(255, 255, 255, 0.28));
-  --ember-group-bg: light-dark(rgba(0, 0, 0, 0.02), rgba(255, 255, 255, 0.03));
-  --ember-group-border: light-dark(rgba(0, 0, 0, 0.08), rgba(255, 255, 255, 0.1));
-  --ember-group-radius: var(--radius-xl);
   --node-fade-height: 25%; /* 底部渐隐高度（交互项 B1 落地时启用） */
-  --ember-scroll-fade-height: 24px; /* 浮窗滚动边缘渐隐（渐变②） */
   --ember-scrollbar-thumb: light-dark(rgba(0, 0, 0, 0.2), rgba(255, 255, 255, 0.28));
   --ember-scrollbar-thumb-hover: light-dark(rgba(0, 0, 0, 0.28), rgba(255, 255, 255, 0.38));
   /* 拖放目标高亮外晕（组件合成：0 0 0 3px var(--ember-primary-glow)） */
 
   /* ---------- 文章浮窗 ---------- */
-  --ember-float-radius: 16px; /* 同心推导：顶栏按钮 8 + 间距 8 */
   --ember-float-shadow: var(--ember-shadow-lg);
   --ember-float-topbar-height: 44px;
-  --ember-float-col-max: 600px;
-  --ember-float-width: 720px;
-  --ember-float-min-width: 480px;
-  --ember-float-max-width: 960px;
 
   /* ---------- 右键菜单与浮层 ---------- */
   /* §8.1 菜单表面：单色哑光半透明底 + 1px 高光描边，不使用毛玻璃。 */
@@ -482,7 +423,6 @@
   --ember-node-text-tint: light-dark(rgba(16, 185, 129, 0.05), rgba(52, 211, 153, 0.08));
   /* 提示词输入框描边（参考图：低饱和橙色描边） */
   --ember-node-prompt-border: light-dark(rgba(234, 88, 12, 0.32), rgba(251, 146, 60, 0.42));
-  --ember-menu-separator: var(--ember-border-subtle);
   /* 看板八维数据可视化色板（2026-11-23 token 化：三分色族适配暖底，浅色加深、深色提亮） */
   --board-dim-factual: light-dark(#2563eb, #60a5fa);
   --board-dim-conceptual: light-dark(#3b82f6, #93c5fd);
@@ -505,7 +445,6 @@
    * 两阶段拦截，不丢防丢数据语义。自绘色值档位 --ember-traffic-* 已删除。 */
 
   /* ---------- 毛玻璃（DOM backdrop-filter；系统 vibrancy 不启用） ---------- */
-  --ember-glass-topbar: light-dark(rgba(246, 243, 238, 0.72), rgba(29, 26, 23, 0.66));
   --ember-glass-blur: 24px;
   --ember-glass-saturate: 140%;
   /* 浮层上沿的 1px 内高光：统一玻璃材质的“实心感”，避免只有描边显得纸片 */
@@ -514,13 +453,10 @@
   /* ---------- 画布与目录视觉打磨（CR-20261121-56） ---------- */
   --ember-tree-selected-bg: light-dark(rgba(0, 0, 0, 0.045), rgba(255, 255, 255, 0.05));
   --ember-divider: light-dark(rgba(0, 0, 0, 0.07), rgba(255, 255, 255, 0.08));
-  --ember-audio-tint: light-dark(rgba(108, 98, 255, 0.05), rgba(139, 130, 255, 0.08));
   --leading-card-zh: 1.6;
   --leading-card-en: 1.5;
   --ember-tree-row-height: 26px;
   --ember-audio-dot-size: 9px;
-  --ember-card-gap: var(--space-sm); /* 卡内行距统一 8px */
-  --ember-ai-pad-block: 20px; /* AI 助手浮窗上下内边距（CR-20261121-57） */
 
   /* ---------- 控件表面（v2.0 精致化：中性控件略具表面，不是完全透明） ---------- */
   --ember-control-bg: light-dark(rgba(255, 255, 255, 0.52), rgba(255, 255, 255, 0.04));
@@ -528,9 +464,9 @@
   --ember-control-raised: light-dark(0 1px 2px rgba(0, 0, 0, 0.08), 0 2px 5px rgba(0, 0, 0, 0.28));
 
   /* ---------- 层级（禁改；组件禁写裸 z-index） ---------- */
-  --layer-canvas: 1;
-  --layer-sidebar: 40;
-  --layer-float: 50;
+  --layer-canvas: 1; /* @keep z-index 层级契约锚点（组件禁写裸 z-index） */
+  --layer-sidebar: 40; /* @keep z-index 层级契约锚点 */
+  --layer-float: 50; /* @keep z-index 层级契约锚点 */
   --layer-menu: 60;
   --layer-chrome: 70;
   /*
@@ -554,14 +490,12 @@
     --ref-l-hairline-subtle: rgba(0, 0, 0, 0.28);
     --ref-l-hairline-strong: rgba(0, 0, 0, 0.7);
     --ref-l-edge: #66625b;
-    --ref-l-port: #4a4741;
     --ref-l-text-2: #4a4741;
     --ref-l-text-3: #615d56;
     --ref-d-hairline: rgba(255, 255, 255, 0.5);
     --ref-d-hairline-subtle: rgba(255, 255, 255, 0.3);
     --ref-d-hairline-strong: rgba(255, 255, 255, 0.75);
     --ref-d-edge: #9a948d;
-    --ref-d-port: #aaa49c;
     --ref-d-text-2: #c5bfb7;
     --ref-d-text-3: #aaa49c;
     /* 材质层同步加强：高对比下不用半透明吃掉卡片与正文档位。 */
@@ -573,13 +507,14 @@
     --ember-doc-content-border: var(--ember-border-strong);
     --ember-canvas-grid: light-dark(rgba(0, 0, 0, 0.16), rgba(255, 255, 255, 0.14));
     --ember-edge-glow: transparent;
+    /* 高对比用户：聚焦环加粗 2px→3px，灰环更易辨（默认档保持克制不发亮） */
+    --focus-ring-width: 3px;
   }
 }
 
 /* ---------- 系统「降低透明度」：半透明层强制不透明 ---------- */
 @media (prefers-reduced-transparency: reduce) {
   :root {
-    --ember-glass-topbar: var(--ember-bg-surface);
     --ember-glass-blur: 0px;
     --ember-glass-saturate: 100%;
     --ember-doc-shell: var(--ember-bg-surface);
@@ -611,6 +546,9 @@
 
   /* §8.2 顶栏：搜索 / 连接状态 / 设置统一 32px；模式指示块用中性半透明底。 */
   --topbar-control-size: 32px;
+  /* 顶栏模式开关：矮而宽的长椭圆分段 */
+  --mode-switch-width: 76px;
+  --mode-switch-height: 26px;
   --ember-mode-indicator-bg: light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.08));
   --ember-mode-indicator-border: light-dark(rgba(0, 0, 0, 0.12), rgba(255, 255, 255, 0.1));
 }

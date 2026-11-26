@@ -87,8 +87,9 @@ h6.heading {
 
 .paragraph {
   margin: 0 0 1em;
-  overflow-wrap: anywhere;
-  text-align: justify;
+  overflow-wrap: break-word;
+  text-align: left;
+  text-wrap: pretty;
   line-height: inherit;
 }
 

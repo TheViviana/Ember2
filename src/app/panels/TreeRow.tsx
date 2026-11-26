@@ -10,8 +10,6 @@ import { useEmberStore } from '../stores/ember-store';
 import { useTreeStore } from '../stores/tree-store';
 import { pushNotice } from '../stores/notice-store';
 import { vaultApi } from '../../data/app-api.ts';
-import { getViewport, openWindow } from '../../windows/use-window-manager.ts';
-import { EDITOR_WINDOW_CONTENT } from '../../windows/content-types.ts';
 import {
   beginPointerDragSession,
   dispatchPointerDragDrop,
@@ -24,6 +22,7 @@ import { renamedDocPaths } from './doc-index-sync.ts';
 import { setDocDrag } from './doc-drag-state.ts';
 import styles from './TreeRow.module.css';
 import { formatUnknownError } from '../../core/errors.ts';
+import { Icon } from '../../ui/icon.tsx';
 
 export interface TreeRowProps {
   readonly path: string;
@@ -31,6 +30,7 @@ export interface TreeRowProps {
   readonly depth: number;
   readonly kind: 'dir' | 'file';
   readonly hasChildren: boolean;
+  readonly onRefreshDirs: () => void;
   /**
    * CR-20261121-57：行右键 → 父组件弹出右键菜单（新建文章/新建文件夹在目标目录内执行）。
    * 取代原 onRequestNewDoc 弹面板流程（新建改为默认名 + 原位重命名）。
@@ -60,6 +60,7 @@ export const TreeRow = memo(function TreeRow({
   depth,
   kind,
   hasChildren,
+  onRefreshDirs,
   onRowContextMenu,
 }: TreeRowProps) {
   const isDir = kind === 'dir';
@@ -102,7 +103,9 @@ export const TreeRow = memo(function TreeRow({
     return () => document.removeEventListener('keydown', onKeyDown, true);
   }, [ghost]);
 
-  function handleClick(): void {
+  function handleClick(event: ReactMouseEvent<HTMLButtonElement>): void {
+    // 第二次 click 只参与双击改名，不重复打开文档或切换目录展开态。
+    if (event.detail > 1) return;
     // 刚完成拖拽/取消：抑制这一次 click，避免误打开文档。
     if (suppressClickRef.current) {
       suppressClickRef.current = false;
@@ -121,13 +124,10 @@ export const TreeRow = memo(function TreeRow({
     });
   }
 
-  // D2：双击文档在浮窗中打开（单击仅选中，见 handleClick）。
+  // 双击文章/文件夹都进入原位改名；浮窗仍由文档库区头按钮打开。
   function handleDoubleClick(): void {
-    if (isDir) return;
     expandAncestors(path);
-    setActivePath(path);
-    setOpenError(null);
-    openWindow(path, EDITOR_WINDOW_CONTENT, getViewport());
+    setEditingPath(path);
   }
 
   function handlePointerDown(event: ReactPointerEvent<HTMLButtonElement>): void {
@@ -218,6 +218,7 @@ export const TreeRow = memo(function TreeRow({
         } catch (error: unknown) {
           pushNotice(`目录索引刷新失败：${formatUnknownError(error, '未知错误')}`, 'warning');
         }
+        onRefreshDirs();
         pushNotice(isDir ? `文件夹已改名：${trimmed}` : `已命名：${nextName}`, 'info');
       })
       .catch((error: unknown) => pushNotice(`重命名失败：${formatUnknownError(error, '未知错误')}`, 'error'));
@@ -281,19 +282,23 @@ export const TreeRow = memo(function TreeRow({
       data-path={path}
       data-kind={kind}
     >
-      <span className={styles.marker} aria-hidden="true">
-        {isDir && hasChildren ? (expanded ? '▾' : '▸') : ''}
+      <span
+        className={styles.marker}
+        aria-hidden="true"
+        data-expanded={isDir && hasChildren && expanded ? 'true' : undefined}
+      >
+        {isDir && hasChildren ? (
+          <Icon size={12} viewBox="0 0 8 8" className={styles.markerIcon}>
+            <path d="M2.5 1.5 5.5 4 2.5 6.5" />
+          </Icon>
+        ) : null}
       </span>
       {/* CR-20261121-56：目录行文件夹图标 / 文件行占位同宽，保证名称列严格对齐 */}
       <span className={styles.icon} aria-hidden="true">
         {isDir ? (
-          <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path
-              d="M1.5 3.5A1.5 1.5 0 0 1 3 2h3.2l1.6 2H13a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 13 14H3a1.5 1.5 0 0 1-1.5-1.5V3.5Z"
-              stroke="currentColor"
-              strokeWidth="1.2"
-            />
-          </svg>
+          <Icon size={12} viewBox="0 0 16 16">
+            <path d="M1.5 3.5A1.5 1.5 0 0 1 3 2h3.2l1.6 2H13a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 13 14H3a1.5 1.5 0 0 1-1.5-1.5V3.5Z" />
+          </Icon>
         ) : null}
       </span>
       <span className={`${styles.name}${isDir ? ` ${styles.nameDir}` : ''}`}>{name}</span>

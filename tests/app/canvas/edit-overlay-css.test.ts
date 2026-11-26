@@ -19,6 +19,26 @@ void test('editInput 必须自带绝对定位与层级（回归钉子）', () =>
   assert.match(rule[0], /z-index:/, '编辑框必须浮在画布之上');
 });
 
+void test('自由文本编辑区从左上开始并保留多行', () => {
+  const css = readFileSync(join(ROOT, 'src/app/canvas/CanvasView.module.css'), 'utf8');
+  const rule = css.match(/\.editNodeText\s*\{[^}]*\}/)?.[0] ?? '';
+  assert.match(rule, /box-sizing:\s*border-box/);
+  assert.match(rule, /text-align:\s*left/);
+  assert.match(rule, /vertical-align:\s*top/);
+  const canvasCss = readFileSync(join(ROOT, 'src/app/canvas/canvas.module.css'), 'utf8');
+  const displayRule = canvasCss.match(/\.nodeCardContent\[data-simple-kind='text'\]\s*\{[^}]*\}/)?.[0] ?? '';
+  assert.match(displayRule, /white-space:\s*pre-wrap/, '提交后的文本节点也必须保留换行');
+});
+
+void test('独立标题改名只描出标题行，不再使用整节点的大输入框', () => {
+  const css = readFileSync(join(ROOT, 'src/app/canvas/CanvasView.module.css'), 'utf8');
+  const rule = css.match(/\.editTitleInput\s*\{[^}]*\}/)?.[0] ?? '';
+  assert.match(rule, /min-width:\s*0/);
+  assert.match(rule, /padding:\s*0/);
+  assert.match(rule, /border:\s*0/);
+  assert.match(rule, /outline:\s*1px solid var\(--ember-primary\)/);
+});
+
 void test('未被 TSX 使用的 .editOverlay 包装死类不得回潮', () => {
   const css = readFileSync(join(ROOT, 'src/app/canvas/CanvasView.module.css'), 'utf8');
   // 只禁规则定义本身；注释中说明历史原因的提及不受影响。

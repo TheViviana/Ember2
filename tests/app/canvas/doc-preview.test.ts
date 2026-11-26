@@ -125,6 +125,45 @@ void test('来源优先级：已打开文档用 live text，不触发 vault_read
   assert.equal(preview?.fromLive, true);
 });
 
+void test('live 关窗后不得复用打开前的旧快照', async () => {
+  let live: string | null = null;
+  let snapshot = '';
+  const service = createDocPreviewService({
+    readLiveText: () => live,
+    readSnapshot: () => Promise.resolve(snapshot),
+  });
+  await service.requestText('a.md');
+  assert.equal(service.getText('a.md')?.text, '');
+
+  live = '# 编辑后的正文';
+  await service.requestText('a.md');
+  assert.equal(service.getText('a.md')?.fromLive, true);
+  snapshot = live;
+  live = null;
+
+  await service.requestText('a.md');
+  assert.equal(service.getText('a.md')?.text, '# 编辑后的正文');
+  assert.equal(service.getText('a.md')?.fromLive, false);
+});
+
+void test('live 与 snapshot 预览均剥离 frontmatter，但不误删正文代码/标签文本', async () => {
+  const raw = [
+    '---', 'tags: [项目/前端]', '---', '',
+    '```yaml', 'tags: [这是代码示例]', '```', '', '正文保留 #标签 与 / 路径。',
+  ].join('\n');
+  const service = createDocPreviewService({
+    readLiveText: (path) => path === 'live.md' ? raw : null,
+    readSnapshot: () => Promise.resolve(raw),
+  });
+  await service.requestText('snapshot.md');
+  for (const path of ['live.md', 'snapshot.md']) {
+    const preview = service.getText(path);
+    assert.equal(preview?.text.includes('项目/前端'), false);
+    assert.equal(preview?.text.includes('tags: [这是代码示例]'), true);
+    assert.equal(preview?.text.includes('正文保留 #标签 与 / 路径。'), true);
+  }
+});
+
 void test('读取失败记为显式 failed 条目，不反复重试也不抛错', async () => {
   let calls = 0;
   const service = createDocPreviewService({
@@ -172,7 +211,7 @@ void test('invalidate：只失效指定路径，后续读取获得新正文与�
   assert.notEqual(service.getText('b.md'), null, '其它路径缓存保留');
 
   await Promise.all([service.requestText('a.md'), service.requestMeta('a.md')]);
-  assert.equal(service.getText('a.md')?.text, snapshot);
+  assert.equal(service.getText('a.md')?.text, 'new');
   assert.equal(service.getMeta('a.md')?.summary, 'new');
 });
 

@@ -87,6 +87,7 @@ async function main(): Promise<void> {
         depth: 0,
         kind: 'file',
         hasChildren: false,
+        onRefreshDirs: () => undefined,
       }),
     );
   });

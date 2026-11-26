@@ -16,6 +16,7 @@ import {
 } from '../canvas/canvas-open.ts';
 import { useStartupCanvas } from './use-startup-canvas.ts';
 import { TreeRow } from './TreeRow';
+import { useKnownDirs } from './use-known-dirs.ts';
 import {
   loadDocOrder,
   removeChildFromOrder,
@@ -34,6 +35,7 @@ import { EDITOR_WINDOW_CONTENT } from '../../windows/content-types.ts';
 import { canvasApi, vaultApi } from '../../data/app-api.ts';
 import styles from './DocumentList.module.css';
 import { formatUnknownError } from '../../core/errors.ts';
+import { MenuShell } from './MenuShell.tsx';
 
 type TreeMenuTarget =
   | { readonly kind: 'blank' }
@@ -59,8 +61,7 @@ export function DocumentList({ onOpenImport }: DocumentListProps) {
   const activePath = useTreeStore((state) => state.activePath);
   const expanded = useTreeStore((state) => state.expanded);
   const openError = useTreeStore((state) => state.openError);
-  const pendingDirs = useTreeStore((state) => state.pendingDirs);
-  const removePendingDirs = useTreeStore((state) => state.removePendingDirs);
+  const { dirs, refreshDirs } = useKnownDirs();
 
   const canvases = useCanvasSessionStore((state) => state.canvases);
   const activeCanvasId = useCanvasSessionStore((state) => state.activeCanvasId);
@@ -123,10 +124,11 @@ export function DocumentList({ onOpenImport }: DocumentListProps) {
         vaultApi,
         canvasApi,
         reconcile: (paths) => useEmberStore.getState().reconcilePaths(paths),
+        refreshDirs,
         notice: pushNotice,
         treeStore: useTreeStore,
       }),
-    [],
+    [refreshDirs],
   );
 
   // CR-20261121-57：删除画布——vault_remove 移入回收站；活动画布被删则清活动态。
@@ -199,6 +201,7 @@ export function DocumentList({ onOpenImport }: DocumentListProps) {
     // 防御：只在用户直接点到容器本身时才触发（子元素已 stopPropagation / 自行处理）
     if (event.target !== event.currentTarget) return;
     event.preventDefault();
+    refreshDirs();
     setTreeMenu({ x: event.clientX, y: event.clientY, target: { kind: 'blank' } });
   }
 
@@ -228,17 +231,8 @@ export function DocumentList({ onOpenImport }: DocumentListProps) {
     [order],
   );
 
-  // CR-20261121-57：空目录不进扫描索引——右键新建的目录以 pendingDirs 兜底进树，
-  // 目录内出现文件后自动移交扫描索引（移出兜底）。
-  const tree = useMemo(() => {
-    const options = { orderFor, dirs: pendingDirs };
-    if (pendingDirs.size === 0) return buildTree(docs, options);
-    const merged = new Map(docs);
-    for (const dir of pendingDirs) {
-      if (!merged.has(dir)) merged.set(dir, { path: dir, bytes: 0, sha256: '', modifiedMs: 0 });
-    }
-    return buildTree(merged, options);
-  }, [docs, pendingDirs, orderFor]);
+  // 真实目录与本地即时 overlay 的并集进树；空目录不依赖文章索引。
+  const tree = useMemo(() => buildTree(docs, { orderFor, dirs }), [docs, dirs, orderFor]);
   const rows = useMemo(() => flattenVisible(tree, expanded), [tree, expanded]);
 
   // ---- CR-20261122-67 §3：文档树内部拖拽（调序 / 跨目录移动）落点指示与执行 ----
@@ -364,13 +358,6 @@ export function DocumentList({ onOpenImport }: DocumentListProps) {
     return () => document.removeEventListener(POINTER_DRAG_DROP_EVENT, onDrop);
   }, [handleTreeDrop]);
 
-  useEffect(() => {
-    const stale = [...pendingDirs].filter((dir) =>
-      [...docs.keys()].some((path) => path.startsWith(`${dir}/`)),
-    );
-    if (stale.length > 0) removePendingDirs(stale);
-  }, [docs, pendingDirs, removePendingDirs]);
-
   // CR-20261121-57：右键菜单——点击文档任意处关闭。
   useEffect(() => {
     if (treeMenu === null && canvasMenu === null) return;
@@ -487,11 +474,14 @@ export function DocumentList({ onOpenImport }: DocumentListProps) {
                           entry.id === activeCanvasId && entry.valid ? styles.canvasRowActive : ''
                         }`}
                         title={entry.valid ? undefined : canvasEntryReasonLabel(entry.reason)}
-                        onClick={() => {
-                          // 无效画布仍不可打开，但保留右键删除入口。
-                          if (!entry.valid) return;
+                        onClick={(event) => {
+                          // 第二次 click 只参与双击改名，不重复激活画布。
+                          if (event.detail > 1 || !entry.valid) return;
                           setActiveCanvasId(entry.id);
                           setMode('canvas');
+                        }}
+                        onDoubleClick={() => {
+                          if (entry.valid) setRenamingCanvas(entry.id);
                         }}
                         onContextMenu={(event) => {
                           event.preventDefault();
@@ -559,8 +549,9 @@ export function DocumentList({ onOpenImport }: DocumentListProps) {
               >
                 {rows.map((row) => (
                   <TreeRow key={row.path} path={row.path} name={row.name} depth={row.depth}
-                    kind={row.kind} hasChildren={row.hasChildren}
+                    kind={row.kind} hasChildren={row.hasChildren} onRefreshDirs={refreshDirs}
                     onRowContextMenu={(info, anchor) => {
+                      refreshDirs();
                       setTreeMenu({
                         x: anchor.x,
                         y: anchor.y,
@@ -581,12 +572,7 @@ export function DocumentList({ onOpenImport }: DocumentListProps) {
       </div>
       {/* CR-20261121-57：目录树右键菜单 */}
       {treeMenu === null ? null : (
-        <ul
-          className={styles.contextMenu}
-          style={{ left: treeMenu.x, top: treeMenu.y }}
-          role="menu"
-          onPointerLeave={() => setTreeMenu(null)}
-        >
+        <MenuShell x={treeMenu.x} y={treeMenu.y} className={styles.contextMenu} onClose={() => setTreeMenu(null)}>
           <li>
             <button type="button" className={styles.menuItem} onClick={() => {
               const target = treeMenu.target;
@@ -624,6 +610,17 @@ export function DocumentList({ onOpenImport }: DocumentListProps) {
                   改名
                 </button>
               </li>
+              {treeMenu.target.kind === 'file' ? (
+                <li>
+                  <button type="button" className={styles.menuItem} onClick={() => {
+                    const target = treeMenu.target;
+                    setTreeMenu(null);
+                    if (target.kind === 'file') void actions.revealDoc(target.path);
+                  }}>
+                    在访达中查看
+                  </button>
+                </li>
+              ) : null}
               <li className={styles.contextMenuDivider} />
               <li>
                 <button type="button" className={styles.menuItem} data-variant="danger" onClick={requestTreeDelete}>
@@ -632,16 +629,11 @@ export function DocumentList({ onOpenImport }: DocumentListProps) {
               </li>
             </>
           )}
-        </ul>
+        </MenuShell>
       )}
       {/* CR-20261121-57：画布右键菜单 */}
       {canvasMenu === null ? null : (
-        <ul
-          className={styles.contextMenu}
-          style={{ left: canvasMenu.x, top: canvasMenu.y }}
-          role="menu"
-          onPointerLeave={() => setCanvasMenu(null)}
-        >
+        <MenuShell x={canvasMenu.x} y={canvasMenu.y} className={styles.contextMenu} onClose={() => setCanvasMenu(null)}>
           {canvasMenu.target.row === null ? (
             <li>
               <button type="button" className={styles.menuItem} onClick={() => {
@@ -677,7 +669,7 @@ export function DocumentList({ onOpenImport }: DocumentListProps) {
               )}
             </>
           )}
-        </ul>
+        </MenuShell>
       )}
       {/* CR-63：文章/文件夹删除确认（受控，取消不调用 IPC，删除中防重复） */}
       {deleteTarget === null ? null : (

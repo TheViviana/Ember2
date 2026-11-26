@@ -22,6 +22,21 @@ pub fn media_save(
         .map_err(ErrorPayload::from)
 }
 
+/// 粘贴截图：前端传 base64，后端判型、内容寻址与去重，与磁盘导入同一条管线。
+#[tauri::command]
+pub fn media_save_bytes(
+    state: State<'_, VaultState>,
+    data: String,
+) -> Result<MediaSaveDto, ErrorPayload> {
+    let slot = state.read();
+    let session = &slot.session;
+    let root = root_of(session)?;
+    let bytes = media::decode_base64(&data).map_err(ErrorPayload::from)?;
+    media::save_bytes(&session.gate, root, &bytes)
+        .map(MediaSaveDto::from)
+        .map_err(ErrorPayload::from)
+}
+
 #[tauri::command]
 pub fn media_list(state: State<'_, VaultState>) -> Result<Vec<MediaEntryDto>, ErrorPayload> {
     let slot = state.read();

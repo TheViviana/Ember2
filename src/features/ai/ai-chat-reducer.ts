@@ -45,7 +45,8 @@ export type AiChatAction =
   | { readonly type: 'DELTA'; readonly requestId: string; readonly text: string }
   | { readonly type: 'DONE'; readonly requestId: string }
   | { readonly type: 'ERROR'; readonly requestId: string; readonly error: AiChatError }
-  | { readonly type: 'CANCEL'; readonly requestId: string };
+  | { readonly type: 'CANCEL'; readonly requestId: string }
+  | { readonly type: 'RETRY'; readonly requestId: string; readonly assistantId: string };
 
 function patchTurn(
   state: AiChatState,
@@ -148,6 +149,24 @@ export function aiChatReducer(state: AiChatState, action: AiChatAction): AiChatS
           }))),
         activeRequestId: null,
         activeAssistantId: null,
+        error: null,
+      });
+    }
+
+    case 'RETRY': {
+      if (state.status === 'streaming') return state;
+      const target = state.messages.find((m) => m.id === action.assistantId);
+      if (target === undefined || target.role !== 'assistant') return state;
+      return Object.freeze({
+        ...state,
+        status: 'streaming',
+        messages: Object.freeze(patchTurn(state, action.assistantId, (turn) => Object.freeze({
+          ...turn,
+          content: '',
+          completed: false,
+        }))),
+        activeRequestId: action.requestId,
+        activeAssistantId: action.assistantId,
         error: null,
       });
     }

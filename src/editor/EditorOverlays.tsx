@@ -10,11 +10,12 @@ import { AiSelectionMenu, type AiSelectionCardState } from './AiSelectionMenu.ts
 import type { AiTextAction } from './ai-text-types.ts';
 import type { BacklinksState } from './BacklinksPanel.tsx';
 import type { PreviewTranslation } from './MarkdownPreview.tsx';
+import type { EditorMode } from './mode.ts';
 import { EditorBreadcrumb } from './EditorBreadcrumb.tsx';
 import styles from './EditorView.module.css';
 
 export type ExternalKind = 'updated' | 'removed';
-export type EditorModeName = 'edit' | 'focus' | 'read';
+export type EditorModeName = EditorMode;
 
 export interface EditorTopbarProps {
   readonly chromeHidden: boolean;
@@ -33,6 +34,7 @@ export interface EditorTopbarProps {
   readonly onToggleBacklinks: () => void;
   readonly mode: EditorModeName;
   readonly onModeChange: (mode: EditorModeName) => void;
+  readonly onToggleFocus: () => void;
   readonly serif: boolean;
   readonly immersive: boolean;
   readonly onToggleSerif: () => void;
@@ -57,6 +59,7 @@ export function EditorTopbar({
   onToggleBacklinks,
   mode,
   onModeChange,
+  onToggleFocus,
   serif,
   immersive,
   onToggleSerif,
@@ -125,7 +128,7 @@ export function EditorTopbar({
             type="button"
             className={`${styles.topbarButton} ${mode === 'edit' ? styles.topbarButtonActive : ''}`}
             aria-pressed={mode === 'edit'}
-            title="编辑模式（⌘1）"
+            title="编辑模式（⌘1，光标外隐藏 Markdown 标记）"
             onClick={() => onModeChange('edit')}
           >
             编辑
@@ -134,8 +137,8 @@ export function EditorTopbar({
             type="button"
             className={`${styles.topbarButton} ${focusMode ? styles.topbarButtonActive : ''}`}
             aria-pressed={focusMode}
-            title="专注模式（⌘2）"
-            onClick={() => onModeChange('focus')}
+            title="专注模式（⌘2，可与编辑/阅读叠加）"
+            onClick={onToggleFocus}
           >
             专注
           </button>

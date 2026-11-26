@@ -36,6 +36,7 @@ void test('改名成功后本地状态按前缀迁移', () => {
   useTreeStore.setState({
     expanded: new Set(['notes', 'notes/child', 'other']),
     activePath: 'notes/child/a.md',
+    knownDirs: new Set(['notes', 'notes/child', 'notes/empty', 'other']),
     pendingDirs: new Set(['notes/empty']),
     editingPath: null,
   });
@@ -43,9 +44,20 @@ void test('改名成功后本地状态按前缀迁移', () => {
   const state = useTreeStore.getState();
   assert.deepEqual([...state.expanded].sort(), ['journal', 'journal/child', 'other']);
   assert.equal(state.activePath, 'journal/child/a.md');
+  assert.deepEqual([...state.knownDirs].sort(), ['journal', 'journal/child', 'journal/empty', 'other']);
   assert.deepEqual([...state.pendingDirs], ['journal/empty']);
   assert.equal(state.editingPath, null);
 
   useTreeStore.getState().renamePath('journal/child/a.md', 'journal/child/b.md');
   assert.equal(useTreeStore.getState().activePath, 'journal/child/b.md');
+});
+
+void test('文章/文件夹/有效画布双击进入改名，第二次 click 不执行单击动作', () => {
+  assert.match(row, /function handleDoubleClick\(\): void \{\s*expandAncestors\(path\);\s*setEditingPath\(path\);/);
+  assert.match(row, /function handleClick\(event: ReactMouseEvent<HTMLButtonElement>\)/);
+  assert.match(row, /if \(event\.detail > 1\) return;/);
+  assert.doesNotMatch(row, /openWindow\(/);
+  assert.match(row, /onRefreshDirs\(\);/);
+  assert.match(list, /onDoubleClick=\{\(\) => \{\s*if \(entry\.valid\) setRenamingCanvas\(entry\.id\);/);
+  assert.match(list, /if \(event\.detail > 1 \|\| !entry\.valid\) return;/);
 });

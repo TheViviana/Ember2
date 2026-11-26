@@ -180,11 +180,12 @@ export function parseCardMetadata(text: string): CardMetadata {
 }
 
 function clampText(raw: string, fromLive: boolean): PreviewText {
-  if (raw.length <= PREVIEW_TEXT_MAX_CHARS) {
-    return { text: raw, truncated: false, fromLive, failed: false };
+  const body = parseFrontmatter(raw).body;
+  if (body.length <= PREVIEW_TEXT_MAX_CHARS) {
+    return { text: body, truncated: false, fromLive, failed: false };
   }
   return {
-    text: raw.slice(0, PREVIEW_TEXT_MAX_CHARS),
+    text: body.slice(0, PREVIEW_TEXT_MAX_CHARS),
     truncated: true,
     fromLive,
     failed: false,
@@ -207,7 +208,25 @@ export function createDocPreviewService(deps: DocPreviewDeps): DocPreviewService
   const metaCache = createLruCache<string, CardMetadata>(PREVIEW_META_CACHE_SIZE);
   const textInFlight = new Map<string, Promise<void>>();
   const metaInFlight = new Map<string, Promise<void>>();
+  const livePaths = new Set<string>();
   let disposed = false;
+
+  const invalidate = (path: string): void => {
+    textCache.delete(path);
+    metaCache.delete(path);
+    textInFlight.delete(path);
+    metaInFlight.delete(path);
+  };
+
+  const readLive = (path: string): string | null => {
+    const live = deps.readLiveText(path);
+    if (live !== null) {
+      livePaths.add(path);
+      return live;
+    }
+    if (livePaths.delete(path)) invalidate(path);
+    return null;
+  };
 
   const notify = (path: string): void => {
     if (disposed) return;
@@ -216,7 +235,7 @@ export function createDocPreviewService(deps: DocPreviewDeps): DocPreviewService
 
   const requestText = (path: string): Promise<void> => {
     if (disposed) return Promise.resolve();
-    if (deps.readLiveText(path) !== null) return Promise.resolve();
+    if (readLive(path) !== null) return Promise.resolve();
     if (textCache.has(path)) return Promise.resolve();
     const inFlight = textInFlight.get(path);
     if (inFlight !== undefined) return inFlight;
@@ -239,7 +258,7 @@ export function createDocPreviewService(deps: DocPreviewDeps): DocPreviewService
 
   const requestMeta = (path: string): Promise<void> => {
     if (disposed) return Promise.resolve();
-    const live = deps.readLiveText(path);
+    const live = readLive(path);
     if (live !== null) {
       metaCache.set(path, parseCardMetadata(live));
       return Promise.resolve();
@@ -266,12 +285,12 @@ export function createDocPreviewService(deps: DocPreviewDeps): DocPreviewService
 
   return {
     getMeta(path: string): CardMetadata | null {
-      const live = deps.readLiveText(path);
+      const live = readLive(path);
       if (live !== null) return parseCardMetadata(live);
       return metaCache.get(path) ?? null;
     },
     getText(path: string): PreviewText | null {
-      const live = deps.readLiveText(path);
+      const live = readLive(path);
       if (live !== null) return clampText(live, true);
       return textCache.get(path) ?? null;
     },
@@ -286,17 +305,13 @@ export function createDocPreviewService(deps: DocPreviewDeps): DocPreviewService
     get pendingRequests(): number {
       return textInFlight.size + metaInFlight.size;
     },
-    invalidate(path: string): void {
-      textCache.delete(path);
-      metaCache.delete(path);
-      textInFlight.delete(path);
-      metaInFlight.delete(path);
-    },
+    invalidate,
     clear(): void {
       textCache.clear();
       metaCache.clear();
       textInFlight.clear();
       metaInFlight.clear();
+      livePaths.clear();
     },
     dispose(): void {
       disposed = true;
@@ -304,6 +319,7 @@ export function createDocPreviewService(deps: DocPreviewDeps): DocPreviewService
       metaCache.clear();
       textInFlight.clear();
       metaInFlight.clear();
+      livePaths.clear();
     },
   };
 }

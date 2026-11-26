@@ -3,6 +3,7 @@
 .body {
   display: flex;
   flex-direction: column;
+  gap: var(--space-md);
 }
 
 .segmented {
@@ -46,20 +47,36 @@
 }
 
 .hint {
-  margin-top: var(--space-md);
+  margin: var(--space-sm) 0 0;
   font-size: var(--text-xs);
   line-height: var(--leading-normal);
   color: var(--ember-text-muted);
 }
 
-.groupLabel {
-  margin: 0 0 var(--space-sm);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  letter-spacing: var(--tracking-caps);
-  color: var(--ember-text-muted);
+/* 字号预览：与文章正文同字族，按四档比例直接展示差异。 */
+.preview {
+  margin: var(--space-sm) 0 0;
+  padding: var(--space-sm);
+  border-radius: var(--radius-sm);
+  background: var(--ember-bg-input);
+  color: var(--ember-text-secondary);
+  font-family: var(--font-serif);
+  line-height: var(--leading-article-zh);
+  overflow-wrap: anywhere;
 }
 
-.groupLabel:not(:first-child) {
-  margin-top: var(--space-xl);
+.preview[data-size='small'] {
+  font-size: calc(var(--text-base) * 0.9);
+}
+
+.preview[data-size='default'] {
+  font-size: var(--text-base);
+}
+
+.preview[data-size='large'] {
+  font-size: calc(var(--text-base) * 1.15);
+}
+
+.preview[data-size='xlarge'] {
+  font-size: calc(var(--text-base) * 1.3);
 }

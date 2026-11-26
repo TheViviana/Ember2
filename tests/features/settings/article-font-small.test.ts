@@ -34,3 +34,23 @@ void test('字号只改文字大小，文章宽度随浮窗自适应', () => {
     /--ember-read-column/,
   );
 });
+
+void test('编辑态标题只用字号与字重分层，不带下划线', () => {
+  const editor = readFileSync(join(ROOT, 'src/editor/EditorView.module.css'), 'utf8');
+  const heading = editor.match(/\.tok-heading\)\s*\{[^}]*\}/)?.[0] ?? '';
+  assert.match(heading, /text-decoration:\s*none/);
+});
+
+void test('编辑正文使用清晰字号与文章行高，阅读段落避免窄栏强制两端对齐', () => {
+  const editor = readFileSync(join(ROOT, 'src/editor/EditorView.module.css'), 'utf8');
+  const root = editor.match(/\.editor\s+:global\(\.cm-editor\)\s*\{[^}]*\}/)?.[0] ?? '';
+  assert.match(root, /font-size: calc\(var\(--text-lg\) \* var\(--article-font-scale\)\)/);
+  assert.match(root, /color: var\(--ember-article-body\)/);
+  assert.match(editor, /line-height: var\(--leading-article-zh\)/);
+
+  const preview = readFileSync(join(ROOT, 'src/editor/MarkdownPreview.module.css'), 'utf8');
+  const paragraph = preview.match(/\.paragraph\s*\{[^}]*\}/)?.[0] ?? '';
+  assert.match(paragraph, /text-align: left/);
+  assert.match(paragraph, /text-wrap: pretty/);
+  assert.match(paragraph, /overflow-wrap: break-word/);
+});

@@ -39,6 +39,8 @@ export interface AiChatStreamHandlers {
 export interface AiChatEffects {
   chatStream(request: AiChatRequest, handlers: AiChatStreamHandlers): Promise<void>;
   cancelChat(requestId: string): Promise<{ readonly cancelled: boolean }>;
+  /** 完成态回答落成 Markdown 文章并添加到当前画布；由 AppShell 注入。 */
+  insertToCanvas?(this: void, text: string): Promise<void>;
 }
 
 export interface AiChatViewProps {
@@ -142,6 +144,41 @@ export function AiChatView({ effects, configured }: AiChatViewProps) {
     }
   };
 
+  const handleRetry = async (): Promise<void> => {
+    if (streaming) return;
+    const msgs = conversation.messages;
+    const lastAssistant = [...msgs].reverse().find((m) => m.role === 'assistant');
+    if (lastAssistant === undefined) return;
+    // 重试：复用到最后一条 user 为止的历史，排除失败的 assistant 占位，重新生成同一条回复。
+    const history = msgs.slice(0, msgs.findIndex((m) => m.id === lastAssistant.id));
+    const requestId = createChatRequestId();
+    const built = buildChatRequest({ requestId, config, messages: history });
+    if (!built.ok) {
+      setValidationError(REQUEST_FAILURE_TEXT[built.reason]);
+      return;
+    }
+    setValidationError(null);
+    setCancelError(null);
+    dispatch({ type: 'RETRY', requestId, assistantId: lastAssistant.id });
+    try {
+      await effects.chatStream(built.request, {
+        onDelta: (event) => dispatch({
+          type: 'DELTA',
+          requestId: event.requestId,
+          text: event.text,
+        }),
+        onDone: (event) => dispatch({ type: 'DONE', requestId: event.requestId }),
+        onError: (event) => dispatch({
+          type: 'ERROR',
+          requestId: event.requestId,
+          error: chatErrorFromEvent(event),
+        }),
+      });
+    } catch (error) {
+      dispatch({ type: 'ERROR', requestId, error: chatErrorFromUnknown(error) });
+    }
+  };
+
   const errorMsg = conversation.error === null
     ? null
     : mapAiErrorCode(conversation.error.code, conversation.error.message);
@@ -155,6 +192,8 @@ export function AiChatView({ effects, configured }: AiChatViewProps) {
         messages={conversation.messages}
         streaming={streaming}
         onPickSuggestion={setInput}
+        onRetry={() => { void handleRetry(); }}
+        onInsertToCanvas={effects.insertToCanvas}
       />
 
       {errorMsg !== null ? (

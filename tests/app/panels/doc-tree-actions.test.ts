@@ -17,8 +17,10 @@ interface Recorder {
   readonly mkdirs: string[];
   readonly removed: string[];
   readonly renames: { from: string; to: string }[];
+  readonly reveals: string[];
   readonly canvasRenames: { id: string; newId: string }[];
   readonly reconciled: (readonly string[])[];
+  readonly dirRefreshes: string[];
   readonly calls: string[];
 }
 
@@ -29,8 +31,10 @@ function recorder(): Recorder {
     mkdirs: [],
     removed: [],
     renames: [],
+    reveals: [],
     canvasRenames: [],
     reconciled: [],
+    dirRefreshes: [],
     calls: [],
   };
 }
@@ -40,12 +44,14 @@ function meta(path: string): DocMeta {
 }
 
 interface TreeFake
-  extends Omit<DocTreeStoreState, 'pendingDirs' | 'activePath' | 'editingPath'> {
+  extends Omit<DocTreeStoreState, 'knownDirs' | 'pendingDirs' | 'activePath' | 'editingPath'> {
+  knownDirs: Set<string>;
   pendingDirs: Set<string>;
   activePath: string | null;
   editingPath: string | null;
   readonly expanded: string[];
   readonly added: string[];
+  readonly removedKnown: (readonly string[])[];
   readonly removedPending: (readonly string[])[];
   readonly renamed: { from: string; to: string }[];
 }
@@ -56,17 +62,25 @@ interface StoreFake extends TreeFake {
 
 function treeFake(initial: Partial<DocTreeStoreState> = {}): StoreFake {
   const state: TreeFake = {
+    knownDirs: new Set(initial.knownDirs ?? []),
     pendingDirs: new Set(initial.pendingDirs ?? []),
     activePath: initial.activePath ?? null,
     editingPath: initial.editingPath ?? null,
     expanded: [],
     added: [],
+    removedKnown: [],
     removedPending: [],
     renamed: [],
     expandAncestors: (path) => state.expanded.push(path),
     addPendingDir: (path) => {
       state.added.push(path);
       state.pendingDirs = new Set([...state.pendingDirs, path]);
+    },
+    removeKnownDirs: (paths) => {
+      state.removedKnown.push([...paths]);
+      const next = new Set(state.knownDirs);
+      for (const path of paths) next.delete(path);
+      state.knownDirs = next;
     },
     removePendingDirs: (paths) => {
       state.removedPending.push([...paths]);
@@ -91,7 +105,12 @@ function deps(options: {
   readonly store: StoreFake;
   readonly root?: string;
   readonly createDoc?: () => { ok: true; rel: string } | { ok: false; reason: 'IO'; message: string };
-  readonly fail?: { readonly remove?: boolean; readonly mkdir?: boolean; readonly rename?: boolean };
+  readonly fail?: {
+    readonly remove?: boolean;
+    readonly mkdir?: boolean;
+    readonly rename?: boolean;
+    readonly reveal?: boolean;
+  };
 }) {
   const { rec, docs, store } = options;
   return {
@@ -117,6 +136,11 @@ function deps(options: {
         rec.calls.push('rename');
         return options.fail?.rename === true ? Promise.reject(new Error('boom')) : Promise.resolve(null);
       },
+      reveal: (path: string) => {
+        rec.reveals.push(path);
+        rec.calls.push('reveal');
+        return options.fail?.reveal === true ? Promise.reject(new Error('boom')) : Promise.resolve(null);
+      },
     },
     canvasApi: {
       rename: (id: string, newId: string) => {
@@ -129,6 +153,7 @@ function deps(options: {
       rec.calls.push('reconcile');
       return Promise.resolve();
     },
+    refreshDirs: () => rec.dirRefreshes.push('refresh'),
     notice: (message: string, tone: 'info' | 'warning' | 'error') =>
       rec.notices.push({ message, tone }),
     treeStore: store,
@@ -165,17 +190,19 @@ void test('createDocIn：创建失败只提示，不进入改名态', async () =
   assert.equal(notice.tone, 'error');
 });
 
-void test('createDirIn：pendingDirs 与索引前缀都算已占用（空目录兜底）', async () => {
+void test('createDirIn：真实目录、pendingDirs 与索引前缀都算已占用', async () => {
   const rec = recorder();
   const docs = new Map([['docs/a.md', meta('docs/a.md')]]);
   const store = treeFake({
-    pendingDirs: new Set(['未命名文件夹']),
+    knownDirs: new Set(['未命名文件夹', '未命名文件夹-2']),
+    pendingDirs: new Set(['其它']),
   });
   const actions = createDocTreeActions(deps({ rec, docs, store }));
   await actions.createDirIn('');
-  assert.deepEqual(rec.mkdirs, ['未命名文件夹-2']);
-  assert.deepEqual(store.added, ['未命名文件夹-2']);
-  assert.deepEqual(store.expanded, ['未命名文件夹-2']);
+  assert.deepEqual(rec.mkdirs, ['未命名文件夹-3']);
+  assert.deepEqual(store.added, ['未命名文件夹-3']);
+  assert.deepEqual(store.expanded, ['未命名文件夹-3']);
+  assert.equal(rec.dirRefreshes.length, 1);
 });
 
 void test('confirmTreeDelete：先 remove 再对账，并清理兜底目录/选中/改名态', async () => {
@@ -186,6 +213,7 @@ void test('confirmTreeDelete：先 remove 再对账，并清理兜底目录/选�
     ['other.md', meta('other.md')],
   ]);
   const store = treeFake({
+    knownDirs: new Set(['notes', 'notes/empty', 'other']),
     pendingDirs: new Set(['notes/empty', 'other']),
     activePath: 'notes/a.md',
     editingPath: 'notes/sub/b.md',
@@ -195,7 +223,9 @@ void test('confirmTreeDelete：先 remove 再对账，并清理兜底目录/选�
   assert.equal(await actions.confirmTreeDelete(target), true);
   assert.deepEqual(rec.calls, ['remove', 'reconcile']);
   assert.deepEqual(rec.reconciled, [['notes/a.md', 'notes/sub/b.md']]);
+  assert.deepEqual(store.removedKnown, [['notes', 'notes/empty']]);
   assert.deepEqual(store.removedPending, [['notes/empty']]);
+  assert.equal(rec.dirRefreshes.length, 1);
   assert.equal(store.getState().activePath, null);
   assert.equal(store.getState().editingPath, null);
   const notice = rec.notices[0];
@@ -234,6 +264,25 @@ void test('commitCanvasRename：非法名不发 IPC，合法名成功', async ()
   const info = rec.notices[rec.notices.length - 1];
   assert.ok(info);
   assert.equal(info.message, '画布已改名：ok → new-1');
+});
+
+void test('revealDoc：成功与失败均有提示，失败不改变当前文章', async () => {
+  const rec = recorder();
+  const store = treeFake({ activePath: 'notes/a.md' });
+  const actions = createDocTreeActions(deps({ rec, docs: new Map(), store }));
+  await actions.revealDoc('notes/a.md');
+  assert.deepEqual(rec.reveals, ['notes/a.md']);
+  assert.equal(rec.notices[0]?.message, '已在访达中显示：notes/a.md');
+  assert.equal(rec.notices[0]?.tone, 'info');
+
+  const failedRec = recorder();
+  const failedActions = createDocTreeActions(
+    deps({ rec: failedRec, docs: new Map(), store, fail: { reveal: true } }),
+  );
+  await failedActions.revealDoc('notes/a.md');
+  assert.match(failedRec.notices[0]?.message ?? '', /^在访达中查看失败：/);
+  assert.equal(failedRec.notices[0]?.tone, 'error');
+  assert.equal(store.getState().activePath, 'notes/a.md');
 });
 
 void test('moveDoc：跨目录 rename → 对账 → 本地迁移，返回目标目录新顺序', async () => {

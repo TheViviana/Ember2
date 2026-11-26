@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::process::Command;
 
 use tauri::State;
 
@@ -181,6 +182,48 @@ pub fn vault_list(
         .map_err(ErrorPayload::from)
 }
 
+/// 构造访达定位命令：只接受当前库内已经存在的普通 Markdown 文件。
+fn reveal_command(root: &Path, rel: &str) -> Result<Command, ErrorPayload> {
+    let absolute = paths::resolve(root, rel).map_err(ErrorPayload::from)?;
+    if !rel.to_ascii_lowercase().ends_with(".md") {
+        return Err(ErrorPayload {
+            code: "E_INVALID_ARG",
+            message: format!("在访达中查看只接受 .md 文章：{rel}"),
+        });
+    }
+    let metadata = std::fs::symlink_metadata(&absolute)
+        .map_err(doc::not_found_or)
+        .map_err(ErrorPayload::from)?;
+    if !metadata.file_type().is_file() {
+        return Err(ErrorPayload::from(VaultError::NotFound));
+    }
+    let mut command = Command::new("/usr/bin/open");
+    command.arg("-R").arg(absolute);
+    Ok(command)
+}
+
+fn run_reveal(command: &mut Command, rel: &str) -> Result<(), ErrorPayload> {
+    let status = command.status().map_err(|error| ErrorPayload {
+        code: "E_IO",
+        message: format!("无法启动访达：{rel}：{error}"),
+    })?;
+    if status.success() {
+        return Ok(());
+    }
+    Err(ErrorPayload {
+        code: "E_IO",
+        message: format!("访达未能显示文章：{rel}（退出状态 {status}）"),
+    })
+}
+
+/// 在访达中选中文章；只读操作，不取得 WriteGate，因此只读库也可用。
+#[tauri::command]
+pub fn vault_reveal(state: State<'_, VaultState>, path: String) -> Result<(), ErrorPayload> {
+    let slot = state.read();
+    let root = root_of(&slot.session)?;
+    run_reveal(&mut reveal_command(root, &path)?, &path)
+}
+
 #[tauri::command]
 pub fn vault_scan(state: State<'_, VaultState>) -> Result<Vec<ScanDocDto>, ErrorPayload> {
     let slot = state.read();
@@ -355,6 +398,57 @@ impl From<scan::ScanDoc> for ScanDocDto {
             sha256: value.sha256,
             modified_ms: value.modified_ms,
         }
+    }
+}
+
+#[cfg(test)]
+mod reveal_tests {
+    use std::ffi::OsStr;
+    use std::fs;
+
+    use super::*;
+
+    #[test]
+    fn reveal_uses_open_argument_array_without_shell() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let rel = "notes/中文 空格;$HOME.md";
+        fs::create_dir(root.join("notes")).unwrap();
+        fs::write(root.join(rel), "正文").unwrap();
+
+        let command = reveal_command(root, rel).unwrap();
+        let absolute = root.join(rel);
+        assert_eq!(command.get_program(), OsStr::new("/usr/bin/open"));
+        assert_eq!(
+            command.get_args().collect::<Vec<_>>(),
+            vec![OsStr::new("-R"), absolute.as_os_str()]
+        );
+    }
+
+    #[test]
+    fn reveal_rejects_escape_reserved_missing_non_markdown_and_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        fs::write(root.join("note.txt"), "正文").unwrap();
+        fs::create_dir(root.join("folder.md")).unwrap();
+
+        for (rel, code) in [
+            ("../outside.md", "E_PATH_ESCAPE"),
+            (".workbench/secret.md", "E_RESERVED_PATH"),
+            ("missing.md", "E_NOT_FOUND"),
+            ("note.txt", "E_INVALID_ARG"),
+            ("folder.md", "E_NOT_FOUND"),
+        ] {
+            assert_eq!(reveal_command(root, rel).unwrap_err().code, code, "{rel}");
+        }
+    }
+
+    #[test]
+    fn reveal_checks_child_exit_status() {
+        run_reveal(&mut Command::new("/usr/bin/true"), "ok.md").unwrap();
+        let error = run_reveal(&mut Command::new("/usr/bin/false"), "bad.md").unwrap_err();
+        assert_eq!(error.code, "E_IO");
+        assert!(error.message.contains("退出状态"));
     }
 }
 

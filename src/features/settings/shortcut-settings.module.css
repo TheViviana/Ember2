@@ -28,7 +28,41 @@
 .error p { margin: 2px 0; }
 .saved { margin: 10px 0 0; color: var(--ember-success); font-size: var(--text-sm); }
 
-@media (max-width: 680px) {
+/* 录制态用徽标占据按键位，避免整行文字宽度跳动。 */
+.recording {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid var(--ember-primary);
+  border-radius: var(--radius-full);
+  background: var(--ember-primary-tint-soft);
+  color: var(--ember-primary);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px 16px;
+  color: var(--ember-text-muted);
+  font-size: var(--text-sm);
+}
+
+.empty p { margin: 0; }
+
+.empty button {
+  border: none;
+  background: transparent;
+  color: var(--ember-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+/* 侧栏宽度不足时改为两行：命令/按键一行，操作另起一行。 */
+@container settings-body (max-width: 380px) {
   .row, .rowConflict { grid-template-columns: 1fr auto; }
   .binding { text-align: right; }
   .rowActions { grid-column: 1 / -1; justify-content: flex-end; }

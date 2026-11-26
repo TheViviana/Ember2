@@ -357,6 +357,20 @@
 }
 
 /* CR-20261121-53：提示词多行编辑浮层与 AI 模型选择下拉（定位口径同 .editInput） */
+.editTitleInput {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  outline: 1px solid var(--ember-primary);
+  outline-offset: 2px;
+  color: var(--ember-text-annotation);
+  font-family: var(--font-body);
+  font-weight: 500;
+  line-height: 1.2;
+}
+
 .editTextarea {
   position: absolute;
   z-index: 40;
@@ -371,6 +385,15 @@
   resize: none;
   outline: none;
   white-space: pre-wrap;
+}
+
+.editNodeText {
+  box-sizing: border-box;
+  padding: 10px 12px;
+  font-size: var(--text-md);
+  line-height: var(--leading-card-zh);
+  text-align: left;
+  vertical-align: top;
 }
 
 /* 2026-11-25：AI 模型原位下拉——参考稿的「浮动面板 + 行内勾选」样式。 */

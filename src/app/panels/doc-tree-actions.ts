@@ -33,11 +33,13 @@ export interface DocTreeDocs {
 }
 
 export interface DocTreeStoreState {
+  readonly knownDirs: ReadonlySet<string>;
   readonly pendingDirs: ReadonlySet<string>;
   readonly activePath: string | null;
   readonly editingPath: string | null;
   readonly expandAncestors: (path: string) => void;
   readonly addPendingDir: (path: string) => void;
+  readonly removeKnownDirs: (paths: readonly string[]) => void;
   readonly removePendingDirs: (paths: readonly string[]) => void;
   readonly setActivePath: (path: string | null) => void;
   readonly setEditingPath: (path: string | null) => void;
@@ -52,6 +54,7 @@ export interface DocTreeVaultApi {
   readonly mkdir: (path: string) => Promise<unknown>;
   readonly remove: (path: string) => Promise<unknown>;
   readonly rename: (from: string, to: string) => Promise<unknown>;
+  readonly reveal: (path: string) => Promise<unknown>;
 }
 
 export interface DocTreeCanvasApi {
@@ -64,6 +67,7 @@ export interface DocTreeActionsDeps {
   readonly vaultApi: DocTreeVaultApi;
   readonly canvasApi: DocTreeCanvasApi;
   readonly reconcile: (paths: readonly string[]) => Promise<void>;
+  readonly refreshDirs: () => void;
   readonly notice: (message: string, tone: NoticeTone) => void;
   readonly treeStore: DocTreeStore;
 }
@@ -90,6 +94,7 @@ export interface DocTreeActions {
   readonly createDirIn: (dir: string) => Promise<void>;
   readonly confirmTreeDelete: (target: DocTreeTarget) => Promise<boolean>;
   readonly commitCanvasRename: (id: string, raw: string) => Promise<CanvasRenameOutcome>;
+  readonly revealDoc: (path: string) => Promise<void>;
   readonly moveDoc: (draggedPath: string, target: TreeDropTarget) => Promise<MoveResult>;
 }
 
@@ -109,7 +114,7 @@ const CANVAS_NAME_MESSAGE = {
 } as const;
 
 export function createDocTreeActions(deps: DocTreeActionsDeps): DocTreeActions {
-  const { docs, createDoc, vaultApi, canvasApi, reconcile, notice, treeStore } = deps;
+  const { docs, createDoc, vaultApi, canvasApi, reconcile, refreshDirs, notice, treeStore } = deps;
 
   async function createDocIn(dir: string): Promise<void> {
     const siblings = new Set(
@@ -129,17 +134,23 @@ export function createDocTreeActions(deps: DocTreeActionsDeps): DocTreeActions {
   }
 
   async function createDirIn(dir: string): Promise<void> {
-    const known = new Set<string>(treeStore.getState().pendingDirs);
+    const treeState = treeStore.getState();
+    const allDirs = new Set<string>([...treeState.knownDirs, ...treeState.pendingDirs]);
     for (const path of docs().map.keys()) {
       const segments = path.split('/');
       segments.pop();
       let prefix = '';
       for (const segment of segments) {
         prefix = prefix === '' ? segment : `${prefix}/${segment}`;
-        known.add(prefix);
+        allDirs.add(prefix);
       }
     }
-    const name = nextFreeName(known, '未命名文件夹', '');
+    const siblings = new Set(
+      [...allDirs]
+        .filter((path) => parentDirOf(path) === dir)
+        .map((path) => path.slice(path.lastIndexOf('/') + 1)),
+    );
+    const name = nextFreeName(siblings, '未命名文件夹', '');
     const rel = dir === '' ? name : `${dir}/${name}`;
     try {
       await vaultApi.mkdir(rel);
@@ -149,6 +160,7 @@ export function createDocTreeActions(deps: DocTreeActionsDeps): DocTreeActions {
     }
     treeStore.getState().addPendingDir(rel);
     treeStore.getState().expandAncestors(rel);
+    refreshDirs();
   }
 
   /** 删除成功后主动对账索引；失败不推翻已完成的删除。 */
@@ -173,6 +185,9 @@ export function createDocTreeActions(deps: DocTreeActionsDeps): DocTreeActions {
     // 自写日志会压掉 watcher 的 removed 事件，必须主动对账；目录删除带全部后代。
     await syncRemoved(target.path);
     const treeState = treeStore.getState();
+    treeState.removeKnownDirs(
+      [...treeState.knownDirs].filter((dir) => isWithinPath(dir, target.path)),
+    );
     treeState.removePendingDirs(
       [...treeState.pendingDirs].filter((dir) => isWithinPath(dir, target.path)),
     );
@@ -182,6 +197,7 @@ export function createDocTreeActions(deps: DocTreeActionsDeps): DocTreeActions {
     if (treeState.editingPath !== null && isWithinPath(treeState.editingPath, target.path)) {
       treeState.setEditingPath(null);
     }
+    refreshDirs();
     notice(
       target.kind === 'dir'
         ? `文件夹「${target.name}」已移入回收站`
@@ -207,6 +223,16 @@ export function createDocTreeActions(deps: DocTreeActionsDeps): DocTreeActions {
     }
     notice(`画布已改名：${id} → ${newId}`, 'info');
     return { renamed: true, newId };
+  }
+
+  async function revealDoc(path: string): Promise<void> {
+    try {
+      await vaultApi.reveal(path);
+    } catch (error: unknown) {
+      notice(`在访达中查看失败：${formatUnknownError(error, '未知错误')}`, 'error');
+      return;
+    }
+    notice(`已在访达中显示：${path}`, 'info');
   }
 
   async function moveDoc(draggedPath: string, target: TreeDropTarget): Promise<MoveResult> {
@@ -237,15 +263,14 @@ export function createDocTreeActions(deps: DocTreeActionsDeps): DocTreeActions {
       const treeState = treeStore.getState();
       treeState.renamePath(draggedPath, to);
       treeState.expandAncestors(to);
+      refreshDirs();
       notice(`已移动：${name}`, 'info');
     }
     const snapshot = docs();
-    const merged = new Map(snapshot.map);
-    for (const dir of treeStore.getState().pendingDirs) {
-      if (!merged.has(dir)) merged.set(dir, { path: dir, bytes: 0, sha256: '', modifiedMs: 0 });
-    }
+    const currentTreeState = treeStore.getState();
+    const dirs = new Set([...currentTreeState.knownDirs, ...currentTreeState.pendingDirs]);
     const currentNames = dirChildrenNames(
-      buildTree(merged, { dirs: treeStore.getState().pendingDirs }),
+      buildTree(snapshot.map, { dirs }),
       destDir,
     );
     const names = nextChildOrder(currentNames, name, target);
@@ -257,6 +282,7 @@ export function createDocTreeActions(deps: DocTreeActionsDeps): DocTreeActions {
     createDirIn,
     confirmTreeDelete,
     commitCanvasRename,
+    revealDoc,
     moveDoc,
   });
 }

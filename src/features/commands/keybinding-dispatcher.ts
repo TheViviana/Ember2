@@ -26,7 +26,9 @@ export function dispatchCommandKeybinding(
   for (const command of commands) {
     if (command.enabled === false) continue;
     if (editable && !GLOBAL_COMMAND_IDS.has(command.id)) continue;
-    const items = bindings[command.id] ?? [];
+    const items = (bindings[command.id] ?? []).filter(
+      (binding) => !editable || binding.meta === true || binding.ctrl === true,
+    );
     if (!items.some((binding) => matchesKeyBinding(event, binding))) continue;
     event.preventDefault();
     event.stopPropagation();
