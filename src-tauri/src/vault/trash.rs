@@ -628,13 +628,18 @@ fn map_fallback(gate: &WriteGate, error: VaultError) -> VaultError {
     VaultError::TrashFailed
 }
 
-/// 系统回收站入口：真实 FFI 只在 macOS 编译，其它平台直接走库内降级。
+/// 系统回收站入口：真实 FFI 按平台分文件实现，其它平台直接走库内降级。
 #[cfg(target_os = "macos")]
 fn system_trash(path: &Path) -> Result<(), String> {
     crate::vault::macos::trash_item(path)
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "windows")]
+fn system_trash(path: &Path) -> Result<(), String> {
+    crate::vault::windows::trash_item(path)
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
 fn system_trash(_path: &Path) -> Result<(), String> {
     Err("当前平台未实现系统回收站".to_string())
 }

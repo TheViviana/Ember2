@@ -1,7 +1,7 @@
 {
   "name": "ember",
   "license": "PolyForm-Noncommercial-1.0.0",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@12.15.0",

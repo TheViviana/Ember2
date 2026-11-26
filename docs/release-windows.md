@@ -43,6 +43,7 @@ pnpm tauri build --bundles nsis
 | `vault::lock` 判活 | `tasklist /FI "PID eq <pid>" /NH`，带 `CREATE_NO_WINDOW` |
 | 媒体协议 | `media://` 在 Windows 走 `http://media.localhost`，CSP 必须同时放行该源 |
 | 文件定位 | `explorer /select,<path>`，且 explorer 成功时也可能返回非 0，只能确认派生成功 |
+| 系统回收站 | `SHFileOperationW`（`FO_DELETE` + `FOF_ALLOWUNDO`），失败自动回落库内回收站；FFI 隔离在 `vault/windows.rs` |
 | 快捷键 | 配置里的 `Meta` 在 Windows 映射为 `Ctrl` |
 | 图标 | `bundle.icon` 必须含 `icon.ico` |
 
@@ -72,4 +73,3 @@ pnpm tauri build --bundles nsis
 
 - `atomic::available_bytes` 用 `df -k`，Windows 上取不到值，磁盘空间预检静默跳过。
 - `write_atomic_create_new` / 库锁依赖 `hard_link`：NTFS 正常，exFAT/FAT32 库会失败。
-- 系统回收站只有 macOS 实现，Windows 退化为库内回收站。

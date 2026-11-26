@@ -19,6 +19,8 @@ pub mod replace;
 pub mod scan;
 pub mod trash;
 pub mod watch;
+#[cfg(target_os = "windows")]
+pub mod windows;
 
 #[cfg(test)]
 #[path = "tests.rs"]

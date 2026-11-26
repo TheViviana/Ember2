@@ -1,6 +1,6 @@
 [package]
 name = "ember"
-version = "1.2.0"
+version = "1.2.1"
 edition = "2021"
 rust-version = "1.85"
 description = "Ember 本地优先知识工作台的宿主进程"
@@ -40,6 +40,10 @@ tauri-plugin-updater = "=2.14.1"
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6.5"
 objc2-foundation = { version = "0.3.2", features = ["NSFileManager", "NSURL", "NSError", "NSString", "NSValue"] }
+
+# 系统回收站：SHFileOperationW（vault/windows.rs），只开 Shell 与 Foundation 所需 feature
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.60.2", features = ["Win32_Foundation", "Win32_UI_Shell"] }
 
 [dev-dependencies]
 # 测试隔离临时目录（不向真实库写入测试文件）
