@@ -126,7 +126,7 @@ void test('节点 left/top = absolute - origin', () => {
 });
 
 void test('外标题布局：标题行定位与低缩放字号补偿同源', () => {
-  const node: CanvasNodeView = { id: 'd', label: '草稿', x: 22, y: 50, w: 240, docPath: 'a.md' };
+  const node: CanvasNodeView = { type: 'document', id: 'd', label: '草稿', x: 22, y: 50, w: 240, docPath: 'a.md' };
   assert.equal(hasOutsideNodeLabel(node), true);
   assert.deepEqual(
     nodeOutsideLabelLayout(node, createViewportTransform(0, 0, 1, 10, 20)),
@@ -136,8 +136,8 @@ void test('外标题布局：标题行定位与低缩放字号补偿同源', () 
   assert.ok(Math.abs(low.y - (-4.4)) < EPSILON);
   assert.equal(low.fontSize, 22, '0.5 倍缩放下 22px 本地字号映射为 11px 屏幕字号');
   assert.equal(hasOutsideNodeLabel({ ...node, docPath: undefined }), false);
-  assert.equal(hasOutsideNodeLabel({ id: 'm', label: 'a.png', x: 0, y: 0, media: { kind: 'image', path: 'media/a.png' } }), false);
-  assert.equal(hasOutsideNodeLabel({ id: 'm', label: '封面', x: 0, y: 0, media: { kind: 'image', path: 'media/a.png' } }), true);
+  assert.equal(hasOutsideNodeLabel({ type: 'media', id: 'm', label: 'a.png', x: 0, y: 0, media: { kind: 'image', path: 'media/a.png' } }), false);
+  assert.equal(hasOutsideNodeLabel({ type: 'media', id: 'm', label: '封面', x: 0, y: 0, media: { kind: 'image', path: 'media/a.png' } }), true);
 });
 
 void test('extractNodes：只取 id 非空且 x/y 有限的节点，label 缺省用 id', () => {
@@ -146,8 +146,8 @@ void test('extractNodes：只取 id 非空且 x/y 有限的节点，label 缺省
   );
 
   assert.deepEqual(extractNodes(document), [
-    { id: 'a', label: '草稿', x: 24, y: 48 },
-    { id: 'b', label: 'b', x: -1, y: 2 },
+    { type: 'text', id: 'a', label: '草稿', x: 24, y: 48 },
+    { type: 'text', id: 'b', label: 'b', x: -1, y: 2 },
   ]);
   assert.deepEqual(extractNodes(createEmptyCanvasDocument()), []);
 });
@@ -164,8 +164,8 @@ void test('容器平移 = tx + origin * s；origin 为 0 时与 C1 输出一致'
 
 void test('fit-all 世界矩形复用节点实际尺寸与文档 autoH', () => {
   assert.deepEqual(nodeWorldRects([
-    { id: 'a', label: 'a', x: 10, y: 20, w: 200, h: 120 },
-    { id: 'd', label: 'd', x: -30, y: 40, autoH: 180, docPath: 'd.md' },
+    { type: 'text', id: 'a', label: 'a', x: 10, y: 20, w: 200, h: 120 },
+    { type: 'document', id: 'd', label: 'd', x: -30, y: 40, autoH: 180, docPath: 'd.md' },
   ]), [
     { left: 10, top: 20, right: 210, bottom: 140 },
     { left: -30, top: 40, right: 130, bottom: 220 },
@@ -173,9 +173,9 @@ void test('fit-all 世界矩形复用节点实际尺寸与文档 autoH', () => {
 });
 
 void test('C4 节点命中：zoom 0.05/8 边界含端点，重叠取数组靠后者', () => {
-  const nodes = [
-    { id: 'under', label: 'under', x: 17, y: 31 },
-    { id: 'over', label: 'over', x: 17, y: 31 },
+  const nodes: readonly CanvasNodeView[] = [
+    { type: 'text', id: 'under', label: 'under', x: 17, y: 31 },
+    { type: 'text', id: 'over', label: 'over', x: 17, y: 31 },
   ];
   for (const scale of [0.05, 8]) {
     const transform = createViewportTransform(100, 200, scale, 7, 11);
@@ -187,9 +187,9 @@ void test('C4 节点命中：zoom 0.05/8 边界含端点，重叠取数组靠后
 });
 
 void test('C4 框选：zoom 0.05/8 相交即选、不选边、支持反向矩形', () => {
-  const nodes = [
-    { id: 'a', label: 'a', x: 17, y: 31 },
-    { id: 'b', label: 'b', x: 500, y: 500 },
+  const nodes: readonly CanvasNodeView[] = [
+    { type: 'text', id: 'a', label: 'a', x: 17, y: 31 },
+    { type: 'text', id: 'b', label: 'b', x: 500, y: 500 },
   ];
   for (const scale of [0.05, 8]) {
     const transform = createViewportTransform(100, 200, scale, 7, 11);
@@ -218,7 +218,7 @@ void test('裁决 2A：非 24 倍数 lastOrigin 原样接受，打开未编辑�
     {
       schemaVersion: 2,
       lastOrigin: { x: 17, y: -29 },
-      nodes: [{ id: 'a', label: 'A', x: 101, y: 203 }],
+      nodes: [{ type: 'text', id: 'a', label: 'A', x: 101, y: 203 }],
       edges: [],
       unknown: { kept: true },
     },
@@ -274,11 +274,11 @@ void test('A2 isNodeContentMode 只看显式 h——autoH 不触发', () => {
 
 void test('A3 mergeAutoHeights：不可变合并 / 显式 h 不写 autoH / 非 document 原样 / Map 无值不写字段', () => {
   const views: readonly CanvasNodeView[] = [
-    { id: 'd1', label: 'd1', x: 0, y: 0, docPath: '/a.md' },                         // doc h 缺省，Map 有值
-    { id: 'd2', label: 'd2', x: 0, y: 0, docPath: '/b.md' },                         // doc h 缺省，Map 无值
-    { id: 'd3', label: 'd3', x: 0, y: 0, docPath: '/c.md', h: 200 },                 // doc 显式 h
-    { id: 't1', label: 't1', x: 0, y: 0 },                                           // text
-    { id: 'm1', label: 'm1', x: 0, y: 0, media: { kind: 'image', path: '/p.png' } }, // media
+    { type: 'document', id: 'd1', label: 'd1', x: 0, y: 0, docPath: '/a.md' },                         // doc h 缺省，Map 有值
+    { type: 'document', id: 'd2', label: 'd2', x: 0, y: 0, docPath: '/b.md' },                         // doc h 缺省，Map 无值
+    { type: 'document', id: 'd3', label: 'd3', x: 0, y: 0, docPath: '/c.md', h: 200 },                 // doc 显式 h
+    { type: 'text', id: 't1', label: 't1', x: 0, y: 0 },                                           // text
+    { type: 'media', id: 'm1', label: 'm1', x: 0, y: 0, media: { kind: 'image', path: '/p.png' } }, // media
   ];
   const map = new Map<string, number>([['d1', 150]]);
 
@@ -307,8 +307,8 @@ void test('A3b mergeAutoHeights prune 时 engine 端已删显式 h 节点的 Map
   // engine autoHeightPruneAndSchedule 里显式 h 节点已 autoHeights.delete(id)
   // mergeAutoHeights 只负责合，不负责 prune——两者职责分离
   const views: readonly CanvasNodeView[] = [
-    { id: 'd1', label: 'd1', x: 0, y: 0, docPath: '/a.md' },
-    { id: 'd2', label: 'd2', x: 0, y: 0, docPath: '/b.md', h: 200 },
+    { type: 'document', id: 'd1', label: 'd1', x: 0, y: 0, docPath: '/a.md' },
+    { type: 'document', id: 'd2', label: 'd2', x: 0, y: 0, docPath: '/b.md', h: 200 },
   ];
   // Map 错误保留了 d2（显式 h）的 autoH——merge 不会合进去（因为 h !== undefined）
   const map = new Map<string, number>([['d1', 150], ['d2', 180]]);
@@ -321,23 +321,30 @@ void test('A3b mergeAutoHeights prune 时 engine 端已删显式 h 节点的 Map
   // engine 负责 prune：显式 h 节点的 Map 值应在合并前已 delete
 });
 
-void test('CR-20261121-53：ai/prompt 节点透出 kind/aiModel/promptText，text 节点不带 kind', () => {
+void test('CR-20261121-53：ai/prompt 节点透出 type/kind/aiModel/promptText，text 节点不带 kind', () => {
   const views = extractNodeViews([
     { id: 'ai1', x: 0, y: 0, type: 'ai', label: 'AI 节点', model: 'qwen3:8b' },
     { id: 'ai2', x: 1, y: 1, type: 'ai' },
     { id: 'p1', x: 2, y: 2, type: 'prompt', label: '提示词', text: '第一行\n第二行' },
     { id: 'p2', x: 3, y: 3, type: 'prompt', label: '空提示词', text: '' },
-    { id: 't1', x: 4, y: 4, label: '正文' },
+    { type: 'text', id: 't1', x: 4, y: 4, label: '正文' },
   ]);
   assert.deepEqual(views[0], {
-    id: 'ai1', label: 'AI 节点', x: 0, y: 0, kind: 'ai', aiModel: 'qwen3:8b',
+    type: 'ai', id: 'ai1', label: 'AI 节点', x: 0, y: 0, kind: 'ai', aiModel: 'qwen3:8b',
   });
-  assert.deepEqual(views[1], { id: 'ai2', label: 'ai2', x: 1, y: 1, kind: 'ai' });
+  assert.deepEqual(views[1], { type: 'ai', id: 'ai2', label: 'ai2', x: 1, y: 1, kind: 'ai' });
   assert.deepEqual(views[2], {
-    id: 'p1', label: '提示词', x: 2, y: 2, kind: 'prompt', promptText: '第一行\n第二行',
+    type: 'prompt', id: 'p1', label: '提示词', x: 2, y: 2, kind: 'prompt', promptText: '第一行\n第二行',
   });
   assert.deepEqual(views[3], {
-    id: 'p2', label: '空提示词', x: 3, y: 3, kind: 'prompt', promptText: '',
+    type: 'prompt', id: 'p2', label: '空提示词', x: 3, y: 3, kind: 'prompt', promptText: '',
   });
-  assert.deepEqual(views[4], { id: 't1', label: '正文', x: 4, y: 4 });
+  assert.deepEqual(views[4], { type: 'text', id: 't1', label: '正文', x: 4, y: 4 });
+});
+
+void test('CanvasNodeView.type：保留六种白名单类型，缺失类型沿用文本卡片兜底', () => {
+  const types = ['document', 'media', 'text', 'group', 'ai', 'prompt'] as const;
+  const views = extractNodeViews(types.map((type, index) => ({ id: type, type, x: index, y: 0 })));
+  assert.deepEqual(views.map((view) => view.type), types);
+  assert.equal(extractNodeViews([{ id: 'legacy', x: 0, y: 0 }])[0]?.type, 'text');
 });

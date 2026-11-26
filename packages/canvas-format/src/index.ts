@@ -7,6 +7,7 @@ export const CANVAS_FORMAT_VERSION = '2.0.0-p0';
 export const CANVAS_SCHEMA_VERSION = 2 as const;
 
 export { CANVAS_NODE_TYPES, isCanvasNodeType } from './node-types.ts';
+export type { CanvasNodeType } from './node-types.ts';
 export { inspect, MAX_NODE_DIMENSION } from './document.ts';
 export { validate } from './validate.ts';
 export { mutate } from './mutate.ts';

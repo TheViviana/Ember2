@@ -129,7 +129,7 @@ void test('卡片模式：外标题 + 简介 + 标签 chips ≤3（CR-20261121-5
   const layer = createLayer(root, {
     meta: () => ({ summary: '卡片简介', tags: ['a', 'b', 'c', 'd', 'e', 'f', 'g'] }),
   });
-  const node: CanvasNodeView = { id: 'd', label: 'doc.md', x: 0, y: 0, docPath: DOC_PATH };
+  const node: CanvasNodeView = { type: 'document', id: 'd', label: 'doc.md', x: 0, y: 0, docPath: DOC_PATH };
   layer.setNodes([node], transform, viewport);
 
   const item = itemOf(root);
@@ -150,7 +150,7 @@ void test('卡片模式降级：无 summary 显示「暂无简介」muted 占位
   const root = fakeRoot();
   const layer = createLayer(root, { meta: () => ({ summary: null, tags: [] }) });
   layer.setNodes(
-    [{ id: 'd', label: 'doc.md', x: 0, y: 0, docPath: DOC_PATH }],
+    [{ type: 'document', id: 'd', label: 'doc.md', x: 0, y: 0, docPath: DOC_PATH }],
     transform,
     viewport,
   );
@@ -168,7 +168,7 @@ void test('高度阈值：h = 96 保持卡片，h = 97 进入内容模式', () =
     meta: () => ({ summary: '简介', tags: [] }),
     text: () => ({ text: '正文', truncated: false, fromLive: true, failed: false }),
   });
-  const card: CanvasNodeView = { id: 'd', label: 'd', x: 0, y: 0, h: 96, docPath: DOC_PATH };
+  const card: CanvasNodeView = { type: 'document', id: 'd', label: 'd', x: 0, y: 0, h: 96, docPath: DOC_PATH };
   layer.setNodes([card], transform, viewport);
   let item = itemOf(root);
   assert.equal(childByClass(item, 'doc-content'), undefined, '96px 仍是卡片');
@@ -189,7 +189,7 @@ void test('内容模式提示：快照来源与截断提示', () => {
     text: () => ({ text: '正文', truncated: true, fromLive: false, failed: false }),
   });
   layer.setNodes(
-    [{ id: 'd', label: 'd', x: 0, y: 0, h: 300, docPath: DOC_PATH }],
+    [{ type: 'document', id: 'd', label: 'd', x: 0, y: 0, h: 300, docPath: DOC_PATH }],
     transform,
     viewport,
   );
@@ -203,7 +203,7 @@ void test('视口裁剪：离开视口卸载内容滚动 DOM，回到视口重�
   const layer = createLayer(root, {
     text: () => ({ text: '正文', truncated: false, fromLive: true, failed: false }),
   });
-  const node: CanvasNodeView = { id: 'd', label: 'd', x: 0, y: 0, h: 300, docPath: DOC_PATH };
+  const node: CanvasNodeView = { type: 'document', id: 'd', label: 'd', x: 0, y: 0, h: 300, docPath: DOC_PATH };
   layer.setNodes([node], transform, viewport);
   assert.notEqual(childByClass(itemOf(root), 'doc-content'), undefined);
 

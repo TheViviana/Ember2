@@ -8,6 +8,7 @@ import {
 import type { CanvasNodeView } from '../../../src/app/canvas/node-layout.ts';
 
 const mediaNode: CanvasNodeView = {
+  type: 'media',
   id: 'm',
   label: 'cat.png',
   x: 0,
@@ -72,7 +73,7 @@ void test('同一媒体手势未命中编辑器时仍正常提交移动', () => 
 });
 
 void test('非媒体节点命中编辑器不转为插入，仍提交移动', () => {
-  const textNode: CanvasNodeView = { id: 't', label: '文本', x: 0, y: 0 };
+  const textNode: CanvasNodeView = { type: 'text', id: 't', label: '文本', x: 0, y: 0 };
   const ended = reduceInteraction(dragging(textNode), {
     type: 'pointerUp',
     point: { x: 40, y: 50 },
@@ -85,6 +86,7 @@ void test('非媒体节点命中编辑器不转为插入，仍提交移动', () 
 
 void test('文档附件节点命中编辑器不按音视频插入，仍提交移动', () => {
   const docNode: CanvasNodeView = {
+    type: 'media',
     id: 'd',
     label: '参考.pdf',
     x: 0,

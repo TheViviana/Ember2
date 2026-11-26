@@ -11,8 +11,8 @@ import {
 import type { CanvasNodeView } from '../../../src/app/canvas/node-layout.ts';
 
 const nodes: readonly CanvasNodeView[] = [
-  { id: 'a', label: 'A', x: 0, y: 0 },
-  { id: 'b', label: 'B', x: 200, y: 100 },
+  { type: 'text', id: 'a', label: 'A', x: 0, y: 0 },
+  { type: 'text', id: 'b', label: 'B', x: 200, y: 100 },
 ];
 
 function down(

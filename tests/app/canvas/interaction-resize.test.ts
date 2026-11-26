@@ -13,7 +13,7 @@ import {
 } from '../../../src/app/canvas/interaction.ts';
 import type { CanvasNodeView } from '../../../src/app/canvas/node-layout.ts';
 
-const nodes: readonly CanvasNodeView[] = [{ id: 'a', label: 'A', x: 0, y: 0 }];
+const nodes: readonly CanvasNodeView[] = [{ type: 'text', id: 'a', label: 'A', x: 0, y: 0 }];
 
 function down(options: { readOnly?: boolean; w?: number; h?: number } = {}) {
   const sized: readonly CanvasNodeView[] =
@@ -21,6 +21,7 @@ function down(options: { readOnly?: boolean; w?: number; h?: number } = {}) {
       ? nodes
       : [
           {
+            type: 'text',
             id: 'a',
             label: 'A',
             x: 0,
@@ -161,7 +162,7 @@ void test('resizeCommit 走 controller：单条 updateNode 历史，⌘Z 一次�
 
 void test('A7 pointerDown origin.h = nodeSizeOf：h 缺省 + autoH=150 → 150；显式 h=200 → 200', () => {
   // h 缺省 + autoH=150 → origin.h 应该是 150（不是 NODE_HEIGHT 96）
-  const viewAuto: readonly CanvasNodeView[] = [{ id: 'a', label: 'A', x: 0, y: 0, autoH: 150 }];
+  const viewAuto: readonly CanvasNodeView[] = [{ type: 'text', id: 'a', label: 'A', x: 0, y: 0, autoH: 150 }];
   const stA = reduceInteraction(
     createInteractionState(),
     {
@@ -181,7 +182,7 @@ void test('A7 pointerDown origin.h = nodeSizeOf：h 缺省 + autoH=150 → 150�
   assert.equal(geoA.origin.h, 150);
 
   // 显式 h=200 → origin.h 是 200（显式 h 优先于 autoH）
-  const viewExplicit: readonly CanvasNodeView[] = [{ id: 'a', label: 'A', x: 0, y: 0, h: 200, autoH: 150 }];
+  const viewExplicit: readonly CanvasNodeView[] = [{ type: 'text', id: 'a', label: 'A', x: 0, y: 0, h: 200, autoH: 150 }];
   const stE = reduceInteraction(
     createInteractionState(),
     {

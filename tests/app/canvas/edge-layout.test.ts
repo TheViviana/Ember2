@@ -39,7 +39,7 @@ import { createViewportTransform, worldToScreen } from '../../../src/app/canvas/
 const EPSILON = 1e-9;
 
 function node(id: string, x: number, y: number): CanvasNodeView {
-  return { id, label: id, x, y };
+  return { type: 'text', id, label: id, x, y };
 }
 
 function edgeView(id: string, from: string, to: string): CanvasEdgeView {
@@ -154,8 +154,8 @@ void test('extractEdges：坏边逐条跳过（缺 id / 缺端点 / 引用不存
 
   assert.deepEqual(
     extractEdges(document, [
-      { id: 'a', label: 'a', x: 0, y: 0 },
-      { id: 'b', label: 'b', x: 200, y: 0 },
+      { type: 'text', id: 'a', label: 'a', x: 0, y: 0 },
+      { type: 'text', id: 'b', label: 'b', x: 200, y: 0 },
     ]),
     [{ id: 'ok', from: 'a', to: 'b' }],
   );

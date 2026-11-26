@@ -164,6 +164,7 @@ void test('媒体节点渲染图片缩略图与底部源文件名，且同内容
   const transform = createViewportTransform();
   const nodes = [
     {
+      type: 'media' as const,
       id: 'm',
       label: 'cat.png',
       x: 0,
@@ -206,7 +207,7 @@ void test('媒体节点渲染图片缩略图与底部源文件名，且同内容
 void test('音频节点渲染隐藏 audio 元素 + 自定义控件条（CR-20261121-56）', () => {
   const { world, layer } = createLayer();
   layer.setNodes(
-    [{ id: 'a', label: 'voice.mp3', x: 0, y: 0, media: { kind: 'audio', path: 'media/audio/ab/v.mp3' } }],
+    [{ type: 'media', id: 'a', label: 'voice.mp3', x: 0, y: 0, media: { kind: 'audio', path: 'media/audio/ab/v.mp3' } }],
     createViewportTransform(),
   );
   const item = world.children[0]?.children[0];
@@ -229,7 +230,7 @@ void test('音频节点渲染隐藏 audio 元素 + 自定义控件条（CR-20261
 void test('音频控件条：click/dblclick 拦截、pointerdown 放行；播放钮切换状态（CR-20261121-56）', () => {
   const { world, layer } = createLayer();
   layer.setNodes(
-    [{ id: 'a', label: 'a.mp3', x: 0, y: 0, media: { kind: 'audio', path: 'media/audio/ab/a.mp3' } }],
+    [{ type: 'media', id: 'a', label: 'a.mp3', x: 0, y: 0, media: { kind: 'audio', path: 'media/audio/ab/a.mp3' } }],
     createViewportTransform(),
   );
   const item = world.children[0]?.children[0];
@@ -268,7 +269,7 @@ void test('音频控件条：click/dblclick 拦截、pointerdown 放行；播放
 void test('视频节点渲染 video 控件（controls/preload/样式类不变）', () => {
   const { world, layer } = createLayer();
   layer.setNodes(
-    [{ id: 'v', label: 'clip.mp4', x: 0, y: 0, media: { kind: 'video', path: 'media/video/ef/c.mp4' } }],
+    [{ type: 'media', id: 'v', label: 'clip.mp4', x: 0, y: 0, media: { kind: 'video', path: 'media/video/ef/c.mp4' } }],
     createViewportTransform(),
   );
   const player = world.children[0]?.children[0]?.children[1]?.children[0];
@@ -287,8 +288,8 @@ void test('播放控件使用注入的 CSS Modules 类名（视频原生控件�
   const { world, layer } = createLayer(hashed);
   layer.setNodes(
     [
-      { id: 'a', label: 'v.mp3', x: 0, y: 0, media: { kind: 'audio', path: 'media/audio/ab/v.mp3' } },
-      { id: 'v', label: 'c.mp4', x: 0, y: 0, media: { kind: 'video', path: 'media/video/ef/c.mp4' } },
+      { type: 'media', id: 'a', label: 'v.mp3', x: 0, y: 0, media: { kind: 'audio', path: 'media/audio/ab/v.mp3' } },
+      { type: 'media', id: 'v', label: 'c.mp4', x: 0, y: 0, media: { kind: 'video', path: 'media/video/ef/c.mp4' } },
     ],
     createViewportTransform(),
   );
@@ -303,7 +304,7 @@ void test('播放控件使用注入的 CSS Modules 类名（视频原生控件�
 void test('CR-20261121-46：播放控件标记 data-media-player；pointerdown/mousedown 放行，click/dblclick 仍拦', () => {
   const { world, layer } = createLayer();
   layer.setNodes(
-    [{ id: 'v', label: 'c.mp4', x: 0, y: 0, media: { kind: 'video', path: 'media/video/ef/c.mp4' } }],
+    [{ type: 'media', id: 'v', label: 'c.mp4', x: 0, y: 0, media: { kind: 'video', path: 'media/video/ef/c.mp4' } }],
     createViewportTransform(),
   );
   const player = playerOf(world);
@@ -322,8 +323,8 @@ void test('单播放策略：一个控件开始播放时暂停其它媒体控件
   const { world, layer } = createLayer();
   layer.setNodes(
     [
-      { id: 'a', label: 'a.mp3', x: 0, y: 0, media: { kind: 'audio', path: 'media/audio/ab/a.mp3' } },
-      { id: 'b', label: 'b.mp3', x: 0, y: 0, media: { kind: 'audio', path: 'media/audio/cd/b.mp3' } },
+      { type: 'media', id: 'a', label: 'a.mp3', x: 0, y: 0, media: { kind: 'audio', path: 'media/audio/ab/a.mp3' } },
+      { type: 'media', id: 'b', label: 'b.mp3', x: 0, y: 0, media: { kind: 'audio', path: 'media/audio/cd/b.mp3' } },
     ],
     createViewportTransform(),
   );
@@ -363,6 +364,7 @@ void test('内容寻址文件名保留在固定页脚，不再覆盖缩略图', 
   layer.setNodes(
     [
       {
+        type: 'media',
         id: 'm',
         label: 'dd43e088.png',
         x: 0,
@@ -383,6 +385,7 @@ void test('媒体库文档节点复用文章式顶部、内表面与固定页脚
   layer.setNodes(
     [
       {
+        type: 'media',
         id: 'd',
         label: '参考.pdf',
         x: 0,

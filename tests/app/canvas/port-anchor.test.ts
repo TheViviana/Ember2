@@ -47,8 +47,8 @@ void test('端口圆点只有一份来源：中心落在 border-box 外边缘（
 });
 
 void test('100% / 200% 缩放：连线端点等于节点外边缘中点', () => {
-  const from: CanvasNodeView = { id: 'a', label: 'A', x: 10, y: 20, w: 240, h: 120 };
-  const to: CanvasNodeView = { id: 'b', label: 'B', x: 400, y: 300, w: 100, h: 60 };
+  const from: CanvasNodeView = { type: 'text', id: 'a', label: 'A', x: 10, y: 20, w: 240, h: 120 };
+  const to: CanvasNodeView = { type: 'text', id: 'b', label: 'B', x: 400, y: 300, w: 100, h: 60 };
 
   for (const scale of [1, 2]) {
     const transform = { ...createViewportTransform(), scale };

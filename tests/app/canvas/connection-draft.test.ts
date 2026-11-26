@@ -14,8 +14,8 @@ import {
 import { nodeSizeOf, type CanvasNodeView } from '../../../src/app/canvas/node-layout.ts';
 import { createViewportTransform } from '../../../src/app/canvas/viewport.ts';
 
-const nodeA: CanvasNodeView = { id: 'a', label: 'A', x: 10, y: 20, w: 240, h: 120 };
-const nodeB: CanvasNodeView = { id: 'b', label: 'B', x: 400, y: 300, w: 100, h: 60 };
+const nodeA: CanvasNodeView = { type: 'text', id: 'a', label: 'A', x: 10, y: 20, w: 240, h: 120 };
+const nodeB: CanvasNodeView = { type: 'text', id: 'b', label: 'B', x: 400, y: 300, w: 100, h: 60 };
 
 void test('draftCurve：控制柄夹在最小/最大偏移内', () => {
   const anchor = { x: 10, y: 20 };

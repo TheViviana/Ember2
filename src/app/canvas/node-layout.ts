@@ -13,7 +13,7 @@
  * 纪律：本文件所有坐标公式必须从 `viewport.ts` 导入，或经 `composeScreenPosition`
  * 单函数推导（S1）；不得在此另写一份等价公式。
  */
-import { MAX_NODE_DIMENSION } from '#canvas-format';
+import { isCanvasNodeType, MAX_NODE_DIMENSION, type CanvasNodeType } from '#canvas-format';
 import type { CanvasDocument } from './format.ts';
 import type { Point, Rect, ViewportTransform } from './viewport.ts';
 
@@ -91,6 +91,8 @@ export function isNodeContentMode(node: { readonly h?: number; readonly autoH?: 
 /** C2 渲染视图：只取渲染必需字段，不定义节点 schema（format.ts 仍原样保留）。 */
 export interface CanvasNodeView {
   readonly id: string;
+  /** 完整节点类型；渲染层可据此穷尽分派，不再依赖 payload 反推。 */
+  readonly type: CanvasNodeType;
   readonly label: string;
   /** 绝对世界坐标（磁盘值）。 */
   readonly x: number;
@@ -212,10 +214,13 @@ export function extractNodeViews(rawNodes: readonly unknown[]): readonly CanvasN
     const y = finite(raw.y);
     if (id === null || x === null || y === null) continue;
     const label = typeof raw.label === 'string' && raw.label !== '' ? raw.label : id;
+    // 历史坏节点原本由通用文本卡片兜底；补齐 type 时保留同一渲染语义。
+    const type = isCanvasNodeType(raw.type) ? raw.type : 'text';
     const w = validNodeDimension(raw.w);
     const h = validNodeDimension(raw.h);
     const view: CanvasNodeView = {
       id,
+      type,
       label,
       x,
       y,

@@ -9,7 +9,7 @@ import {
   type CanvasHitTarget,
 } from '../../../src/app/canvas/interaction.ts';
 
-const nodes = [{ id: 'a', label: 'A', x: 0, y: 0 }];
+const nodes = [{ type: 'text' as const, id: 'a', label: 'A', x: 0, y: 0 }];
 
 function pointerDown(target: CanvasHitTarget, readOnly: boolean) {
   return reduceInteraction(createInteractionState(), {

@@ -85,8 +85,8 @@ function createLayer(
 }
 
 const nodes: readonly CanvasNodeView[] = [
-  { id: 'a', label: '草稿', x: 2412, y: -470.5 },
-  { id: 'b', label: 'b', x: 2400, y: -480 },
+  { type: 'text', id: 'a', label: '草稿', x: 2412, y: -470.5 },
+  { type: 'text', id: 'b', label: 'b', x: 2400, y: -480 },
 ];
 
 void test('只向 world-layer.getWorldElement() 返回的容器挂一次', () => {
@@ -141,9 +141,9 @@ void test('L1 同 ID 节点标签更新时复用元素并刷新文本', () => {
   const layer = createLayer(world);
   const transform = createViewportTransform();
 
-  layer.setNodes([{ id: 'a', label: '旧标签', x: 0, y: 0 }], transform);
+  layer.setNodes([{ type: 'text', id: 'a', label: '旧标签', x: 0, y: 0 }], transform);
   const first = world.element.children[0]?.children[0];
-  layer.setNodes([{ id: 'a', label: '新标签', x: 0, y: 0 }], transform);
+  layer.setNodes([{ type: 'text', id: 'a', label: '新标签', x: 0, y: 0 }], transform);
 
   assert.equal(world.element.children[0]?.children[0], first, '复用同一元素，不重建');
   assert.equal(first?.children[1]?.textContent, '新标签');
@@ -154,9 +154,9 @@ void test('L2 标签未变的复用轮次保持元素引用与文本', () => {
   const layer = createLayer(world);
   const transform = createViewportTransform();
 
-  layer.setNodes([{ id: 'a', label: '稳定标签', x: 0, y: 0 }], transform);
+  layer.setNodes([{ type: 'text', id: 'a', label: '稳定标签', x: 0, y: 0 }], transform);
   const first = world.element.children[0]?.children[0];
-  layer.setNodes([{ id: 'a', label: '稳定标签', x: 0, y: 0 }], transform);
+  layer.setNodes([{ type: 'text', id: 'a', label: '稳定标签', x: 0, y: 0 }], transform);
 
   assert.equal(world.element.children[0]?.children[0], first);
   assert.equal(first?.children[1]?.textContent, '稳定标签');
@@ -165,12 +165,12 @@ void test('L2 标签未变的复用轮次保持元素引用与文本', () => {
 void test('L3 标签变更同轮仍更新坐标并保留选中态', () => {
   const world = fakeWorld();
   const layer = createLayer(world);
-  layer.setNodes([{ id: 'a', label: '旧标签', x: 0, y: 0 }], createViewportTransform());
+  layer.setNodes([{ type: 'text', id: 'a', label: '旧标签', x: 0, y: 0 }], createViewportTransform());
   layer.setSelectedNodes(new Set(['a']));
   const first = world.element.children[0]?.children[0];
 
   layer.setNodes(
-    [{ id: 'a', label: '新标签', x: 10, y: 20 }],
+    [{ type: 'text', id: 'a', label: '新标签', x: 10, y: 20 }],
     createViewportTransform(0, 0, 1, 0, 0),
   );
 
@@ -199,7 +199,7 @@ void test('AI 运行与完成状态写根节点 dataset，可随时清除', () =
   const world = fakeWorld();
   const layer = createLayer(world);
   layer.setNodes(
-    [{ id: 'ai', kind: 'ai', label: 'qwen3:8b', x: 0, y: 0 }],
+    [{ type: 'ai', id: 'ai', kind: 'ai', label: 'qwen3:8b', x: 0, y: 0 }],
     createViewportTransform(),
   );
   const item = world.element.children[0]?.children[0];
@@ -222,8 +222,8 @@ void test('编辑态只切换 data-editing，切换与清除后保留 selected/A
   const layer = createLayer(world);
   layer.setNodes(
     [
-      { id: 'a', kind: 'ai', label: '模型 A', x: 0, y: 0 },
-      { id: 'b', kind: 'prompt', label: '提示词', x: 200, y: 0 },
+      { type: 'ai', id: 'a', kind: 'ai', label: '模型 A', x: 0, y: 0 },
+      { type: 'prompt', id: 'b', kind: 'prompt', label: '提示词', x: 200, y: 0 },
     ],
     createViewportTransform(),
   );
@@ -274,9 +274,9 @@ void test('setNodes([]) 清空全部节点元素（CR-09 A1）', () => {
   // 先塞 3 个节点
   layer.setNodes(
     [
-      { id: 'a', label: 'A', x: 0, y: 0 },
-      { id: 'b', label: 'B', x: 100, y: 0 },
-      { id: 'c', label: 'C', x: 200, y: 0 },
+      { type: 'text', id: 'a', label: 'A', x: 0, y: 0 },
+      { type: 'text', id: 'b', label: 'B', x: 100, y: 0 },
+      { type: 'text', id: 'c', label: 'C', x: 200, y: 0 },
     ],
     transform,
   );
@@ -296,8 +296,8 @@ void test('setNodes([]) 后级联清理（CR-09 A2）', () => {
   // 创建节点并标记选中（选中态会在 setSelectedNodes 内产生可观测的 side effect：className + dataset）
   layer.setNodes(
     [
-      { id: 'a', label: 'A', x: 0, y: 0 },
-      { id: 'b', label: 'B', x: 100, y: 0 },
+      { type: 'text', id: 'a', label: 'A', x: 0, y: 0 },
+      { type: 'text', id: 'b', label: 'B', x: 100, y: 0 },
     ],
     transform,
   );
@@ -336,9 +336,9 @@ void test('A4 measure(ids) 只测指定 ids；未指定 / 无 item / h<=0 不回
 
   const transform = createViewportTransform(0, 0, 1, 1000, 1000);
   const views: readonly CanvasNodeView[] = [
-    { id: 'a', label: 'A', x: 0, y: 0 },
-    { id: 'b', label: 'B', x: 100, y: 0 },
-    { id: 'c', label: 'C', x: 200, y: 0 },
+    { type: 'text', id: 'a', label: 'A', x: 0, y: 0 },
+    { type: 'text', id: 'b', label: 'B', x: 100, y: 0 },
+    { type: 'text', id: 'c', label: 'C', x: 200, y: 0 },
   ];
   layer.setNodes(views, transform);
 
@@ -370,7 +370,7 @@ void test('A4b measure 里 callback 未注入时零行为、h<=0 零回调', () 
   // 不传 measureAutoHeight —— measure 内部 guard，直接 return 零报错
   const layer = createLayer(world, { getOffsetHeightForTest: () => 0 });
   const transform = createViewportTransform(0, 0, 1, 1000, 1000);
-  layer.setNodes([{ id: 'a', label: 'A', x: 0, y: 0 }], transform);
+  layer.setNodes([{ type: 'text', id: 'a', label: 'A', x: 0, y: 0 }], transform);
   layer.measure(new Set(['a']));  // 无 callback → 零报错、零行为
 });
 
@@ -381,6 +381,7 @@ void test('CR-20261121-59：提示词卡片结构 = 标题/内容/开始钮，�
   layer.setNodes(
     [
       {
+        type: 'prompt',
         id: 'p',
         label: '提示词',
         x: 0,
@@ -409,6 +410,7 @@ void test('2026-11-24：AI 卡片 = 模型头 + 内联提示词 + 预留动作�
   layer.setNodes(
     [
       {
+        type: 'ai',
         id: 's',
         label: 'AI',
         x: 0,

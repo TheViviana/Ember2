@@ -133,7 +133,7 @@ function downAt(state: InteractionState, altKey: boolean, readOnly = false) {
     altKey,
     pan: false,
     target: { kind: 'node', id: 'a' },
-    nodes: [{ id: 'a', label: 'A', x: 0, y: 0 }],
+    nodes: [{ type: 'text', id: 'a', label: 'A', x: 0, y: 0 }],
     readOnly,
   });
 }
@@ -162,7 +162,7 @@ void test('⌥拖动产生 duplicate 效果并复位原节点', () => {
   const preview = up.effects.find((effect) => effect.type === 'preview');
   assert.ok(preview !== undefined);
   if (preview.type === 'preview') {
-    assert.deepEqual(preview.positions, [{ id: 'a', label: 'A', x: 0, y: 0 }]);
+    assert.deepEqual(preview.positions, [{ type: 'text', id: 'a', label: 'A', x: 0, y: 0 }]);
   }
 });
 
