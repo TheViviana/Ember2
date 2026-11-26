@@ -18,7 +18,7 @@
 **已确认的语义差异：**
 
 - `findPromptAiNode` 有意忽略自环。正常 Prompt 节点结果不变；异常重复 ID 且同 ID 被标成 AI 时，不再执行 `promptId`，改为“未连接”。这不是无条件的等价重构。
-- `isRecord` 现在统一拒绝数组对象。生产画布文档仅来自 JSON 解析、空文档及普通对象命令变更，未发现携带自定义属性的异常数组，因此接受这一收紧。
+- `isRecord` 现在统一拒绝数组对象。生产画布文档仅来自 JSON 解析、空文档及普通对象命令变更，未发现携带自定义属性的异常数组，因此接受这一收紧。程序化构造路径已扫描，节点/边均为普通对象，isRecord 排除数组不构成行为回归。
 
 证据：[ai-node-execution.ts](../../src/app/canvas/ai-node-execution.ts)、[format.ts](../../src/app/canvas/format.ts)、[document-controller.ts](../../src/app/canvas/document-controller.ts)、[mutate.ts](../../packages/canvas-format/src/mutate.ts)。
 
