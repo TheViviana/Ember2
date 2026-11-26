@@ -11,21 +11,16 @@
 
 - Windows 版启动即报「I/O 失败：拒绝访问」（目录 fsync 在 Windows 上不可用）。
 - Windows 删除文件改走系统回收站，调用失败时仍回落库内回收站。
-
-### Internal
-
-- Windows 应用状态目录改用 `%APPDATA%\Ember`，避免锁与库表落到临时目录被清理。
-
-## [Unreleased]
-
-### Changed
-
-- 节点视图投影 `CanvasNodeView` 新增必填 `type` 字段（内部类型铺垫，无用户可见变化）。
-
-### Fixed
-
 - Prompt 节点自环不再误触发 AI 执行（边缘输入下的行为收紧）。
 
 ### Internal
 
+- Windows 应用状态目录改用 `%APPDATA%\Ember`，避免锁与库表落到临时目录被清理。
+- 节点视图投影 `CanvasNodeView` 新增必填 `type` 字段（无用户可见变化）。
 - IPC 命令名称门禁改为 AST 双向校验（仅开发期检查）。
+
+## [Unreleased]
+
+### Internal
+
+- Windows 构建接入 updater 产物签名，并预留代码签名钩子（CI）。
