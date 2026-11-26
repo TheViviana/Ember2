@@ -126,7 +126,7 @@ IPC 失败统一返回 `ErrorPayload { code, message }`：`code` 是稳定枚举
 
 ### history（CR-20261119-21 已注册 5 条；作用于当前库）
 
-历史版本落在 `.workbench/history/documents/<docId>/<version>.md`（`docs/vault-format.md` §1）。
+历史版本落在 `.workbench/history/documents/<docId>/<version>.md`（`docs/vault-format.md` §1；该文件为本地草稿，暂未入库，格式细节待 P1 填充后随文档一并提供）。
 `<docId>` 与 `<version>` **一律 ULID**（26 字符 Crockford Base32）：`createdAt` 由 ULID 时间戳解码；
 不建 sidecar 元数据文件，`bytes` 取文件大小，`sha256` 仅在 `history_read` 时计算。
 快照在 `vault_write` 覆盖前自动写入旧内容（仅对 frontmatter `id` 为合法 ULID 的文档；id 缺失 /
