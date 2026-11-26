@@ -71,6 +71,8 @@ tests        node --test 测试
 docs         架构契约与文件格式说明
 ```
 
+`docs/contract.md` 与 `docs/updater.md` 随仓库维护；`docs/vault-format.md`、`docs/ui-spec.md` 等为本地草稿，暂不入库。
+
 ## 数据与隐私
 
 应用默认只读写本机知识库；AI、翻译与更新等功能按需访问网络。本仓库与安装包均不包含任何用户知识库数据。
