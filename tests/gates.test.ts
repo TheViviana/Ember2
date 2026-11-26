@@ -555,8 +555,12 @@ void test('gate:ipc-chokepoint：AST 计数——注释里的字样不计入，�
   assert.match(r.stdout, /调用点 1 处/);
 });
 
-// 夹具：按给定数量构造「命令实现文件 + lib.rs 注册表」，不依赖真实仓库。
-function runRegistryFixture(implemented: number, registered: number): SpawnSyncReturns<string> {
+// 夹具：按给定数量构造「命令实现文件 + lib.rs 注册表 + TS 命令映射」，不依赖真实仓库。
+function runRegistryFixture(
+  implemented: number,
+  registered: number,
+  mapped: readonly string[] = Array.from({ length: registered }, (_, i) => `c${i}`),
+): SpawnSyncReturns<string> {
   const root = makeFixture();
   try {
     const src = join(root, 'src-tauri', 'src');
@@ -573,6 +577,15 @@ function runRegistryFixture(implemented: number, registered: number): SpawnSyncR
     writeFileSync(
       join(src, 'lib.rs'),
       `pub fn run() {\n    tauri::Builder::default().invoke_handler(tauri::generate_handler![\n${entries}\n    ]);\n}\n`,
+    );
+    const data = join(root, 'src', 'data');
+    mkdirSync(data, { recursive: true });
+    const properties = mapped
+      .map((name) => `  ${name}: { args: undefined; result: null };`)
+      .join('\n');
+    writeFileSync(
+      join(data, 'ipc-client.ts'),
+      `export interface IpcCommandMap {\n${properties}\n}\n`,
     );
     return runGate('command-registry.mjs', root);
   } finally {
@@ -598,4 +611,12 @@ void test('gate:command-registry：实现数与注册数一致时通过', () => 
   const r = runRegistryFixture(2, 2);
   assert.equal(r.status, 0, r.stderr + r.stdout);
   assert.match(r.stdout, /通过/);
+  assert.match(r.stdout, /名称一致/);
+});
+
+void test('gate:command-registry：数量相同但 TS 命令名错位必红', () => {
+  const r = runRegistryFixture(2, 2, ['c0', 'ghost']);
+  assert.equal(r.status, 1, r.stderr + r.stdout);
+  assert.match(r.stderr, /IpcCommandMap 缺少：c1/);
+  assert.match(r.stderr, /IpcCommandMap 多余：ghost/);
 });

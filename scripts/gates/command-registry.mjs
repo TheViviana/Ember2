@@ -1,14 +1,18 @@
-// gate:command-registry —— 命令实现数必须等于 generate_handler! 注册数（CR-R2-11）。
+// gate:command-registry —— 命令实现数必须等于 generate_handler! 注册数（CR-R2-11），
+// 且 generate_handler! 注册名必须与 src/data/ipc-client.ts 的 IpcCommandMap 键完全一致。
 // 用法：node scripts/gates/command-registry.mjs [根目录]（默认当前目录，测试可注入 fixture 根）。
 // 判定口径：src-tauri/src 下全部 .rs 的 `#[tauri::command]` 出现次数 vs lib.rs 里
-// generate_handler![ ... ] 的条目数；不等即失败。缺 generate_handler / 解析为空一律失败（fail-closed），
-// 避免「注册表被删掉一半」被当成 0 == 0 通过。
+// generate_handler![ ... ] 的条目数；不等即失败。数量一致后再双向比较 Rust 注册名与 TS 映射键。
+// 缺 generate_handler / 解析为空 / 缺 IpcCommandMap 一律失败（fail-closed），
+// 避免「注册表被删掉一半」或「数量相同但名称错位」被误放通过。
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { parse } from '@typescript-eslint/parser';
 
 const BASE = process.argv[2] ?? '.';
 const SRC = join(BASE, 'src-tauri', 'src');
 const LIB = join(SRC, 'lib.rs');
+const IPC_CLIENT = join(BASE, 'src', 'data', 'ipc-client.ts');
 const ATTR = '#[tauri::command]';
 const HANDLER = 'generate_handler!';
 
@@ -50,8 +54,8 @@ function countImplemented() {
   return { count };
 }
 
-// 注册数：定位 generate_handler! 后的方括号参数列表，按深度配对取全量，再按逗号切条目。
-function countRegistered() {
+// 注册名：定位 generate_handler! 后的方括号参数列表，按深度配对取全量，再按逗号切条目。
+function readRegistered() {
   let source;
   try {
     source = readFileSync(LIB, 'utf8');
@@ -80,7 +84,49 @@ function countRegistered() {
     .split(',')
     .map((entry) => entry.trim())
     .filter((entry) => entry.length > 0);
-  return { count: entries.length };
+  const names = [];
+  for (const entry of entries) {
+    const match = entry.match(/([A-Za-z_][A-Za-z0-9_]*)$/);
+    if (match === null) return { error: `${HANDLER} 条目无法解析命令名：${entry}` };
+    names.push(match[1]);
+  }
+  return { count: entries.length, names };
+}
+
+// TS 映射键：用 AST 只读取 IpcCommandMap 的属性签名，避免注释/字符串干扰。
+function readMappedCommands() {
+  let source;
+  try {
+    source = readFileSync(IPC_CLIENT, 'utf8');
+  } catch (err) {
+    return { error: `src/data/ipc-client.ts 不可读（${/** @type {NodeJS.ErrnoException} */ (err).code ?? String(err)}）——IpcCommandMap 无法校验` };
+  }
+  let ast;
+  try {
+    ast = parse(source, { filePath: IPC_CLIENT, ecmaVersion: 'latest', sourceType: 'module' });
+  } catch (err) {
+    return { error: `src/data/ipc-client.ts 解析失败（${err.message}）` };
+  }
+  const declarations = ast.body.flatMap((node) =>
+    node.type === 'ExportNamedDeclaration' && node.declaration !== null
+      ? [node.declaration]
+      : [node],
+  );
+  const declaration = declarations.find(
+    (node) => node.type === 'TSInterfaceDeclaration' && node.id.name === 'IpcCommandMap',
+  );
+  if (declaration === undefined) return { error: 'src/data/ipc-client.ts 未找到 IpcCommandMap' };
+  const names = [];
+  for (const property of declaration.body.body) {
+    if (property.type !== 'TSPropertySignature' || property.computed) {
+      return { error: 'IpcCommandMap 仅允许普通命令属性签名' };
+    }
+    if (property.key.type === 'Identifier') names.push(property.key.name);
+    else if (property.key.type === 'Literal' && typeof property.key.value === 'string') {
+      names.push(property.key.value);
+    } else return { error: 'IpcCommandMap 存在无法解析的命令键' };
+  }
+  return { names };
 }
 
 const implemented = countImplemented();
@@ -89,7 +135,7 @@ if (implemented.error) {
   process.exit(1);
 }
 
-const registered = countRegistered();
+const registered = readRegistered();
 if (registered.error) {
   console.error(`gate:command-registry 失败：${registered.error}`);
   process.exit(1);
@@ -107,4 +153,29 @@ if (implemented.count !== registered.count) {
   process.exit(1);
 }
 
-console.log(`gate:command-registry 通过（命令实现 ${implemented.count} == 注册 ${registered.count}）`);
+const mapped = readMappedCommands();
+if (mapped.error) {
+  console.error(`gate:command-registry 失败：${mapped.error}`);
+  process.exit(1);
+}
+
+const registeredNames = new Set(registered.names);
+const mappedNames = new Set(mapped.names);
+if (registeredNames.size !== registered.names.length || mappedNames.size !== mapped.names.length) {
+  console.error('gate:command-registry 失败：Rust 注册表或 IpcCommandMap 存在重复命令名');
+  process.exit(1);
+}
+const missing = [...registeredNames].filter((name) => !mappedNames.has(name)).sort();
+const extra = [...mappedNames].filter((name) => !registeredNames.has(name)).sort();
+if (missing.length > 0 || extra.length > 0) {
+  const details = [
+    missing.length > 0 ? `IpcCommandMap 缺少：${missing.join(', ')}` : '',
+    extra.length > 0 ? `IpcCommandMap 多余：${extra.join(', ')}` : '',
+  ].filter(Boolean).join('；');
+  console.error(`gate:command-registry 失败：命令名称不一致（${details}）`);
+  process.exit(1);
+}
+
+console.log(
+  `gate:command-registry 通过（命令实现 ${implemented.count} == 注册 ${registered.count} == IpcCommandMap ${mapped.names.length}，名称一致）`,
+);
