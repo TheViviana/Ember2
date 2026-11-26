@@ -31,8 +31,14 @@ pnpm tauri build --bundles nsis
 ```
 
 产物：`src-tauri/target/release/bundle/nsis/Ember_<version>_x64-setup.exe`
+与 updater 签名 `Ember_<version>_x64-setup.exe.sig`
 （`x86_64-pc-windows-msvc`，NSIS `installMode: currentUser`，
 装到 `%LOCALAPPDATA%\Programs\Ember`，不需要管理员权限）。
+
+> CI 通过 `--config` 强制 `bundle.createUpdaterArtifacts=true`，
+> 签名私钥来自仓库 secret `TAURI_SIGNING_PRIVATE_KEY`；缺失时构建直接失败。
+> 本地手动构建要产出 `.sig` 时，需自行追加
+> `--config '{"bundle":{"createUpdaterArtifacts":true}}'` 并设置同一环境变量。
 
 ## 2. 平台差异（已适配，改动相关代码时必须保持）
 
@@ -51,12 +57,16 @@ pnpm tauri build --bundles nsis
 
 - 版本号三处同步：`package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml`，
   并由 cargo 更新 `Cargo.lock`。安装包文件名取自 `tauri.conf.json` 的 `version`。
-- 未做代码签名：Windows 会弹 SmartScreen，需「更多信息 → 仍要运行」。
+- 代码签名是**可选**的：仓库配置了 `WINDOWS_CERTIFICATE`（base64 PFX）与
+  `WINDOWS_CERTIFICATE_PASSWORD` 时，CI 自动导入证书并按 thumbprint 签名
+  （SHA-256 + DigiCert 时间戳）；未配置时照旧产出未签名安装包，Windows 会弹
+  SmartScreen，需「更多信息 → 仍要运行」。
 - `bundle.windows.webviewInstallMode` 为 `downloadBootstrapper`：**首次安装需联网**
   下载 WebView2 运行时。离线机器要先装 WebView2，否则安装会卡住。
-- `createUpdaterArtifacts` 为 `false`，Windows 安装包不含自动更新。
-  要让 Windows 走 updater，需额外产出 `*.nsis.zip` 与 `.sig`，并在 `latest.json`
-  中写 `windows-x86_64` 条目。
+- CI 强制 `createUpdaterArtifacts=true`，因此每次都会产出
+  `Ember_<version>_x64-setup.exe.sig`（私钥来自 secret `TAURI_SIGNING_PRIVATE_KEY`）。
+  发布时 `.exe` 与 `.exe.sig` 必须一起上传，并在 `latest.json` 的
+  `windows-x86_64` 条目里指向该 `.exe`、`signature` 取 `.sig` 内容。
 - 上传到 Release 前确认该 tag 已存在且资产名未冲突；重名需显式 `--clobber`。
 
 ## 4. 实机验收清单（虚拟机）
@@ -65,8 +75,9 @@ pnpm tauri build --bundles nsis
 2. 生成 `文档\EmberVault\.workbench\settings.json` 与 `%APPDATA%\Ember\` 下的
    `machine-id`、`libraries.json`。
 3. 新建 / 编辑 / 保存 `.md`，重启后内容与库列表都在。
-4. 删除文件走库内回收站；导出一次备份成功。
-5. 本地 Ollama：虚拟机里的 `localhost` 指虚拟机自身。Ollama 装在宿主机时需
+4. 删除文件进系统回收站（可从回收站还原）；回收站不可用时回落库内回收站；导出一次备份成功。
+5. 设置 →「检查更新」显示「已是最新版本」，不出现 `TargetNotFound` 之类的错误。
+6. 本地 Ollama：虚拟机里的 `localhost` 指虚拟机自身。Ollama 装在宿主机时需
    `OLLAMA_HOST=0.0.0.0:11434`，Base URL 填宿主机局域网 IP，并勾选「允许明文 HTTP」。
 
 ## 5. 已知限制（未修，不阻塞使用）
