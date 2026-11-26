@@ -17,11 +17,18 @@ pub fn settings_file(root: &Path) -> PathBuf {
     workbench(root).join("settings.json")
 }
 
-/// 应用级状态目录：`~/Library/Application Support/Ember`（与旧版同址）。
+/// 应用级状态目录：macOS 为 `~/Library/Application Support/Ember`（与旧版同址）。
 ///
 /// 锁与 `machine-id` 必须落在同一位置，旧版才能感知新版持有的锁；
-/// `HOME` 缺失时退回临时目录，保证仍可启动。
+/// Windows 没有 `HOME`，沿用该布局会退化到临时目录（清理工具删掉后锁与库表即丢失），
+/// 故改用 `%APPDATA%\Ember`。两者都取不到时退回临时目录，保证仍可启动。
 pub fn app_support_dir() -> PathBuf {
+    #[cfg(windows)]
+    {
+        if let Some(appdata) = std::env::var_os("APPDATA").filter(|value| !value.is_empty()) {
+            return PathBuf::from(appdata).join("Ember");
+        }
+    }
     match std::env::var("HOME") {
         Ok(home) if !home.is_empty() => PathBuf::from(home)
             .join("Library")

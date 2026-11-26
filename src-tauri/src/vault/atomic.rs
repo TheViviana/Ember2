@@ -172,9 +172,21 @@ fn write_temp(file: &mut File, bytes: &[u8]) -> VaultResult<()> {
     Ok(())
 }
 
-fn fsync_dir(dir: &Path) -> VaultResult<()> {
-    File::open(dir)?.sync_all()?;
-    record("fsync_dir");
+/// 目录 fsync：POSIX 用「打开目录句柄再 sync」。
+///
+/// Windows 无法以普通句柄打开目录（`CreateFileW` 缺 `FILE_FLAG_BACKUP_SEMANTICS`
+/// 会返回 `ERROR_ACCESS_DENIED`，即 os error 5），也没有等价的目录落盘语义，
+/// 故在该平台跳过；文件本身的 `sync_all` 与 `rename` 已保证数据先于元数据可见。
+pub(crate) fn fsync_dir(dir: &Path) -> VaultResult<()> {
+    #[cfg(unix)]
+    {
+        File::open(dir)?.sync_all()?;
+        record("fsync_dir");
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = dir;
+    }
     Ok(())
 }
 

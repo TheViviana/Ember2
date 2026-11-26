@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 目标 Release 标签（资产上传到这里）
-        required: true
-        default: v1.2.0
+        description: 目标 Release 标签（留空则只产出可下载的 Artifact，不碰任何 Release）
+        required: false
+        default: ''
       ref:
         description: 构建使用的 Git ref
         required: false
@@ -40,7 +40,15 @@ jobs:
       - name: List bundle output
         shell: bash
         run: ls -lh src-tauri/target/release/bundle/nsis/
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ember-windows-nsis
+          path: src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+          retention-days: 14
       - name: Upload installer to release
+        if: inputs.tag != ''
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}

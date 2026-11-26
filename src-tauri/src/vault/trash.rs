@@ -610,8 +610,12 @@ fn copy_into_temp(source: &Path, temp: &Path) -> VaultResult<()> {
     Ok(())
 }
 
+/// 目录 fsync 复用 `atomic` 实现：Windows 上为 no-op（对目录 `File::open` 会返回 os error 5）。
 fn fsync_dir(dir: &Path) -> io::Result<()> {
-    File::open(dir)?.sync_all()
+    atomic::fsync_dir(dir).map_err(|error| match error {
+        VaultError::Io(inner) => inner,
+        other => io::Error::other(other.to_string()),
+    })
 }
 
 /// 库内路径失败：保留只读/磁盘满这两个可恢复语义，其余收敛为 `E_TRASH_FAILED`。
