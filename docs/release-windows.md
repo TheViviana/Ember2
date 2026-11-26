@@ -9,19 +9,21 @@
 工作流：[`.github/workflows/release-windows.yml`](../.github/workflows/release-windows.yml)
 
 ```bash
-# 只出可下载的 Artifact，不碰任何 Release（实测用）
-env -u GH_TOKEN gh workflow run release-windows.yml --ref main -f ref=main
+# 只出可下载的 Artifact，不碰任何 Release（实测用；ref 可填 tag）
+env -u GH_TOKEN gh workflow run release-windows.yml --ref main -f ref=v1.2.1
 
 # 出包并上传到指定 Release（发版用）
-env -u GH_TOKEN gh workflow run release-windows.yml --ref main -f tag=v1.2.0 -f ref=main
+env -u GH_TOKEN gh workflow run release-windows.yml --ref main -f tag=v1.2.1 -f ref=v1.2.1
 ```
 
 - **必须 `env -u GH_TOKEN`**：本机环境里的 `GH_TOKEN` 是 GitHub App token，
   缺 `workflow` 权限，直接调用会返回 `HTTP 403: Resource not accessible by integration`；
   keyring 账号（`gho_*`，含 `repo`/`workflow`）才有权限。
-- `tag` 输入留空时只上传 Artifact（名 `ember-windows-nsis`，保留 14 天）；
+- `--ref main` 决定使用哪个分支的工作流定义；`-f ref=` 决定检出哪份源码。
+  发布时应把 `-f ref=` 指向目标 tag，保证产物与 tag 对齐。
+- `tag` 输入留空时只上传 Artifact（名 `ember-windows-nsis`，含 `.exe` 与 `.exe.sig`，保留 14 天）；
   填了 tag 才会 `gh release upload --clobber`。
-- 一次完整构建约 3 分钟（含 `pnpm install` 与 Rust 编译缓存命中）。
+- 一次完整构建约 4 分钟（含 `pnpm install` 与 Rust 编译缓存命中）。
 
 本地等价命令（在 Windows 机器上）：
 
