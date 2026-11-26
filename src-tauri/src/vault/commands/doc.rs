@@ -182,7 +182,7 @@ pub fn vault_list(
         .map_err(ErrorPayload::from)
 }
 
-/// 构造访达定位命令：只接受当前库内已经存在的普通 Markdown 文件。
+/// 构造文件管理器定位命令：只接受当前库内已经存在的普通 Markdown 文件。
 fn reveal_command(root: &Path, rel: &str) -> Result<Command, ErrorPayload> {
     let absolute = paths::resolve(root, rel).map_err(ErrorPayload::from)?;
     if !rel.to_ascii_lowercase().ends_with(".md") {
@@ -197,23 +197,52 @@ fn reveal_command(root: &Path, rel: &str) -> Result<Command, ErrorPayload> {
     if !metadata.file_type().is_file() {
         return Err(ErrorPayload::from(VaultError::NotFound));
     }
-    let mut command = Command::new("/usr/bin/open");
-    command.arg("-R").arg(absolute);
+    #[cfg(target_os = "macos")]
+    let command = {
+        let mut command = Command::new("/usr/bin/open");
+        command.arg("-R").arg(&absolute);
+        command
+    };
+    #[cfg(target_os = "windows")]
+    let command = {
+        let mut command = Command::new("explorer");
+        command.arg(format!("/select,{}", absolute.display()));
+        command
+    };
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    let command = {
+        let mut command = Command::new("xdg-open");
+        command.arg(absolute.parent().unwrap_or(&absolute));
+        command
+    };
     Ok(command)
 }
 
 fn run_reveal(command: &mut Command, rel: &str) -> Result<(), ErrorPayload> {
-    let status = command.status().map_err(|error| ErrorPayload {
-        code: "E_IO",
-        message: format!("无法启动访达：{rel}：{error}"),
-    })?;
-    if status.success() {
+    // Windows 的 explorer 成功选中文件时也可能返回非 0，且可能等待 Shell 进程，
+    // 因此只确认派生成功，不读取退出状态。
+    #[cfg(target_os = "windows")]
+    {
+        command.spawn().map_err(|error| ErrorPayload {
+            code: "E_IO",
+            message: format!("无法打开资源管理器：{rel}：{error}"),
+        })?;
         return Ok(());
     }
-    Err(ErrorPayload {
-        code: "E_IO",
-        message: format!("访达未能显示文章：{rel}（退出状态 {status}）"),
-    })
+    #[cfg(not(target_os = "windows"))]
+    {
+        let status = command.status().map_err(|error| ErrorPayload {
+            code: "E_IO",
+            message: format!("无法启动文件管理器：{rel}：{error}"),
+        })?;
+        if status.success() {
+            return Ok(());
+        }
+        Err(ErrorPayload {
+            code: "E_IO",
+            message: format!("文件管理器未能显示文章：{rel}（退出状态 {status}）"),
+        })
+    }
 }
 
 /// 在访达中选中文章；只读操作，不取得 WriteGate，因此只读库也可用。

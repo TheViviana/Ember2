@@ -36,6 +36,16 @@ void test('默认绑定克隆且支持多键位，清空命令不污染默认值
   assert.equal(formatBindingList(defaults['canvas.delete_selection'] ?? []), 'Backspace / Delete');
 });
 
+void test('Windows 默认绑定把 Meta 改写为 Ctrl，并显示 Ctrl 文案', () => {
+  const defaults = defaultCommandBindings(definitions, false);
+  assert.deepEqual(defaults['view.command_palette'], [{ key: 'K', meta: false, ctrl: true }]);
+  assert.equal(formatBindingList(defaults['view.command_palette'] ?? [], false), 'Ctrl+K');
+  // macOS 仍保留 ⌘
+  assert.deepEqual(defaultCommandBindings(definitions, true)['view.command_palette'], [
+    { key: 'K', meta: true },
+  ]);
+});
+
 void test('键盘事件按 code 归一化字符并精确匹配修饰键', () => {
   const event = { key: 'k', code: 'KeyK', metaKey: true };
   assert.deepEqual(keyBindingFromKeyboardEvent(event), { key: 'K', meta: true, ctrl: false, shift: false, alt: false });

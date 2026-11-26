@@ -1,5 +1,6 @@
 import type { KeyBinding } from './bus.ts';
 import type { CommandDefinition } from './commands.ts';
+import { isMacPlatform } from '../../core/platform.ts';
 
 export const COMMAND_BINDINGS_STORAGE_KEY = 'ember2:command-bindings:v1';
 
@@ -82,20 +83,40 @@ export function bindingKey(binding: KeyBinding): string {
   ].filter(Boolean).join('+');
 }
 
-export function formatKeyBinding(binding: KeyBinding): string {
+export function formatKeyBinding(binding: KeyBinding, mac = isMacPlatform()): string {
+  if (!mac) {
+    const parts: string[] = [];
+    if (binding.ctrl === true) parts.push('Ctrl');
+    if (binding.alt === true) parts.push('Alt');
+    if (binding.shift === true) parts.push('Shift');
+    if (binding.meta === true) parts.push('Win');
+    parts.push(normalizeKey(binding.key));
+    return parts.join('+');
+  }
   return `${binding.ctrl === true ? '⌃' : ''}${binding.alt === true ? '⌥' : ''}${binding.shift === true ? '⇧' : ''}${binding.meta === true ? '⌘' : ''}${normalizeKey(binding.key)}`;
 }
 
-export function formatBindingList(bindings: readonly KeyBinding[]): string {
-  return bindings.length === 0 ? '未设置' : bindings.map(formatKeyBinding).join(' / ');
+export function formatBindingList(bindings: readonly KeyBinding[], mac = isMacPlatform()): string {
+  return bindings.length === 0
+    ? '未设置'
+    : bindings.map((binding) => formatKeyBinding(binding, mac)).join(' / ');
+}
+
+/** 默认绑定按平台改写主修饰键：macOS 用 ⌘，Windows/Linux 用 Ctrl。 */
+export function platformBinding(binding: KeyBinding, mac = isMacPlatform()): KeyBinding {
+  if (mac || binding.meta !== true) return binding;
+  return { ...binding, meta: false, ctrl: true };
 }
 
 export function defaultCommandBindings(
   definitions: readonly Pick<CommandDefinition, 'id' | 'defaultKeybinding'>[],
+  mac = isMacPlatform(),
 ): CommandBindingMap {
   const result: Record<string, readonly KeyBinding[]> = {};
   for (const definition of definitions) {
-    result[definition.id] = (definition.defaultKeybinding ?? []).map((binding) => ({ ...binding }));
+    result[definition.id] = (definition.defaultKeybinding ?? []).map((binding) =>
+      platformBinding({ ...binding }, mac),
+    );
   }
   return result;
 }

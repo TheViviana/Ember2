@@ -226,6 +226,7 @@ fn probe(path: &Path) -> LockProbe {
 ///
 /// 路径硬编码 `/bin/kill`：`PATH` 可能被启动环境或用户配置污染，
 /// 解析到同名脚本会给出错误结论。
+#[cfg(unix)]
 fn pid_state(pid: u32) -> Option<bool> {
     if pid == 0 {
         // `kill -0 0` 探测的是「自己的进程组」，恒成功，不能当存活凭据
@@ -240,6 +241,35 @@ fn pid_state(pid: u32) -> Option<bool> {
         .status()
         .ok()
         .map(|status| status.success())
+}
+
+#[cfg(windows)]
+fn pid_state(pid: u32) -> Option<bool> {
+    use std::os::windows::process::CommandExt;
+
+    if pid == 0 {
+        return Some(false);
+    }
+    // CREATE_NO_WINDOW：避免 GUI 进程探测时闪出控制台窗口。
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let filter = format!("PID eq {pid}");
+    let output = std::process::Command::new("tasklist")
+        .args(["/FI", &filter, "/NH"])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&output.stdout);
+    let pid_text = pid.to_string();
+    Some(text.split_whitespace().any(|token| token == pid_text))
+}
+
+#[cfg(not(any(unix, windows)))]
+fn pid_state(pid: u32) -> Option<bool> {
+    let _ = pid;
+    None
 }
 
 /// 探测不可用时保守视为存活，避免误抢锁造成双写者。

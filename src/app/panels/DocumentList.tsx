@@ -35,6 +35,7 @@ import { EDITOR_WINDOW_CONTENT } from '../../windows/content-types.ts';
 import { canvasApi, vaultApi } from '../../data/app-api.ts';
 import styles from './DocumentList.module.css';
 import { formatUnknownError } from '../../core/errors.ts';
+import { isWindowsPlatform } from '../../core/platform.ts';
 import { MenuShell } from './MenuShell.tsx';
 
 type TreeMenuTarget =
@@ -617,7 +618,7 @@ export function DocumentList({ onOpenImport }: DocumentListProps) {
                     setTreeMenu(null);
                     if (target.kind === 'file') void actions.revealDoc(target.path);
                   }}>
-                    在访达中查看
+                    {isWindowsPlatform() ? '在资源管理器中查看' : '在访达中查看'}
                   </button>
                 </li>
               ) : null}

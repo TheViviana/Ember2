@@ -84,3 +84,14 @@ void test('CSP 为 P1 媒体协议预留 media:/blob:（img-src 与 media-src）
   assert.ok(imgSrc.includes('media:'), 'img-src 需要 media:（图片走自定义协议）');
   assert.ok(mediaSrc.includes('media:') && mediaSrc.includes('blob:'), 'media-src 需要 media: 与 blob:');
 });
+
+void test('生产 CSP 放行 Windows 自定义协议映射地址', () => {
+  const csp = cspParts('csp');
+  for (const directive of ['img-src', 'media-src', 'frame-src'] as const) {
+    const value = csp.match(new RegExp(`${directive}\\s+([^;]+)`))?.[1] ?? '';
+    assert.ok(
+      value.includes('http://media.localhost'),
+      `${directive} 需要放行 http://media.localhost（WebView2 自定义协议映射）`,
+    );
+  }
+});

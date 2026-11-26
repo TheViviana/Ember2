@@ -8,6 +8,7 @@
 import type { CreateDocResult } from '../../core/core.ts';
 import type { DocMeta } from '../../core/vault-index.ts';
 import { formatUnknownError } from '../../core/errors.ts';
+import { isWindowsPlatform } from '../../core/platform.ts';
 import { buildTree, dirChildrenNames } from '../tree/build-tree.ts';
 import { validateCanvasId } from '../canvas/canvas-id.ts';
 import { isWithinPath, removedDocPaths, renamedDocPaths } from './doc-index-sync.ts';
@@ -226,13 +227,14 @@ export function createDocTreeActions(deps: DocTreeActionsDeps): DocTreeActions {
   }
 
   async function revealDoc(path: string): Promise<void> {
+    const target = isWindowsPlatform() ? '资源管理器' : '访达';
     try {
       await vaultApi.reveal(path);
     } catch (error: unknown) {
-      notice(`在访达中查看失败：${formatUnknownError(error, '未知错误')}`, 'error');
+      notice(`在${target}中查看失败：${formatUnknownError(error, '未知错误')}`, 'error');
       return;
     }
-    notice(`已在访达中显示：${path}`, 'info');
+    notice(`已在${target}中显示：${path}`, 'info');
   }
 
   async function moveDoc(draggedPath: string, target: TreeDropTarget): Promise<MoveResult> {
