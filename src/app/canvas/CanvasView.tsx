@@ -88,6 +88,7 @@ import {
   type ConnectionMenuState,
 } from './CanvasMenus.tsx';
 import { createAiNodeRunner, type AiNodeRunner } from './ai-node-run.ts';
+import { findPromptAiNode } from './ai-node-execution.ts';
 import type { MediaEntry } from '../../features/media/media-groups.ts';
 import { docViewerFor } from '../../features/media/doc-viewer.ts';
 import { createDocViewerState, docViewerReducer } from '../../features/media/doc-viewer-reducer.ts';
@@ -1302,31 +1303,7 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
           const sessionNow = sessionRef.current;
           if (sessionNow === null) return;
           const raw = sessionNow.engine.getDocument();
-          let aiNodeId: string | null = null;
-          for (const edge of raw.edges) {
-            if (typeof edge !== 'object' || edge === null || Array.isArray(edge)) continue;
-            const rec = edge as { readonly from?: unknown; readonly to?: unknown };
-            const nodeIdOf = (value: unknown): string | null => {
-              if (typeof value !== 'object' || value === null) return null;
-              const nodeId = (value as { readonly nodeId?: unknown }).nodeId;
-              return typeof nodeId === 'string' && nodeId !== '' ? nodeId : null;
-            };
-            const from = nodeIdOf(rec.from);
-            const to = nodeIdOf(rec.to);
-            const other = from === promptId ? to : to === promptId ? from : null;
-            if (other === null) continue;
-            const otherNode = raw.nodes.find(
-              (n) =>
-                typeof n === 'object' &&
-                n !== null &&
-                (n as { readonly id?: unknown }).id === other &&
-                (n as { readonly type?: unknown }).type === 'ai',
-            );
-            if (otherNode !== undefined) {
-              aiNodeId = other;
-              break;
-            }
-          }
+          const aiNodeId = findPromptAiNode(raw.nodes, raw.edges, promptId);
           if (aiNodeId === null) {
             pushNotice('提示词未连接到 AI 节点：先把提示词节点连到一个 AI 节点', 'warning');
             return;

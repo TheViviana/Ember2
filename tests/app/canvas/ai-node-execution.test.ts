@@ -7,6 +7,7 @@ import {
   AI_RUN_MAX_CHARS,
   buildAiRunMessages,
   collectAiNeighbors,
+  findPromptAiNode,
 } from '../../../src/app/canvas/ai-node-execution.ts';
 
 const nodes: readonly unknown[] = [
@@ -22,6 +23,33 @@ const nodes: readonly unknown[] = [
 function edge(id: string, from: string, to: string): unknown {
   return { id, from: { nodeId: from }, to: { nodeId: to } };
 }
+
+void test('findPromptAiNode：无连接或只连接非 AI 节点时返回 null', () => {
+  assert.equal(findPromptAiNode(nodes, [], 'prompt1'), null);
+  assert.equal(
+    findPromptAiNode(nodes, [edge('e1', 'prompt1', 'out1')], 'prompt1'),
+    null,
+  );
+});
+
+void test('findPromptAiNode：多连接按边顺序取首个 AI，方向无关', () => {
+  const withSecondAi = [...nodes, { id: 'ai2', type: 'ai' }];
+  const edges = [
+    edge('e1', 'prompt1', 'out1'),
+    edge('e2', 'ai2', 'prompt1'),
+    edge('e3', 'prompt1', 'ai'),
+  ];
+  assert.equal(findPromptAiNode(withSecondAi, edges, 'prompt1'), 'ai2');
+});
+
+void test('findPromptAiNode：自环不算 AI 连接，也不阻断后续有效边', () => {
+  const selfLoop = edge('loop', 'prompt1', 'prompt1');
+  assert.equal(findPromptAiNode(nodes, [selfLoop], 'prompt1'), null);
+  assert.equal(
+    findPromptAiNode(nodes, [selfLoop, edge('e1', 'prompt1', 'ai')], 'prompt1'),
+    'ai',
+  );
+});
 
 void test('文档按方向区分素材与输出；提示词和文本保持方向无关', () => {
   const edges: readonly unknown[] = [

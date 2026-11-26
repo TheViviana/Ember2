@@ -36,6 +36,29 @@ function endpointNodeId(value: unknown): string | null {
   return typeof nodeId === 'string' && nodeId !== '' ? nodeId : null;
 }
 
+/** 提示词「开始」：按连线顺序找首个直连 AI，方向无关；自环与非 AI 邻居忽略。 */
+export function findPromptAiNode(
+  nodes: readonly unknown[],
+  edges: readonly unknown[],
+  promptId: string,
+): string | null {
+  const aiNodeIds = new Set<string>();
+  for (const raw of nodes) {
+    if (!isRecord(raw) || raw.type !== 'ai') continue;
+    if (typeof raw.id === 'string' && raw.id !== '') aiNodeIds.add(raw.id);
+  }
+  for (const edge of edges) {
+    if (!isRecord(edge)) continue;
+    const from = endpointNodeId(edge.from);
+    const to = endpointNodeId(edge.to);
+    const other = from === promptId ? to : to === promptId ? from : null;
+    // 有意收紧：自环一律视为未连接，避免异常重复 ID 将 Prompt 自身作为 AI 执行。
+    if (other === null || other === promptId || !aiNodeIds.has(other)) continue;
+    return other;
+  }
+  return null;
+}
+
 /** 邻居收集：nodes/edges 为画布原始文档条目（engine.getDocument() 形状）。 */
 export function collectAiNeighbors(
   nodes: readonly unknown[],
