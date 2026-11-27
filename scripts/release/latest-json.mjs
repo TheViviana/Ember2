@@ -30,7 +30,10 @@ const ALLOWED = new Set([
   'out',
   'notes',
   'pub-date',
+  'allow-tag-mismatch',
 ]);
+
+const BOOLEAN = new Set(['allow-tag-mismatch']);
 
 function fail(message) {
   console.error(`latest-json: ${message}`);
@@ -44,6 +47,11 @@ function parseArgs(argv) {
     if (!token.startsWith('--')) fail(`未知参数 ${token}`);
     const key = token.slice(2);
     if (!ALLOWED.has(key)) fail(`未知参数 ${token}`);
+    if (BOOLEAN.has(key)) {
+      if (args[key] !== undefined) fail(`${token} 重复`);
+      args[key] = 'true';
+      continue;
+    }
     const value = argv[index + 1];
     if (value === undefined || value.startsWith('--')) fail(`${token} 缺少值`);
     if (args[key] !== undefined) fail(`${token} 重复`);
@@ -89,6 +97,11 @@ function resolveVersion(cwd, configRel) {
   return version;
 }
 
+function versionFromTag(tag) {
+  const matched = tag.match(/^v(\d+\.\d+\.\d+)(?:[-+].*)?$/);
+  return matched === null ? null : matched[1];
+}
+
 function compareVersions(left, right) {
   const parse = (value) => value.split('.').map((part) => Number.parseInt(part, 10) || 0);
   const a = parse(left);
@@ -126,6 +139,16 @@ if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(args.repository)) {
 }
 
 const version = resolveVersion(cwd, args.config ?? 'src-tauri/tauri.conf.json');
+
+// tag 是发版动作本身，最容易出现「改了 tag 忘了改版本号」。不一致时 updater 会认为
+// 已是最新而静默跳过本次更新，因此默认硬失败；预演可用 --allow-tag-mismatch 显式放行。
+const tagVersion = versionFromTag(tag);
+if (tagVersion !== null && tagVersion !== version && args['allow-tag-mismatch'] !== 'true') {
+  fail(
+    `tag ${tag} 与版本号不一致：tag 对应 ${tagVersion}，tauri.conf/package/Cargo 为 ${version}。` +
+      `这会让用户端 updater 判定「已是最新」而静默跳过本次更新；如为预演请显式传 --allow-tag-mismatch`,
+  );
+}
 
 const bundleDir = resolve(cwd, args.dir);
 if (!existsSync(bundleDir)) fail(`找不到产物目录 ${bundleDir}`);

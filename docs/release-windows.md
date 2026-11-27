@@ -61,8 +61,11 @@ pnpm tauri build --bundles nsis
   结论记入本次 release notes。
 - [ ] 发版前用 draft release 跑一次本 workflow，确认 CI 侧生成/合并/上传 `latest.json` 正常
   （不含安装验证），把「CI 是否有效」这个变量提前消掉。
+- 仓库内路径不得含 Windows 非法字符（`: * ? " < > |`），尤其 `docs/assets/` 这类上传目录；
+  含冒号的文件名会让 Windows runner 在 checkout 阶段直接失败。
 - 版本号三处同步：`package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml`，
   并由 cargo 更新 `Cargo.lock`。安装包文件名取自 `tauri.conf.json` 的 `version`。
+  CI 还会校验 tag 与这三处版本一致，不一致直接失败（预演需显式勾选 `allow_tag_mismatch`）。
 - 代码签名是**可选**的：仓库配置了 `WINDOWS_CERTIFICATE`（base64 PFX）与
   `WINDOWS_CERTIFICATE_PASSWORD` 时，CI 自动导入证书并按 thumbprint 签名
   （SHA-256 + DigiCert 时间戳）；未配置时照旧产出未签名安装包，Windows 会弹

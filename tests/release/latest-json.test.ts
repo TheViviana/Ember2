@@ -31,7 +31,7 @@ function createBundle(root: string, options: { signature?: string | null; asset?
   return bundle;
 }
 
-function run(cwd: string, extra: string[]): ReturnType<typeof spawnSync> {
+function run(cwd: string, extra: string[], tag = 'v1.2.1'): ReturnType<typeof spawnSync> {
   return spawnSync(
     process.execPath,
     [
@@ -45,7 +45,7 @@ function run(cwd: string, extra: string[]): ReturnType<typeof spawnSync> {
       '--repository',
       'TheViviana/Ember2',
       '--tag',
-      'v1.2.1',
+      tag,
       '--out',
       'out/latest.json',
       ...extra,
@@ -191,6 +191,40 @@ void test('既有清单文件不存在时走首次生成，不报错', () => {
       platforms: Record<string, { url: string }>;
     };
     assert.deepEqual(Object.keys(manifest.platforms), ['windows-x86_64']);
+  } finally {
+    cleanup(root);
+  }
+});
+
+void test('tag 与版本号不一致时失败（改了 tag 忘了改版本号）', () => {
+  const root = createRepo();
+  try {
+    createBundle(root);
+    const result = run(root, [], 'v1.2.2');
+    assert.equal(result.status, 1);
+    assert.match(String(result.stderr), /不一致.*1\.2\.2/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+void test('预演可通过 --allow-tag-mismatch 显式放行 tag 不一致', () => {
+  const root = createRepo();
+  try {
+    createBundle(root);
+    const result = run(root, ['--allow-tag-mismatch'], 'v1.2.2');
+    assert.equal(result.status, 0, String(result.stderr));
+  } finally {
+    cleanup(root);
+  }
+});
+
+void test('非 v 语义化 tag 不做版本比对（如 nightly）', () => {
+  const root = createRepo();
+  try {
+    createBundle(root);
+    const result = run(root, [], 'nightly');
+    assert.equal(result.status, 0, String(result.stderr));
   } finally {
     cleanup(root);
   }
