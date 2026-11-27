@@ -1,0 +1,16 @@
+{
+  "changes": [
+    {
+      "bytes": 24,
+      "from": "documents/a.md",
+      "kind": "renamed",
+      "modifiedMs": 1763000000000,
+      "path": "documents/b.md",
+      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    },
+    {
+      "kind": "removed",
+      "path": "documents/c.md"
+    }
+  ]
+}

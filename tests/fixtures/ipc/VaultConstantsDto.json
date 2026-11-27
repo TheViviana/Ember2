@@ -1,0 +1,10 @@
+{
+  "historyBudgetBytes": 52428800,
+  "historyKeep": 50,
+  "maxDocBytes": 16777216,
+  "maxImageBytes": 33554432,
+  "maxMediaBytes": 209715200,
+  "maxScanDepth": 32,
+  "trashRetentionDays": 7,
+  "watcherDebounceMs": 200
+}
