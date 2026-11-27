@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { PendingUpdate, UpdateProgress } from '../../data/updater-port.ts';
 import {
+  describeUpdateError,
   formatProgress,
   loadAutoCheck,
   normalizeReleaseNotes,
@@ -61,7 +62,7 @@ export function AboutSettingsBody({ effects }: AboutSettingsBodyProps) {
       setPhase('available');
     } catch (cause: unknown) {
       setPhase('idle');
-      setError(`检查更新失败：${formatUnknownError(cause, '未知更新错误')}`);
+      setError(`检查更新失败：${describeUpdateError(cause)}`);
     }
   }, [effects]);
 

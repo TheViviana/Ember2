@@ -1,6 +1,8 @@
 /**
  * P7 自动更新的机器本地偏好（localStorage），纯逻辑便于 node:test。
  */
+import { formatUnknownError } from '../../core/errors.ts';
+
 export const UPDATER_AUTO_CHECK_KEY = 'ember.updater.autoCheck';
 
 export interface UpdaterStorage {
@@ -49,4 +51,18 @@ export function normalizeReleaseNotes(body: string | null): string | null {
   if (body === null) return null;
   const trimmed = body.trim();
   return trimmed === '' ? null : trimmed;
+}
+
+/**
+ * 平台条目缺失是「当前平台没有发布包」，不是网络故障；
+ * Tauri 抛的是内部英文错误，直接展示会让用户以为更新坏了。
+ */
+const MISSING_PLATFORM_PATTERN = /None of the fallback platforms|TargetNotFound/i;
+
+export function describeUpdateError(cause: unknown, fallback = '未知更新错误'): string {
+  const message = cause instanceof Error ? cause.message : typeof cause === 'string' ? cause : '';
+  if (MISSING_PLATFORM_PATTERN.test(message)) {
+    return '当前平台暂无更新包，请前往 GitHub Releases 手动下载。';
+  }
+  return formatUnknownError(cause, fallback);
 }
