@@ -23,3 +23,27 @@
 证据：[ai-node-execution.ts](../../src/app/canvas/ai-node-execution.ts)、[format.ts](../../src/app/canvas/format.ts)、[document-controller.ts](../../src/app/canvas/document-controller.ts)、[mutate.ts](../../packages/canvas-format/src/mutate.ts)。
 
 **观察项：两套专用边遍历。** `findPromptAiNode` 取首个直连 AI 并提前返回，`collectAiNeighbors` 收集全部邻居；两者共享 `isRecord` / `endpointNodeId`，暂不收拢。出现第三套边遍历时再评估是否抽象通用遍历器。
+
+## 观测项（2026-11-27 追加）：节点扩展五触点
+
+按 [ADR 0003](0003-ipc-dto-contract-and-canvas-engine-extraction.md) 决策三，把决策二的「采集漏改点」落成固定清单与记录表。**决策二本身不变：仍不引入节点注册表。**
+
+新增节点类型时逐项确认：
+
+| 触点 | 落点 |
+|---|---|
+| schema | `packages/canvas-format/src/types.ts` 的节点接口；`document.ts` 的解析/校验规则 |
+| 投影 | `src/app/canvas/node-layout.ts#extractNodeViews`（type / kind / 尺寸 / 专属字段） |
+| 工厂 | `src/app/canvas/canvas-interactions.ts`（新建入口；无入口时显式标注） |
+| 渲染 | `src/app/canvas/node-layer.ts`（专用分支，或明确复用通用卡片） |
+| 菜单 | `src/app/canvas/CanvasMenus.tsx`（右键菜单项；无专属项时注明通用） |
+
+覆盖断言：`tests/app/canvas/node-type-coverage.test.ts`。声明表只在测试内，不进运行时，不作为第二份业务真相源；新类型未声明即红。
+
+记录表（每个新节点类型补齐一行）：
+
+| 类型 | 改动文件数 | 漏改触点 | 回归数 | 结论 |
+|---|---|---|---|---|
+| （首个新类型落地后填写） | | | | |
+
+升级门槛：任一新节点出现「漏改 ≥2 处」或「单次改动 ≥6 文件且跨层」，才另立 ADR 讨论注册表，用真实数据而非直觉决策。
