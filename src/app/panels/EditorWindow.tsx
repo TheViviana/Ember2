@@ -287,6 +287,8 @@ export function EditorWindow({ record }: WindowContentProps) {
           dirty: docState.dirty,
           saving: docState.saving,
           externalKind: docState.external?.kind ?? null,
+          conflictCopyPath: docState.conflictCopy?.path ?? null,
+          conflictCopyFailed: docState.conflictCopyFailed,
           errorMessage: docState.error?.message ?? null,
         };
 

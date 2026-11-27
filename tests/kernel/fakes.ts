@@ -10,6 +10,7 @@ import type { CanvasPort } from '../../src/core/canvas/ports.ts';
 import type { Clock, EventPort, Unsubscribe, VaultPort } from '../../src/core/ports.ts';
 import type {
   CanvasEntryDto,
+  ConflictCopyDto,
   DirEntryDto,
   FileChangedDto,
   ReadCanvasDto,
@@ -107,11 +108,18 @@ export interface FakeReadCall {
   path: string;
 }
 
+export interface FakeConflictCopyCall {
+  path: string;
+  text: string;
+  stamp: string;
+}
+
 /** 内存库：以相对路径为键，行为对齐契约 §III 的 vault_* 语义。 */
 export class FakeVaultPort implements VaultPort {
   readonly files = new Map<string, FakeFile>();
   readonly writeCalls: FakeWriteCall[] = [];
   readonly readCalls: FakeReadCall[] = [];
+  readonly conflictCopyCalls: FakeConflictCopyCall[] = [];
   readonly removedPaths: string[] = [];
   /** 按方法名注入失败（如 'identity' / 'write' / 'read'）。 */
   readonly failures = new Map<string, EmberIpcError>();
@@ -211,6 +219,17 @@ export class FakeVaultPort implements VaultPort {
     this.stamp += 1;
     this.files.set(path, { text, modifiedMs: this.stamp });
     return Promise.resolve({ path, bytes: byteLength(text), sha256: sha256(text) });
+  }
+
+  saveConflictCopy(path: string, text: string, stamp: string): Promise<ConflictCopyDto> {
+    this.conflictCopyCalls.push({ path, text, stamp });
+    const failure = this.failures.get('saveConflictCopy');
+    if (failure) return Promise.reject(failure);
+    return Promise.resolve({
+      path: conflictCopyPathFor(path, stamp),
+      bytes: byteLength(text),
+      sha256: sha256(text),
+    });
   }
 
   stat(path: string): Promise<StatDto> {
@@ -453,6 +472,15 @@ export class FakeCanvasPort implements CanvasPort {
 
 function canvasPath(id: string): string {
   return `.workbench/canvas/${id}.canvas.json`;
+}
+
+/** 与 Rust `vault::conflict` 同形的镜像路径（仅供测试观察）。 */
+function conflictCopyPathFor(path: string, stamp: string): string {
+  const slash = path.lastIndexOf('/');
+  const dir = slash === -1 ? '' : path.slice(0, slash + 1);
+  const base = slash === -1 ? path : path.slice(slash + 1);
+  const stem = base.toLowerCase().endsWith('.md') ? base.slice(0, -3) : base;
+  return `.workbench/conflicts/${dir}${stem}.conflict-${stamp}.md`;
 }
 
 function sha256(text: string): string {

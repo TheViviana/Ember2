@@ -7,6 +7,7 @@ use crate::vault::Session;
 
 mod backup;
 mod canvas;
+mod conflict;
 mod doc;
 mod history;
 mod media;
@@ -14,6 +15,7 @@ mod trash;
 
 pub use backup::*;
 pub use canvas::*;
+pub use conflict::*;
 pub use doc::*;
 pub use history::*;
 pub use media::*;

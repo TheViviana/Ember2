@@ -13,6 +13,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import type {
+  ConflictCopyDto,
   DirEntryDto,
   FileChangedDto,
   ReadDocDto,
@@ -59,6 +60,11 @@ const samples = {
     bytes: 24,
     sha256: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
   } satisfies WriteDocDto,
+  ConflictCopyDto: {
+    path: '.workbench/conflicts/documents/note.conflict-20261127-101530-123.md',
+    bytes: 24,
+    sha256: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+  } satisfies ConflictCopyDto,
   StatDto: {
     path: 'documents/note.md',
     bytes: 24,
@@ -113,7 +119,7 @@ void test('Rust 快照与 TS 类型样本逐字段一致', () => {
 
 const COVERED = new Set(Object.keys(samples));
 
-/** 当前未覆盖的 `*Dto` struct 数量（40 个 struct - 已覆盖 9 个 struct）；只允许下调。 */
+/** 当前未覆盖的 `*Dto` struct 数量（41 个 struct - 已覆盖 10 个 Dto = 31）；只允许下调。 */
 const UNCOVERED_BASELINE = 31;
 
 function rustFiles(dir: string): string[] {

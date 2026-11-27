@@ -693,12 +693,13 @@ export function EditorView({
       {external !== null ? (
         <EditorConflictBanner
           external={external}
+          conflictCopyPath={doc?.conflictCopyPath ?? null}
+          conflictCopyFailed={doc?.conflictCopyFailed ?? false}
           error={conflictError}
           resolving={resolving}
           onResolve={handleResolve}
         />
       ) : null}
-
       {loadState === 'ready' && doc !== null ? (
         <EditorTopbar
           chromeHidden={chromeHidden}

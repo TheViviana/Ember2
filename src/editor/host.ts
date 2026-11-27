@@ -13,6 +13,10 @@ export interface EditorDocSnapshot {
   readonly saving: boolean;
   /** 外部变更类型；null 表示无冲突。 */
   readonly externalKind: 'updated' | 'removed' | null;
+  /** 冲突发生时的本地草稿副本路径；写入失败或未冲突时为 null。 */
+  readonly conflictCopyPath?: string | null;
+  /** 冲突副本写入失败；为 true 时横幅提示手动备份。 */
+  readonly conflictCopyFailed?: boolean;
   readonly errorMessage: string | null;
 }
 

@@ -32,17 +32,20 @@ export function makeExternal(
 }
 
 /** `<name>.conflict-<YYYYMMDD-HHmmss-SSS>[-N].md`，时间来自注入时钟（本地时区）。 */
+export function conflictStamp(nowMs: number): string {
+  const date = new Date(nowMs);
+  const pad = (value: number, length = 2): string => String(value).padStart(length, '0');
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(
+    date.getHours(),
+  )}${pad(date.getMinutes())}${pad(date.getSeconds())}-${pad(date.getMilliseconds(), 3)}`;
+}
+
 export function conflictCopyPath(path: string, nowMs: number, revision = 1): string {
   const base = posixBaseName(path);
   const dir = path.slice(0, path.length - base.length);
   const stem = base.endsWith('.md') ? base.slice(0, -3) : base;
-  const date = new Date(nowMs);
-  const pad = (value: number, length = 2): string => String(value).padStart(length, '0');
-  const stamp = `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(
-    date.getHours(),
-  )}${pad(date.getMinutes())}${pad(date.getSeconds())}-${pad(date.getMilliseconds(), 3)}`;
   const suffix = revision === 1 ? '' : `-${revision}`;
-  return `${dir}${stem}.conflict-${stamp}${suffix}.md`;
+  return `${dir}${stem}.conflict-${conflictStamp(nowMs)}${suffix}.md`;
 }
 
 export interface ConflictResolverOptions {
@@ -192,6 +195,9 @@ export function createConflictResolver(options: ConflictResolverOptions): {
       doc.baseText = read.text;
       doc.baseSha = read.sha256;
       doc.external = null;
+      doc.conflictCopy = null;
+      doc.conflictCopyFor = null;
+      doc.conflictCopyFailed = false;
       doc.error = null;
       doc.saveGeneration += 1;
       publish();
@@ -217,6 +223,9 @@ export function createConflictResolver(options: ConflictResolverOptions): {
     // 写盘期间若收到更新的外部版本，只清除本次已裁决的冲突对象。
     if (after.external === external) {
       after.external = null;
+      after.conflictCopy = null;
+      after.conflictCopyFor = null;
+      after.conflictCopyFailed = false;
       publish();
     }
     return toState(after);

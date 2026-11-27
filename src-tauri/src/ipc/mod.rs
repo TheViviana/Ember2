@@ -1,5 +1,6 @@
 pub mod backup;
 pub mod canvas;
+pub mod conflict;
 pub mod doc;
 pub mod error;
 pub mod history;

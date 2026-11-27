@@ -5,6 +5,7 @@
  * 生产适配在 `src/data/`（C4），测试注入 `tests/kernel/fakes.ts`。
  */
 import type {
+  ConflictCopyDto,
   DirEntryDto,
   FileChangedDto,
   ReadDocDto,
@@ -31,6 +32,8 @@ export interface VaultPort {
   scan(): Promise<ScanDocDto[]>;
   read(path: string): Promise<ReadDocDto>;
   write(path: string, text: string, expectedSha?: string | null): Promise<WriteDocDto>;
+  /** 冲突发生时把本地草稿另存到 `.workbench/conflicts/`（create-only）。 */
+  saveConflictCopy(path: string, text: string, stamp: string): Promise<ConflictCopyDto>;
   stat(path: string): Promise<StatDto>;
   /** 单层列举；缺省为库根。 */
   list(path?: string): Promise<DirEntryDto[]>;

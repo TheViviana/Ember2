@@ -25,6 +25,7 @@ pub fn run() {
         vault::commands::vault_read,
         vault::commands::vault_reveal,
         vault::commands::vault_write,
+        vault::commands::conflict_save,
         vault::commands::vault_replace,
         vault::commands::vault_import,
         vault::commands::vault_rename,

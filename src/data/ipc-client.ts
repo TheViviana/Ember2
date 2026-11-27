@@ -34,6 +34,8 @@ import type {
   CanvasEntryDto,
   CanvasReadRequest,
   CanvasWriteRequest,
+  ConflictCopyDto,
+  ConflictSaveRequest,
   DirEntryDto,
   HistoryDeleteDto,
   HistoryDeleteRequest,
@@ -110,6 +112,7 @@ export interface IpcCommandMap {
   vault_read: { args: VaultReadRequest; result: ReadDocDto };
   vault_reveal: { args: VaultRevealRequest; result: null };
   vault_write: { args: VaultWriteRequest; result: WriteDocDto };
+  conflict_save: { args: ConflictSaveRequest; result: ConflictCopyDto };
   vault_replace: { args: VaultReplaceRequest; result: ReplaceDocDto };
   vault_import: { args: VaultImportRequest; result: ImportDocDto };
   vault_rename: { args: VaultRenameRequest; result: WriteDocDto };

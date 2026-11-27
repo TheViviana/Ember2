@@ -125,6 +125,22 @@ export interface WriteDocDto {
   sha256: string;
 }
 
+/** `conflict_save` 响应：冲突发生时本地草稿的副本位置与指纹。 */
+export interface ConflictCopyDto {
+  path: string;
+  bytes: number;
+  sha256: string;
+}
+
+export interface ConflictSaveRequest {
+  /** 源文档库内相对路径（正斜杠）。 */
+  path: string;
+  /** 冲突发生时刻的本地草稿。 */
+  text: string;
+  /** `YYYYMMDD-HHmmss-SSS`，本地时区。 */
+  stamp: string;
+}
+
 export interface StatDto {
   path: string;
   bytes: number;

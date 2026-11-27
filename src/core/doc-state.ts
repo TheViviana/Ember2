@@ -1,7 +1,7 @@
 /**
  * 打开文档的公共类型与快照转换；不持有文档集合或订阅状态。
  */
-import type { FileChangeDto, ReadDocDto, WriteDocDto } from '../types/ipc.ts';
+import type { ConflictCopyDto, FileChangeDto, ReadDocDto, WriteDocDto } from '../types/ipc.ts';
 import type { ExternalChange } from './conflict.ts';
 import type { EmberIpcError } from './errors.ts';
 import type { Clock, Unsubscribe, VaultPort } from './ports.ts';
@@ -16,6 +16,10 @@ export interface DocState {
   readonly saving: boolean;
   readonly error: EmberIpcError | null;
   readonly external: ExternalChange | null;
+  /** 冲突发生时本地草稿的副本；写入失败或冲突解除后为 null。 */
+  readonly conflictCopy: ConflictCopyDto | null;
+  /** 副本写入失败；banner 据此改为「请手动备份」，避免误以为已保存。 */
+  readonly conflictCopyFailed: boolean;
 }
 
 export type SaveOutcome =
@@ -66,6 +70,12 @@ export interface MutableDoc {
   saving: boolean;
   error: EmberIpcError | null;
   external: ExternalChange | null;
+  /** 已写入的冲突副本；与 `conflictCopyFor` 成对维护。 */
+  conflictCopy: ConflictCopyDto | null;
+  /** 副本对应的冲突标识（外部 sha 或 `removed`），同一冲突只存一次。 */
+  conflictCopyFor: string | null;
+  /** 副本写入失败；与 `conflictCopyFor` 同生命周期。 */
+  conflictCopyFailed: boolean;
   /** 在飞写入期间收到的 updated/created，等写完再判定是否回声。 */
   pendingExternal: FileChangeDto | null;
   reloadTarget: ReloadTarget | null;
@@ -89,6 +99,9 @@ export function makeDoc(read: ReadDocDto): MutableDoc {
     saving: false,
     error: null,
     external: null,
+    conflictCopy: null,
+    conflictCopyFor: null,
+    conflictCopyFailed: false,
     pendingExternal: null,
     reloadTarget: null,
     reloadRunning: false,
@@ -105,6 +118,8 @@ export function toState(doc: MutableDoc): DocState {
     saving: doc.saving,
     error: doc.error,
     external: doc.external,
+    conflictCopy: doc.conflictCopy,
+    conflictCopyFailed: doc.conflictCopyFailed,
   });
 }
 

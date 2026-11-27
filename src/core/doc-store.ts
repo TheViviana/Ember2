@@ -16,7 +16,7 @@
  * - 事件 sha 命中 baseSha / recentSelfWrites / 在飞写入结果 → 回声，忽略。
  */
 import type { FileChangeDto, ReadDocDto } from '../types/ipc.ts';
-import { createConflictResolver, makeExternal } from './conflict.ts';
+import { conflictStamp, createConflictResolver, makeExternal } from './conflict.ts';
 import { migrateDocumentPath } from './doc-migrate.ts';
 import {
   isDirty,
@@ -157,8 +157,41 @@ export function createDocStore(options: DocStoreOptions): PathResolvingDocStore 
     if (doc) publish();
   }
 
+  function clearConflictCopy(doc: MutableDoc): void {
+    doc.conflictCopy = null;
+    doc.conflictCopyFor = null;
+    doc.conflictCopyFailed = false;
+  }
+
+  /**
+   * 冲突副本只存一次：按外部 sha（删除用 `removed`）去重。
+   * 快照是「冲突发生那一刻」的草稿；失败不阻断裁决，但必须让用户知道没存成。
+   */
+  function noteConflict(doc: MutableDoc, key: string): void {
+    if (disposed || doc.conflictCopyFor === key) return;
+    doc.conflictCopy = null;
+    doc.conflictCopyFailed = false;
+    doc.conflictCopyFor = key;
+    const text = doc.text;
+    const stamp = conflictStamp(clock.now());
+    void (async () => {
+      try {
+        const copy = await vault.saveConflictCopy(doc.path, text, stamp);
+        if (disposed || docs.get(doc.path) !== doc || doc.conflictCopyFor !== key) return;
+        doc.conflictCopy = copy;
+        publish();
+      } catch (error) {
+        if (disposed || docs.get(doc.path) !== doc || doc.conflictCopyFor !== key) return;
+        doc.conflictCopyFailed = true;
+        publish();
+        console.warn('[ember] 冲突副本保存失败', doc.path, error);
+      }
+    })();
+  }
+
   function markExternal(doc: MutableDoc, target: ReloadTarget): void {
     doc.external = makeExternal('updated', target.sha256, target.bytes, target.modifiedMs);
+    noteConflict(doc, target.sha256);
     publish();
   }
 
@@ -195,6 +228,7 @@ export function createDocStore(options: DocStoreOptions): PathResolvingDocStore 
             doc.baseText = read.text;
             doc.baseSha = read.sha256;
             doc.external = null;
+            clearConflictCopy(doc);
             doc.error = null;
             publish();
           } catch (rejection) {
@@ -224,6 +258,7 @@ export function createDocStore(options: DocStoreOptions): PathResolvingDocStore 
     if (change.kind === 'removed') {
       if (isDirty(doc)) {
         doc.external = makeExternal('removed', null, null, null);
+        noteConflict(doc, 'removed');
         publish();
       } else {
         closeDoc(doc.path);
@@ -236,6 +271,7 @@ export function createDocStore(options: DocStoreOptions): PathResolvingDocStore 
       // 磁盘回到已知版本：此前的冲突标记自动解除。
       if (doc.external) {
         doc.external = null;
+        clearConflictCopy(doc);
         publish();
       }
       return;
@@ -328,7 +364,10 @@ export function createDocStore(options: DocStoreOptions): PathResolvingDocStore 
     const deferred = doc.pendingExternal;
     doc.pendingExternal = null;
     if (deferred) applyChange(doc, deferred);
-    if (outcome.conflict) doc.external = outcome.conflict;
+    if (outcome.conflict) {
+      doc.external = outcome.conflict;
+      noteConflict(doc, outcome.conflict.sha256 ?? 'removed');
+    }
     publish();
   }
 

@@ -2,6 +2,7 @@ pub mod atomic;
 pub mod backup;
 pub mod canvas;
 pub mod commands;
+pub mod conflict;
 pub mod constants;
 pub mod doc;
 pub mod gate;

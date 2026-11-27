@@ -89,6 +89,7 @@ IPC 失败统一返回 `ErrorPayload { code, message }`：`code` 是稳定枚举
 | `vault_read` | `{ path }` | `ReadDocDto { path, text, bytes, sha256, modifiedMs }` | `E_PATH_ESCAPE` `E_RESERVED_PATH` `E_NOT_FOUND` `E_INVALID_ARG` `E_IO` |
 | `vault_reveal` | `{ path }`（当前库内 `.md` 文章相对路径） | `null`（成功） | `E_PATH_ESCAPE` `E_RESERVED_PATH` `E_NOT_FOUND` `E_INVALID_ARG` `E_IO` |
 | `vault_write` | `{ path, text, expectedSha? }` | `WriteDocDto { path, bytes, sha256 }` | `E_READONLY` `E_INVALID_ARG`（含条件 SHA 不匹配）`E_PATH_ESCAPE` `E_RESERVED_PATH` `E_DISK_FULL` `E_IO` |
+| `conflict_save` | `{ path, text, stamp }` | `ConflictCopyDto { path, bytes, sha256 }` | `E_READONLY` `E_INVALID_ARG`（stamp 非法 / 非 `.md` / 正文超限 / 重名耗尽）`E_PATH_ESCAPE` `E_RESERVED_PATH` `E_DISK_FULL` `E_IO` |
 | `vault_rename` | `{ from, to }` | `WriteDocDto { path, bytes, sha256 }` | `E_READONLY` `E_INVALID_ARG`（目标已存在 / 文件非 `.md` / 移入自身）`E_PATH_ESCAPE` `E_RESERVED_PATH` `E_NOT_FOUND` `E_DISK_FULL` `E_IO` |
 | `vault_list` | `{ path? }`（缺省为库根） | `DirEntryDto[] { name, path, kind: "dir"\|"file", bytes, modifiedMs }` | `E_PATH_ESCAPE` `E_RESERVED_PATH` `E_NOT_FOUND` `E_INVALID_ARG` `E_IO` |
 | `vault_scan` | 无 | `ScanDocDto[] { path, bytes, sha256, modifiedMs }` | `E_PATH_ESCAPE` `E_IO`（遇 I/O 错误整体失败，不静默跳过） |
@@ -104,6 +105,7 @@ IPC 失败统一返回 `ErrorPayload { code, message }`：`code` 是稳定枚举
 | `backup_inspect` | `{ destination }` | `BackupInspectDto { path, version, createdAt, sourceRoot, files, bytes }` | `E_NOT_FOUND` `E_INVALID_ARG` `E_PATH_ESCAPE` `E_IO` |
 
 - `vault_write` 的 `expectedSha` 缺省或为 `null` 时保持原有无条件创建 / 覆盖语义；传入 SHA 时，Rust 在取得写许可后、原子写之前复核当前普通文件的 SHA，完全匹配才写入。传入空字符串 `""` 表示“期望目标不存在”：仅目标缺失时允许创建，目标已存在则拒绝。条件不匹配返回 `E_INVALID_ARG`，不得修改目标或登记 self-write；调用方不得自动重试，应重新 `vault_stat` 并重新裁决冲突。
+- `conflict_save`（P2-9）：只把「冲突发生那一刻的本地草稿」快照到 `.workbench/conflicts/<源目录镜像>/<stem>.conflict-<stamp>[-N].md`，不复制磁盘版本。`path` 经 `paths::resolve` 校验且仅接受 `.md`，`text` 上限同 `vault_write`（16 MiB），`stamp` 必须为 `YYYYMMDD-HHmmss-SSS`（本地时区）。`.workbench`、`conflicts` 与镜像目录逐级拒绝 symlink；写入为 create-only 原子写，重名依次追加 `-2`…`-100`，绝不覆盖既有文件。该命令不登记 self-write；`.workbench` 被扫描与监听跳过，副本不进入索引。副本失败不阻断冲突裁决，但横幅会降级为「请手动备份」，避免用户误以为已保存。副本不自动清理（后续考虑 TTL 或容量上限），且路径仅在当前冲突会话的横幅可见；重启后需手动从 `.workbench/conflicts/` 找回。
 - `vault_reveal` 是只读命令：复用 `paths::resolve` 拒绝越界、保留路径与 symlink，只接受已存在的普通 `.md` 文件；macOS 以 `/usr/bin/open` 参数数组执行 `-R <absolutePath>`，不经过 shell，启动失败或非零退出状态均返回 `E_IO`，只读库仍可使用。
 - `vault_mkdir`（CR-20261121-57）：`paths::resolve` 防越界 + `gate.enter()` 拦只读；已存在同名条目（文件或目录）报 `E_IO`；父目录级联创建。空目录不进 `vault_scan` 索引；前端通过 `vault_list` 的 `knownDirs` 快照持续展示，`pendingDirs` 仅负责新建后的即时反馈。`.workbench/canvas/*.canvas.json` 属库内普通文件，可经 `vault_remove` 删除（CR-20261121-57 画布删除即此路径）。
 - `vault_remove` / `media_delete`：先解析路径防越界，再 `gate.enter()`；只读态直接 `E_READONLY` 且不触碰磁盘。删除走系统废纸篓，失败降级到 `.workbench/trash/<ULID>/`，`via` 表示实际落点。

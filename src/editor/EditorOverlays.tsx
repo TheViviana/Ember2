@@ -182,6 +182,10 @@ export function EditorTopbar({
 
 export interface EditorConflictBannerProps {
   readonly external: ExternalKind;
+  /** 冲突发生时本地草稿副本的库内相对路径；写入失败时为 null。 */
+  readonly conflictCopyPath: string | null;
+  /** 副本写入失败时改为提示手动备份，绝不显示「已另存为」。 */
+  readonly conflictCopyFailed: boolean;
   readonly error: string | null;
   readonly resolving: EditorConflictChoice | null;
   readonly onResolve: (choice: EditorConflictChoice) => void;
@@ -189,6 +193,8 @@ export interface EditorConflictBannerProps {
 
 export function EditorConflictBanner({
   external,
+  conflictCopyPath,
+  conflictCopyFailed,
   error,
   resolving,
   onResolve,
@@ -204,6 +210,19 @@ export function EditorConflictBanner({
             ? '关闭浮窗后本地未保存改动的处理交由关窗流程。'
             : '本地改动尚未写盘，请选择处理方式后继续编辑。'}
         </p>
+        {conflictCopyPath !== null || conflictCopyFailed ? (
+          <p className={styles.bannerHint}>
+            {conflictCopyFailed
+              ? `冲突副本保存失败，请手动备份当前内容。${
+                  external === 'updated'
+                    ? '磁盘版本可能在原路径（可能已再次变化）。'
+                    : ''
+                }`
+              : external === 'removed'
+                ? `冲突发生时的本地草稿已另存为 ${conflictCopyPath}。`
+                : `冲突发生时的本地草稿已另存为 ${conflictCopyPath}；磁盘版本可能在原路径（可能已再次变化）。`}
+          </p>
+        ) : null}
         {error !== null ? <p className={styles.bannerError}>{error}</p> : null}
       </div>
       <div className={styles.bannerActions}>

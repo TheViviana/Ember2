@@ -13,6 +13,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use ember_lib::ipc::conflict::ConflictCopyDto;
 use ember_lib::ipc::doc::{
     DirEntryDto, EntryKindDto, ReadDocDto, ScanDocDto, StatDto, WriteDocDto,
 };
@@ -105,6 +106,18 @@ fn write_doc_dto() {
         "WriteDocDto",
         WriteDocDto {
             path: "documents/note.md".to_string(),
+            bytes: 24,
+            sha256: SHA.to_string(),
+        },
+    );
+}
+
+#[test]
+fn conflict_copy_dto() {
+    snapshot(
+        "ConflictCopyDto",
+        ConflictCopyDto {
+            path: ".workbench/conflicts/documents/note.conflict-20261127-101530-123.md".to_string(),
             bytes: 24,
             sha256: SHA.to_string(),
         },

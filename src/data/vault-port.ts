@@ -14,6 +14,8 @@ export function createTauriVaultPort(client: IpcClient = ipcClient): VaultPort {
     read: (path) => client.invoke('vault_read', { path }),
     write: (path, text, expectedSha = null) =>
       client.invoke('vault_write', { path, text, expectedSha }),
+    saveConflictCopy: (path, text, stamp) =>
+      client.invoke('conflict_save', { path, text, stamp }),
     stat: (path) => client.invoke('vault_stat', { path }),
     list: (path) => client.invoke('vault_list', path === undefined ? {} : { path }),
     rename: (from, to) => client.invoke('vault_rename', { from, to }),

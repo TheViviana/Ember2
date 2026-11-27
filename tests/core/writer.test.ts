@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto';
 import { test } from 'node:test';
 import { createEmberCore, type EmberCore } from '../../src/core/core.ts';
 import { EmberIpcError } from '../../src/core/errors.ts';
-import { conflictCopyPath } from '../../src/core/conflict.ts';
+import { conflictCopyPath, conflictStamp } from '../../src/core/conflict.ts';
 import { migrateDocumentPath } from '../../src/core/doc-migrate.ts';
 import type { FileChangeDto } from '../../src/types/ipc.ts';
 import { createWriter } from '../../src/core/writer.ts';
@@ -808,6 +808,143 @@ void test('冲突副本：同一毫秒连续冲突追加序号且不覆盖旧副
   assert.match(first.path, /^a\.conflict-\d{8}-\d{6}-\d{3}\.md$/);
   assert.equal(first.path, conflictCopyPath('a.md', clock.now()));
   assert.equal(second.path, first.path.replace(/\.md$/, '-2.md'));
+});
+
+// ------------------------------------------------ 冲突副本（.workbench/conflicts）
+
+void test('冲突快照：dirty 收到外部更新时只存一次本地草稿', async () => {
+  const { core, vault, events } = makeHarness();
+  vault.seed('notes/a.md', 'v0');
+  await core.start();
+  await core.openDoc('notes/a.md');
+  core.editDoc('notes/a.md', 'local draft');
+
+  vault.seed('notes/a.md', 'external');
+  events.emitFileChanged({ changes: [updated('notes/a.md', 'external')] });
+  await settle();
+
+  assert.equal(vault.conflictCopyCalls.length, 1);
+  const call = vault.conflictCopyCalls[0];
+  assert.ok(call);
+  assert.equal(call.path, 'notes/a.md');
+  assert.equal(call.text, 'local draft');
+  assert.match(call.stamp, /^\d{8}-\d{6}-\d{3}$/);
+
+  const doc = core.getDocument('notes/a.md');
+  assert.equal(doc?.external?.kind, 'updated');
+  assert.equal(
+    doc?.conflictCopy?.path,
+    `.workbench/conflicts/notes/a.conflict-${call.stamp}.md`,
+  );
+  assert.equal(doc?.conflictCopy?.sha256, sha('local draft'));
+  assert.equal(doc?.conflictCopy?.bytes, size('local draft'));
+
+  events.emitFileChanged({ changes: [updated('notes/a.md', 'external')] });
+  await settle();
+  assert.equal(vault.conflictCopyCalls.length, 1, '同一外部 sha 不重复保存');
+});
+
+void test('冲突快照：外部再次变化时按新 sha 再存一份', async () => {
+  const { core, vault, events } = makeHarness();
+  vault.seed('a.md', 'v0');
+  await core.start();
+  await core.openDoc('a.md');
+  core.editDoc('a.md', 'local');
+
+  vault.seed('a.md', 'external-1');
+  events.emitFileChanged({ changes: [updated('a.md', 'external-1')] });
+  await settle();
+  vault.seed('a.md', 'external-2');
+  events.emitFileChanged({ changes: [updated('a.md', 'external-2')] });
+  await settle();
+
+  assert.equal(vault.conflictCopyCalls.length, 2);
+  assert.equal(vault.conflictCopyCalls[0]?.text, 'local');
+  assert.equal(vault.conflictCopyCalls[1]?.text, 'local');
+  assert.equal(
+    core.getDocument('a.md')?.conflictCopy?.path,
+    `.workbench/conflicts/a.conflict-${vault.conflictCopyCalls[1]?.stamp}.md`,
+  );
+});
+
+void test('冲突快照：写入失败不阻断裁决且不上报 core:error', async () => {
+  const { core, vault, events } = makeHarness();
+  vault.seed('a.md', 'v0');
+  await core.start();
+  await core.openDoc('a.md');
+  core.editDoc('a.md', 'local');
+
+  const errors: EmberIpcError[] = [];
+  const unsubscribe = core.events.subscribe((event) => {
+    if (event.type === 'core:error') errors.push(event.error);
+  });
+  vault.failures.set(
+    'saveConflictCopy',
+    new EmberIpcError('conflict_save', 'E_IO', 'copy failed', 'E_IO'),
+  );
+
+  vault.seed('a.md', 'external');
+  events.emitFileChanged({ changes: [updated('a.md', 'external')] });
+  await settle();
+  unsubscribe();
+
+  const doc = core.getDocument('a.md');
+  assert.equal(doc?.external?.kind, 'updated');
+  assert.equal(doc?.conflictCopy, null);
+  assert.equal(doc?.conflictCopyFailed, true, '副本失败必须显式标记');
+  assert.equal(errors.length, 0, '副本失败不得上升为 core:error');
+
+  const blocked = await core.saveDoc('a.md');
+  assert.equal(blocked.ok, false, '冲突仍照常阻断普通保存');
+
+  const resolved = await core.resolveDocConflict('a.md', 'reload');
+  assert.equal(resolved.conflictCopyFailed, false, '冲突解除后清空失败标记');
+});
+
+void test('冲突快照：reload 解除冲突后清空副本', async () => {
+  const { core, vault, events } = makeHarness();
+  vault.seed('a.md', 'v0');
+  await core.start();
+  await core.openDoc('a.md');
+  core.editDoc('a.md', 'local');
+
+  vault.seed('a.md', 'external');
+  events.emitFileChanged({ changes: [updated('a.md', 'external')] });
+  await settle();
+  assert.ok(core.getDocument('a.md')?.conflictCopy);
+
+  const resolved = await core.resolveDocConflict('a.md', 'reload');
+  assert.equal(resolved.text, 'external');
+  assert.equal(resolved.external, null);
+  assert.equal(resolved.conflictCopy, null);
+});
+
+void test('冲突快照：外部删除 dirty 文档时也另存本地草稿', async () => {
+  const { core, vault, events } = makeHarness();
+  vault.seed('a.md', 'v0');
+  await core.start();
+  await core.openDoc('a.md');
+  core.editDoc('a.md', 'local');
+
+  events.emitFileChanged({ changes: [{ kind: 'removed', path: 'a.md' }] });
+  await settle();
+
+  assert.equal(vault.conflictCopyCalls.length, 1);
+  const call = vault.conflictCopyCalls[0];
+  assert.ok(call);
+  assert.equal(call.text, 'local');
+  const doc = core.getDocument('a.md');
+  assert.equal(doc?.external?.kind, 'removed');
+  assert.equal(
+    doc?.conflictCopy?.path,
+    `.workbench/conflicts/a.conflict-${call.stamp}.md`,
+  );
+});
+
+void test('conflictStamp：形状固定且与 conflictCopyPath 同源', () => {
+  const now = Date.UTC(2026, 10, 27, 2, 15, 30, 123);
+  assert.match(conflictStamp(now), /^\d{8}-\d{6}-\d{3}$/);
+  assert.equal(conflictCopyPath('a.md', now), `a.conflict-${conflictStamp(now)}.md`);
 });
 
 void test('overwrite 期间二次外部修改：中止覆盖并保留最新磁盘内容', async () => {
