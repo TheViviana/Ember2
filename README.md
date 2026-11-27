@@ -2,7 +2,7 @@
 
 本地优先、以画布为中心的 Markdown 笔记应用。基于 Tauri 2 + Rust + React 19 + TypeScript，知识库以明文 `.md` 保存在本机，画布用于把文档、媒体与 AI 步骤组织成可复用流程。
 
-[![Ember 画布、编辑器与知识看板](docs/assets/docs:assets:ember2-demo-poster.jpg)](docs/assets/docs:assets:ember2-demo-poster.jpg)
+[![Ember 画布、编辑器与知识看板](docs/assets/ember2-demo-poster.jpg)](docs/assets/ember2-demo.mp4)
 
 ## 功能
 
