@@ -5,6 +5,18 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.2.2] - 2026-11-28
+
+### Added
+
+- 外部修改导致冲突时，把冲突发生时的本地未保存草稿另存到 `.workbench/conflicts/`，并在冲突横幅展示副本路径；副本保存失败时提示手动备份，不会伪装成已保存。
+
+### Internal
+
+- 新增 `conflict_save` IPC 命令：create-only 原子写、逐级拒绝 symlink、复用路径解析防逃逸。
+- IPC 入口/出口与统一错误载荷写入结构化日志（`~/Library/Logs/app.ember.desktop/ember.log`）。
+- 发版脚本校验 tag 与版本号一致，不一致时拒绝生成 `latest.json`。
+
 ## [1.2.1] - 2026-11-26
 
 ### Fixed
