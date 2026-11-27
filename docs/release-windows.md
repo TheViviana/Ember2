@@ -57,6 +57,10 @@ pnpm tauri build --bundles nsis
 
 ## 3. 发布前检查
 
+- [ ] 上一次发版后的 E2E 更新链路已验证（检测 → 下载 → 签名校验 → 手动退出重开 → 版本变化），
+  结论记入本次 release notes。
+- [ ] 发版前用 draft release 跑一次本 workflow，确认 CI 侧生成/合并/上传 `latest.json` 正常
+  （不含安装验证），把「CI 是否有效」这个变量提前消掉。
 - 版本号三处同步：`package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml`，
   并由 cargo 更新 `Cargo.lock`。安装包文件名取自 `tauri.conf.json` 的 `version`。
 - 代码签名是**可选**的：仓库配置了 `WINDOWS_CERTIFICATE`（base64 PFX）与
@@ -67,8 +71,13 @@ pnpm tauri build --bundles nsis
   下载 WebView2 运行时。离线机器要先装 WebView2，否则安装会卡住。
 - CI 强制 `createUpdaterArtifacts=true`，因此每次都会产出
   `Ember_<version>_x64-setup.exe.sig`（私钥来自 secret `TAURI_SIGNING_PRIVATE_KEY`）。
-  发布时 `.exe` 与 `.exe.sig` 必须一起上传，并在 `latest.json` 的
-  `windows-x86_64` 条目里指向该 `.exe`、`signature` 取 `.sig` 内容。
+- 带 tag 的构建会由 `scripts/release/latest-json.mjs` 生成并上传 `latest.json`：
+  缺少 `url`/`signature`、版本号三处不一致、既有清单损坏，或试图用更低版本覆盖时，
+  构建直接失败；既有平台条目（如 macOS）会被保留，不会被本次发布冲掉。
+- 跨平台发布时，若其它平台条目仍指向旧版本，CI 会输出 `::warning::`，属预期提示、
+  不阻断发布；需确认该平台确实尚未发布新版，否则该平台用户会「检测到新版本却下载旧包」。
+- 发布后仍需确认 Release 资产里的 `latest.json` 存在，且 `windows-x86_64` 的
+  `url` 指向本次 `.exe`、`signature` 与其 `.sig` 一致。
 - 上传到 Release 前确认该 tag 已存在且资产名未冲突；重名需显式 `--clobber`。
 
 ## 4. 实机验收清单（虚拟机）

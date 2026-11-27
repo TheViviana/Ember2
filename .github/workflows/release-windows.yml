@@ -86,6 +86,46 @@ jobs:
         shell: bash
         run: ls -lh src-tauri/target/release/bundle/nsis/
 
+      # P0-3：updater 清单由 CI 生成并与既有清单合并；缺 url/signature 直接失败。
+      - name: Assemble latest.json
+        if: inputs.tag != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          existing_dir="$RUNNER_TEMP/existing-latest"
+          mkdir -p "$existing_dir"
+          # 区分「资产不存在」与「读取失败」：前者走首次生成，后者必须失败，
+          # 否则读取失败会被当成没有清单，静默覆盖其它平台已有条目。
+          if ! assets="$(gh release view "$TAG" --json assets -q '.assets[].name')"; then
+            echo "::error::Release $TAG 不存在或无法读取资产列表，拒绝继续"
+            exit 1
+          fi
+          if grep -qx 'latest.json' <<< "$assets"; then
+            gh release download "$TAG" -p latest.json -D "$existing_dir"
+          else
+            rm -f "$existing_dir/latest.json"
+          fi
+          node scripts/release/latest-json.mjs \
+            --dir src-tauri/target/release/bundle/nsis \
+            --platform windows-x86_64 \
+            --repository "${{ github.repository }}" \
+            --tag "$TAG" \
+            --existing "$existing_dir/latest.json" \
+            --out "$RUNNER_TEMP/latest.json" \
+            --asset-ext exe
+
+      - name: Upload update manifest artifact
+        if: inputs.tag != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ember-windows-update-manifest
+          path: ${{ runner.temp }}/latest.json
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
@@ -106,4 +146,5 @@ jobs:
           gh release upload "${{ inputs.tag }}" \
             src-tauri/target/release/bundle/nsis/*.exe \
             src-tauri/target/release/bundle/nsis/*.exe.sig \
+            "$RUNNER_TEMP/latest.json" \
             --clobber
