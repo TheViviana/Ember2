@@ -186,10 +186,10 @@ pub fn vault_list(
 fn reveal_command(root: &Path, rel: &str) -> Result<Command, ErrorPayload> {
     let absolute = paths::resolve(root, rel).map_err(ErrorPayload::from)?;
     if !rel.to_ascii_lowercase().ends_with(".md") {
-        return Err(ErrorPayload {
-            code: "E_INVALID_ARG",
-            message: format!("在访达中查看只接受 .md 文章：{rel}"),
-        });
+        return Err(ErrorPayload::new(
+            "E_INVALID_ARG",
+            format!("在访达中查看只接受 .md 文章：{rel}"),
+        ));
     }
     let metadata = std::fs::symlink_metadata(&absolute)
         .map_err(doc::not_found_or)
@@ -223,25 +223,23 @@ fn run_reveal(command: &mut Command, rel: &str) -> Result<(), ErrorPayload> {
     // 因此只确认派生成功，不读取退出状态。
     #[cfg(target_os = "windows")]
     {
-        command.spawn().map_err(|error| ErrorPayload {
-            code: "E_IO",
-            message: format!("无法打开资源管理器：{rel}：{error}"),
+        command.spawn().map_err(|error| {
+            ErrorPayload::new("E_IO", format!("无法打开资源管理器：{rel}：{error}"))
         })?;
         return Ok(());
     }
     #[cfg(not(target_os = "windows"))]
     {
-        let status = command.status().map_err(|error| ErrorPayload {
-            code: "E_IO",
-            message: format!("无法启动文件管理器：{rel}：{error}"),
+        let status = command.status().map_err(|error| {
+            ErrorPayload::new("E_IO", format!("无法启动文件管理器：{rel}：{error}"))
         })?;
         if status.success() {
             return Ok(());
         }
-        Err(ErrorPayload {
-            code: "E_IO",
-            message: format!("文件管理器未能显示文章：{rel}（退出状态 {status}）"),
-        })
+        Err(ErrorPayload::new(
+            "E_IO",
+            format!("文件管理器未能显示文章：{rel}（退出状态 {status}）"),
+        ))
     }
 }
 
@@ -295,15 +293,13 @@ fn mkdir_dir(
     let _permit = gate.enter().map_err(ErrorPayload::from)?;
     let resolved = paths::resolve(root, rel).map_err(ErrorPayload::from)?;
     if resolved.exists() {
-        return Err(ErrorPayload {
-            code: "E_IO",
-            message: format!("目录或文件已存在：{rel}"),
-        });
+        return Err(ErrorPayload::new(
+            "E_IO",
+            format!("目录或文件已存在：{rel}"),
+        ));
     }
-    std::fs::create_dir_all(&resolved).map_err(|error| ErrorPayload {
-        code: "E_IO",
-        message: format!("创建目录失败：{rel}：{error}"),
-    })?;
+    std::fs::create_dir_all(&resolved)
+        .map_err(|error| ErrorPayload::new("E_IO", format!("创建目录失败：{rel}：{error}")))?;
     Ok(())
 }
 

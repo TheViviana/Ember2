@@ -486,6 +486,25 @@ pub async fn translate_online(
     target_lang: String,
     on_event: Channel<TranslateEvent>,
 ) -> Result<String, TranslateErrorPayload> {
+    let result = translate_online_inner(text, target_lang, on_event).await;
+    // 翻译错误不走共享 ErrorPayload，入口这里补一条错误码日志（P1-6）。
+    if let Err(error) = &result {
+        tracing::warn!(
+            target: "ipc",
+            command = "translate_online",
+            code = error.code,
+            message = %error.message,
+            "ipc.error"
+        );
+    }
+    result
+}
+
+async fn translate_online_inner(
+    text: String,
+    target_lang: String,
+    on_event: Channel<TranslateEvent>,
+) -> Result<String, TranslateErrorPayload> {
     let text = text.trim().to_string();
     if text.is_empty() {
         return Err(fail("E_TRANSLATE_EMPTY", "没有可翻译的内容"));

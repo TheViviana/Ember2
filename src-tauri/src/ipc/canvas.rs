@@ -33,9 +33,16 @@ impl From<VaultError> for CanvasErrorPayload {
             VaultError::BackupFailed { cause } => Some(cause.code()),
             _ => None,
         };
+        let message = error.to_string();
+        tracing::warn!(
+            target: "ipc",
+            code = error.code(),
+            message = %message,
+            "ipc.error"
+        );
         Self {
             code: error.code(),
-            message: error.to_string(),
+            message,
             current_sha,
             cause,
         }

@@ -141,12 +141,19 @@ pub struct ErrorPayload {
     pub message: String,
 }
 
+impl ErrorPayload {
+    /// 统一构造点：所有共享载荷都经这里产生，错误码因此必然落盘（P1-6）。
+    /// 只记录码与文案，不记录请求参数或文件内容。
+    pub fn new(code: &'static str, message: impl Into<String>) -> Self {
+        let message = message.into();
+        tracing::warn!(target: "ipc", code, message = %message, "ipc.error");
+        Self { code, message }
+    }
+}
+
 impl From<VaultError> for ErrorPayload {
     fn from(error: VaultError) -> Self {
-        Self {
-            code: error.code(),
-            message: error.to_string(),
-        }
+        Self::new(error.code(), error.to_string())
     }
 }
 

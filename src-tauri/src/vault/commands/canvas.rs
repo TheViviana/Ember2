@@ -66,27 +66,17 @@ fn canvas_rename_inner(
     }
     let old_path = canvas::canvas_path(root, id);
     if !old_path.is_file() {
-        return Err(CanvasErrorPayload {
-            code: "E_NOT_FOUND",
-            message: format!("画布不存在：{id}"),
-            current_sha: None,
-            cause: None,
-        });
+        return Err(ErrorPayload::new("E_NOT_FOUND", format!("画布不存在：{id}")).into());
     }
     let new_path = canvas::canvas_path(root, new_id);
     if new_path.exists() {
-        return Err(CanvasErrorPayload {
-            code: "E_INVALID_ARG",
-            message: format!("目标画布已存在：{new_id}"),
-            current_sha: None,
-            cause: None,
-        });
+        return Err(ErrorPayload::new("E_INVALID_ARG", format!("目标画布已存在：{new_id}")).into());
     }
-    std::fs::rename(&old_path, &new_path).map_err(|error| CanvasErrorPayload {
-        code: "E_IO",
-        message: format!("画布改名失败：{id} → {new_id}：{error}"),
-        current_sha: None,
-        cause: None,
+    std::fs::rename(&old_path, &new_path).map_err(|error| {
+        CanvasErrorPayload::from(ErrorPayload::new(
+            "E_IO",
+            format!("画布改名失败：{id} → {new_id}：{error}"),
+        ))
     })?;
     drop(permit);
     let old_rel = paths::to_rel(root, &old_path).map_err(CanvasErrorPayload::from)?;

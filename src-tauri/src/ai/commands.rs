@@ -23,10 +23,7 @@ const MAX_REQUEST_ID_BYTES: usize = 128;
 
 impl From<AiError> for ErrorPayload {
     fn from(error: AiError) -> Self {
-        Self {
-            code: error.code(),
-            message: error.to_string(),
-        }
+        Self::new(error.code(), error.to_string())
     }
 }
 
@@ -213,10 +210,7 @@ fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 }
 
 fn invalid_arg(message: &str) -> ErrorPayload {
-    ErrorPayload {
-        code: E_INVALID_ARG,
-        message: message.to_string(),
-    }
+    ErrorPayload::new(E_INVALID_ARG, message)
 }
 
 /// requestId：非空、≤128 字节、仅 `[A-Za-z0-9_-]`。
