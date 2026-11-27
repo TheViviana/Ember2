@@ -76,9 +76,13 @@ pnpm tauri build --bundles nsis
   `Ember_<version>_x64-setup.exe.sig`（私钥来自 secret `TAURI_SIGNING_PRIVATE_KEY`）。
 - 带 tag 的构建会由 `scripts/release/latest-json.mjs` 生成并上传 `latest.json`：
   缺少 `url`/`signature`、版本号三处不一致、既有清单损坏，或试图用更低版本覆盖时，
-  构建直接失败；既有平台条目（如 macOS）会被保留，不会被本次发布冲掉。
-- 跨平台发布时，若其它平台条目仍指向旧版本，CI 会输出 `::warning::`，属预期提示、
-  不阻断发布；需确认该平台确实尚未发布新版，否则该平台用户会「检测到新版本却下载旧包」。
+  构建直接失败。workflow 固定传 `--prune-stale-platforms`：仍指向旧 tag 的其它平台
+  条目会被移除，避免全局版本升级后其它平台「检测到新版本却下载旧包」；已指向本次
+  tag 的条目会保留。
+- **1.2.3 起双平台必须同时 publish**：上传 macOS 资产到同一个 draft 后，先运行
+  `node scripts/release/verify-release.mjs --tag <tag> --repository TheViviana/Ember2`，
+  或手动触发 `release-publish` workflow；门禁通过后才会转正。缺任一平台资产或
+  `latest.json` 条目时不要手动 publish。
 - 发布后仍需确认 Release 资产里的 `latest.json` 存在，且 `windows-x86_64` 的
   `url` 指向本次 `.exe`、`signature` 与其 `.sig` 一致。
 - 上传到 Release 前确认该 tag 已存在且资产名未冲突；重名需显式 `--clobber`。

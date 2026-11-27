@@ -21,6 +21,7 @@ rustup target add aarch64-apple-darwin x86_64-apple-darwin
 | `sign.sh` | hardened runtime + timestamp 签名 | `APPLE_SIGNING_IDENTITY`（缺省取钥匙串第一个身份） |
 | `notarize.sh` | notarytool 提交、等待、stapler 装订 | `APPLE_ID`、`APPLE_TEAM_ID`、`APPLE_APP_PASSWORD` |
 | `verify-artifact.sh` | codesign / spctl / stapler / hdiutil / sha256 | — |
+| `verify-release.mjs` | 双平台发布门禁：校验 Windows/macOS 资产与 `latest.json` 条目齐全且指向本次 tag | `GH_TOKEN`（在线模式） |
 
 ## 标准发布顺序
 

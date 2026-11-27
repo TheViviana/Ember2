@@ -116,6 +116,63 @@ void test('合并既有清单：保留其它平台条目，不互相覆盖', () 
   }
 });
 
+void test('--prune-stale-platforms：移除仍指向旧 tag 的其它平台条目且不告警', () => {
+  const root = createRepo();
+  try {
+    createBundle(root);
+    writeFileSync(
+      join(root, 'existing.json'),
+      JSON.stringify({
+        version: '1.2.0',
+        notes: 'old',
+        platforms: {
+          'darwin-aarch64': {
+            url: 'https://github.com/TheViviana/Ember2/releases/download/v1.2.0/Ember_1.2.0_universal.app.tar.gz',
+            signature: 'existing-signature-content',
+          },
+        },
+      }),
+    );
+    const result = run(root, ['--existing', 'existing.json', '--prune-stale-platforms']);
+    assert.equal(result.status, 0, String(result.stderr));
+    const manifest = JSON.parse(readFileSync(join(root, 'out', 'latest.json'), 'utf8')) as {
+      platforms: Record<string, { url: string }>;
+    };
+    assert.deepEqual(Object.keys(manifest.platforms), ['windows-x86_64']);
+    assert.doesNotMatch(String(result.stderr), /::warning::/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+void test('--prune-stale-platforms：保留已指向本次 tag 的其它平台条目', () => {
+  const root = createRepo();
+  try {
+    createBundle(root);
+    writeFileSync(
+      join(root, 'existing.json'),
+      JSON.stringify({
+        version: '1.2.1',
+        platforms: {
+          'darwin-aarch64': {
+            url: 'https://github.com/TheViviana/Ember2/releases/download/v1.2.1/Ember_1.2.1_universal.app.tar.gz',
+            signature: 'existing-signature-content',
+          },
+        },
+      }),
+    );
+    const result = run(root, ['--existing', 'existing.json', '--prune-stale-platforms']);
+    assert.equal(result.status, 0, String(result.stderr));
+    const manifest = JSON.parse(readFileSync(join(root, 'out', 'latest.json'), 'utf8')) as {
+      platforms: Record<string, { url: string }>;
+    };
+    assert.deepEqual(Object.keys(manifest.platforms).sort(), ['darwin-aarch64', 'windows-x86_64']);
+    assert.doesNotMatch(String(result.stderr), /::warning::/);
+  } finally {
+    cleanup(root);
+  }
+});
+
 void test('缺少签名文件时失败', () => {
   const root = createRepo();
   try {

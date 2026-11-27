@@ -13,7 +13,7 @@
  *     --dir src-tauri/target/release/bundle/nsis \
  *     --platform windows-x86_64 \
  *     --repository owner/repo --tag v1.2.2 \
- *     --out latest.json [--existing 既有/latest.json]
+ *     --out latest.json [--existing 既有/latest.json] [--prune-stale-platforms]
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -31,9 +31,10 @@ const ALLOWED = new Set([
   'notes',
   'pub-date',
   'allow-tag-mismatch',
+  'prune-stale-platforms',
 ]);
 
-const BOOLEAN = new Set(['allow-tag-mismatch']);
+const BOOLEAN = new Set(['allow-tag-mismatch', 'prune-stale-platforms']);
 
 function fail(message) {
   console.error(`latest-json: ${message}`);
@@ -185,20 +186,36 @@ if (args.existing !== undefined) {
   }
 }
 
-const platforms = { ...(existing?.platforms ?? {}), [args.platform]: { signature, url } };
+// 单平台发布时可用 --prune-stale-platforms 丢掉仍指向旧 tag 的其它平台条目，
+// 避免全局 version 升到新版后，旧平台的 url 让用户「检测到新版本却下载旧包」。
+const pruneStale = args['prune-stale-platforms'] === 'true';
+const pointsToTag = (entry) =>
+  entry !== null &&
+  typeof entry === 'object' &&
+  typeof entry.url === 'string' &&
+  entry.url.includes(`/download/${encodeURIComponent(tag)}/`);
+const existingPlatforms = existing?.platforms ?? {};
+const mergedPlatforms = pruneStale
+  ? Object.fromEntries(
+      Object.entries(existingPlatforms).filter(
+        ([name, entry]) => name === args.platform || pointsToTag(entry),
+      ),
+    )
+  : existingPlatforms;
+const platforms = { ...mergedPlatforms, [args.platform]: { signature, url } };
 for (const [name, entry] of Object.entries(platforms)) validateEntry(name, entry);
 
-// 合并会保留其它平台条目：若它们仍指向旧版本，对应平台用户会「检测到新版本却下载旧包」。
-// 不直接失败（macOS 可能尚未发布），但必须在 CI 里留下醒目告警。
-const stalePlatforms = Object.keys(existing?.platforms ?? {}).filter((name) => name !== args.platform);
-if (
-  stalePlatforms.length > 0 &&
-  typeof existing?.version === 'string' &&
-  compareVersions(existing.version, version) < 0
-) {
+// 合并默认保留其它平台条目：若它们仍指向旧版本，对应平台用户会「检测到新版本却下载旧包」。
+// 不直接失败（macOS 可能尚未发布），但必须在 CI 里留下醒目告警；需要清理时传 --prune-stale-platforms。
+const stalePlatforms = Object.keys(platforms).filter(
+  (name) => name !== args.platform && !pointsToTag(platforms[name]),
+);
+if (stalePlatforms.length > 0) {
+  const staleLabel = typeof existing?.version === 'string' ? ` ${existing.version}` : '旧版本';
   console.warn(
-    `::warning::latest.json 中 ${stalePlatforms.join(', ')} 仍指向 ${existing.version}；` +
-      `本次发布 ${version} 后这些平台会检测到新版本却下载旧包。若该平台已发布，请同步更新其条目。`,
+    `::warning::latest.json 中 ${stalePlatforms.join(', ')} 仍指向${staleLabel}；` +
+      `本次发布 ${version} 后这些平台会检测到新版本却下载旧包。若该平台已发布，请同步更新其条目，` +
+      `或传 --prune-stale-platforms 移除。`,
   );
 }
 

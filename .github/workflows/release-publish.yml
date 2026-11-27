@@ -1,0 +1,39 @@
+name: release-publish
+
+# 双平台发布门禁（1.2.3 起）：只有 Windows 与 macOS 资产、latest.json 条目都齐备时
+# 才允许把 draft 转为正式 Release。macOS 资产仍由人工上传到同一个 draft。
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 已上传双平台资产的 draft tag（如 v1.2.3）
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      # 用 tag 自身的版本文件做校验，避免 main 已前进导致三处版本误判。
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify both platforms and latest.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          node scripts/release/verify-release.mjs
+          --tag "${{ inputs.tag }}"
+          --repository "${{ github.repository }}"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "${{ inputs.tag }}" --draft=false

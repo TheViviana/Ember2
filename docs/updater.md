@@ -77,6 +77,16 @@ Windows（CI）：[`release-windows.yml`](../.github/workflows/release-windows.y
 
 ### 2.4 发布
 
+0. **1.2.3 起双平台必须同时发布**。把 draft 转正前先跑发布门禁：
+
+   ```bash
+   node scripts/release/verify-release.mjs --tag v1.2.3 --repository TheViviana/Ember2
+   ```
+
+   或在 Actions 手动触发 `release-publish`（它会先跑同一门禁，通过后才执行
+   `gh release edit --draft=false`）。门禁要求 Windows 与 macOS 资产、`latest.json`
+   的 `windows-x86_64` / `darwin-aarch64` / `darwin-x86_64` 条目齐全，且所有 url
+   指向本次 tag；不满足就不要 publish。1.2.2 只有 Windows，属历史例外，不再补 macOS。
 1. Windows 带 tag 的 CI 构建会自动生成并合并 `latest.json`（保留其它平台条目）；
    macOS 仍按下文手工上传。发布后必须确认 Release 资产里的 `latest.json` 存在，
    且 `url`/`signature` 与本次安装包匹配——Windows CI 缺字段会直接失败，

@@ -91,6 +91,8 @@ jobs:
         run: ls -lh src-tauri/target/release/bundle/nsis/
 
       # P0-3：updater 清单由 CI 生成并与既有清单合并；缺 url/signature 直接失败。
+      # --prune-stale-platforms：只发 Windows 时移除仍指向旧 tag 的其它平台条目，
+      # 避免全局 version 升到新版后 macOS 拿旧包循环提示更新。
       - name: Assemble latest.json
         if: inputs.tag != ''
         shell: bash
@@ -124,6 +126,7 @@ jobs:
             --tag "$TAG" \
             --existing "$existing_dir/latest.json" \
             --out "$RUNNER_TEMP/latest.json" \
+            --prune-stale-platforms \
             --asset-ext exe "${extra[@]}"
 
       - name: Upload update manifest artifact
