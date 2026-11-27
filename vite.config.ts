@@ -24,12 +24,21 @@ export default defineConfig({
   build: {
     target: 'safari16',
     sourcemap: false,
+    // 供 scripts/verify-spatial-chunks.mjs 校验 3D 依赖没有进入入口静态依赖。
+    manifest: true,
     rollupOptions: {
       output: {
         // 按依赖域拆包：React / CodeMirror / Markdown+KaTeX / Tauri SDK 各自独立，
         // 避免单包过大，并让阅读模式懒加载的 KaTeX 分包单独按需加载。
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined;
+          if (
+            id.includes('/three/') ||
+            id.includes('/@react-three/') ||
+            id.includes('/three-stdlib/')
+          ) {
+            return 'spatial-vendor';
+          }
           if (
             id.includes('/@codemirror/lang-markdown/') ||
             id.includes('/@lezer/markdown/') ||

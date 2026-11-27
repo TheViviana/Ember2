@@ -100,6 +100,7 @@ import { useTranslateStore } from '../translate/translate-store.ts';
 import { readDocumentId } from '../../core/document-source.ts';
 import { AiChatButton } from './AiChatButton.tsx';
 import { INITIAL_SHELL_PANELS, shellPanelsReducer } from './shell-panels.ts';
+import { useSpatialStore } from '../../features/spatial/spatial-store.ts';
 import { SettingsShellHost } from './SettingsShellHost.tsx';
 import { ShellNotices } from './ShellNotices';
 import { useToolControllers } from './use-tool-controllers.ts';
@@ -757,6 +758,8 @@ export function AppShell({ closeError, guardError }: AppShellProps) {
   // 所有命令快捷键唯一入口；editable 目标仅放行明确全局的命令。
   useEffect(() => {
     const handler = (event: KeyboardEvent): void => {
+      // 空间工作区覆盖层打开时全局快捷键整体让路，Esc 由覆盖层自己处理。
+      if (useSpatialStore.getState().open) return;
       dispatchCommandKeybinding(
         event,
         registry.list(buildSnapshot()),

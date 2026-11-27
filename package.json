@@ -17,6 +17,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "verify:spatial": "node scripts/verify-spatial-chunks.mjs",
     "preview": "vite preview",
     "tauri": "tauri",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit && tsc -p tests/tsconfig.json --noEmit",
@@ -27,7 +28,7 @@
     "audit:deps": "pnpm audit --audit-level=high --registry=https://registry.npmjs.org/",
     "audit:cargo": "cd src-tauri && cargo audit",
     "check:rust": "cd src-tauri && cargo fmt --check && cargo check && cargo clippy -- -D warnings && cargo test && cargo audit",
-    "check": "pnpm run typecheck && pnpm run lint && pnpm run gate && pnpm run build && pnpm run test && pnpm run audit:deps && pnpm run check:rust"
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run gate && pnpm run build && pnpm run verify:spatial && pnpm run test && pnpm run audit:deps && pnpm run check:rust"
   },
   "dependencies": {
     "@codemirror/lang-markdown": "6.5.2",

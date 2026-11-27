@@ -25,6 +25,7 @@ export type SettingsPageId =
   | 'shortcuts'
   | 'update'
   | 'tools'
+  | 'spatial'
   | 'inbox'
   | 'replace'
   | 'health'

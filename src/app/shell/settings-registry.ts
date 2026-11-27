@@ -1,5 +1,5 @@
 /**
- * 设置入口单一登记表（16 项）。
+ * 设置入口单一登记表（17 项）。
  *
  * 分区 / 禁用态由 settings-nav 按 section + requires 派生；
  * 页面与动作由 SettingsShellHost 按 page / action 分发，禁止另写平行映射表。
@@ -84,6 +84,13 @@ export const SETTINGS_ENTRIES = Object.freeze([
     title: '效率工具',
     description: '番茄钟、白噪音与今日回顾',
     page: 'tools',
+  },
+  {
+    id: 'spatial',
+    section: 'tools',
+    title: '空间工作区（实验）',
+    description: '在 3D 空间中打开只读文档与 AI 摘要面板',
+    page: 'spatial',
   },
   {
     id: 'import',

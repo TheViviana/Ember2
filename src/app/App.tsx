@@ -8,6 +8,7 @@ import { createCanvasCloseHooks } from './canvas/close-hooks';
 import { installCloseGuard } from './close-guard';
 import { lockAllEditors, resumeAllEditors } from './editor-lock-registry';
 import { AppShell } from './shell/AppShell';
+import { SpatialWorkspaceHost } from '../features/spatial/SpatialWorkspaceHost.tsx';
 import { useEmberStore } from './stores/ember-store';
 import { registerBuiltInWindowContent } from './window-content.ts';
 
@@ -70,7 +71,10 @@ export function App() {
         <p className="boot-shell__hint">启动失败 · {lastError?.message ?? '未知错误'}</p>
       </div>
     ) : status === 'ready' && identity ? (
-      <AppShell closeError={closeError} guardError={guardError} />
+      <>
+        <AppShell closeError={closeError} guardError={guardError} />
+        <SpatialWorkspaceHost />
+      </>
     ) : (
       <div className="boot-shell">
         <p className="boot-shell__title">Ember 2.0</p>

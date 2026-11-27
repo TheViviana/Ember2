@@ -1,0 +1,220 @@
+/* 空间工作区全屏覆盖层。层级走 tokens.css 的 --layer-spatial，禁止裸 z-index。 */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--layer-spatial);
+  display: flex;
+  flex-direction: column;
+  background: var(--ember-bg-deep);
+  color: var(--ember-text-primary);
+  font-family: var(--font-body);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: var(--ember-hairline) solid var(--ember-border-subtle);
+}
+
+.headerText {
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.subtitle {
+  margin: var(--space-xs) 0 0;
+  color: var(--ember-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.closeButton,
+.returnButton {
+  flex: 0 0 auto;
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-sm);
+  background: var(--ember-control-bg);
+  color: var(--ember-text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.closeButton:hover,
+.returnButton:hover {
+  border-color: var(--ember-primary);
+  color: var(--ember-primary);
+}
+
+.closeButton:focus-visible,
+.returnButton:focus-visible {
+  outline: 2px solid var(--ember-primary);
+  outline-offset: 2px;
+}
+
+.stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  padding: var(--space-xl);
+  overflow: auto;
+}
+
+.status,
+.warning {
+  margin: 0;
+  color: var(--ember-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.warning {
+  color: var(--ember-warning);
+}
+
+.fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  max-width: 440px;
+  padding: var(--space-lg);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-md);
+  background: var(--ember-float-bg);
+  box-shadow: var(--ember-panel-shadow);
+}
+
+.fallbackTitle {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.fallbackHint,
+.fallbackDetail {
+  margin: 0;
+  color: var(--ember-text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.fallbackDetail {
+  color: var(--ember-text-muted);
+  font-size: var(--text-xs);
+  word-break: break-word;
+}
+
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  width: 100%;
+  max-width: 760px;
+}
+
+.placeholderHint {
+  margin: 0;
+  color: var(--ember-text-muted);
+  font-size: var(--text-xs);
+}
+
+.windowList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.windowCard {
+  flex: 1 1 280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-height: 220px;
+  padding: var(--space-md);
+  border: 1px solid var(--ember-border);
+  border-radius: var(--radius-md);
+  background: var(--ember-float-bg);
+  box-shadow: var(--ember-panel-shadow);
+}
+
+.windowHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding-bottom: var(--space-sm);
+  border-bottom: var(--ember-hairline) solid var(--ember-border-subtle);
+}
+
+.windowTitle {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.windowMeta {
+  color: var(--ember-text-muted);
+  font-size: var(--text-xs);
+}
+
+.panelBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.panelEyebrow {
+  margin: 0;
+  color: var(--ember-text-muted);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.panelText {
+  margin: 0;
+  color: var(--ember-text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.bubble {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--ember-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--ember-control-bg);
+  color: var(--ember-text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.bubbleRole {
+  color: var(--ember-text-muted);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+}

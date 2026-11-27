@@ -29,6 +29,8 @@ import type { HealthPanelEffects } from '../../features/health/health-flow.ts';
 import { HistorySettingsBody } from '../../features/history/HistoryPanel.tsx';
 import type { HistoryPanelEffects } from '../../features/history/history-flow.ts';
 import { RecoveryDemoBody } from '../../windows/RecoveryDemoPanel.tsx';
+import { SpatialSettingsBody } from '../../features/spatial/SpatialSettingsBody.tsx';
+import { openSpatialWorkspace } from '../../features/spatial/spatial-store.ts';
 import { SETTINGS_ENTRIES } from './settings-registry.ts';
 import { buildSettingsNav, findSettingsNavEntry, type SettingsPageId } from './settings-nav.ts';
 import { SETTINGS_HOME_ID, SettingsShell } from './SettingsShell.tsx';
@@ -154,6 +156,15 @@ export function SettingsShellHost({
         return <AboutSettingsBody effects={updaterEffects} />;
       case 'tools':
         return <ToolsSettingsBody pomodoro={tools.pomodoro} audio={tools.audio} />;
+      case 'spatial':
+        return (
+          <SpatialSettingsBody
+            onOpen={() => {
+              openSpatialWorkspace();
+              onClose();
+            }}
+          />
+        );
       case 'inbox':
         return (
           <InboxSettingsBody
