@@ -137,6 +137,7 @@ void test('空白处松开产出 connectionDropEmpty，弹出新建并连接菜�
       type: 'connectionDropEmpty',
       from: { nodeId: 'a', portId: 'out' },
       point: { x: 120, y: 80 },
+      reverse: false,
     },
   ]);
 });

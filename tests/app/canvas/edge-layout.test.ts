@@ -13,6 +13,7 @@ import {
   buildScreenEdges,
   createScreenEdgeCache,
   cubicAt,
+  DEFAULT_EDGE_STYLE,
   distanceToPolyline,
   edgeAnchor,
   edgeHitTolerance,
@@ -25,6 +26,7 @@ import {
   planEdgeDraw,
   pointSegmentDistance,
   polylineLength,
+  readEdgeStyle,
   type CanvasEdgeView,
   type ScreenEdge,
 } from '../../../src/app/canvas/edge-layout.ts';
@@ -43,7 +45,7 @@ function node(id: string, x: number, y: number): CanvasNodeView {
 }
 
 function edgeView(id: string, from: string, to: string): CanvasEdgeView {
-  return { id, from, to };
+  return { id, from, to, style: DEFAULT_EDGE_STYLE };
 }
 
 function lineEdge(id: string, x1: number, y1: number, x2: number, y2: number): ScreenEdge {
@@ -157,7 +159,20 @@ void test('extractEdges：坏边逐条跳过（缺 id / 缺端点 / 引用不存
       { type: 'text', id: 'a', label: 'a', x: 0, y: 0 },
       { type: 'text', id: 'b', label: 'b', x: 200, y: 0 },
     ]),
-    [{ id: 'ok', from: 'a', to: 'b' }],
+    [{ id: 'ok', from: 'a', to: 'b', style: DEFAULT_EDGE_STYLE }],
+  );
+});
+
+void test('readEdgeStyle：非法枚举/缺省键回退默认，合法值透传', () => {
+  assert.deepEqual(readEdgeStyle(undefined), DEFAULT_EDGE_STYLE);
+  assert.deepEqual(readEdgeStyle('dashed'), DEFAULT_EDGE_STYLE);
+  assert.deepEqual(
+    readEdgeStyle({ line: 'dashed', arrow: 'both', color: 'primary', route: 'orthogonal' }),
+    { line: 'dashed', arrow: 'both', color: 'primary', route: 'orthogonal' },
+  );
+  assert.deepEqual(
+    readEdgeStyle({ line: 'bogus', arrow: 42, color: null, route: {} }),
+    DEFAULT_EDGE_STYLE,
   );
 });
 

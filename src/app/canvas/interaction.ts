@@ -108,6 +108,8 @@ interface ConnectionGesture {
   readonly kind: 'connection';
   readonly from: CanvasPortHit;
   readonly current: Point;
+  /** true=从 in 端口反向拉线；from 是起点 in 端口，落点取源 out。 */
+  readonly reverse: boolean;
 }
 
 /** CR-20261119-11：8 方向缩放；origin 记录按下时的世界盒，预览只改视图。 */
@@ -173,6 +175,7 @@ export type InteractionEffect =
       readonly type: 'connectionDraft';
       readonly from: CanvasPortHit;
       readonly current: Point;
+      readonly reverse: boolean;
     }
   | {
       readonly type: 'duplicate';
@@ -199,6 +202,7 @@ export type InteractionEffect =
       readonly type: 'connectionDropEmpty';
       readonly from: { readonly nodeId: string; readonly portId: string };
       readonly point: Point;
+      readonly reverse: boolean;
     }
   | { readonly type: 'connectionCancel' };
 
@@ -302,20 +306,27 @@ function pointerDown(state: InteractionState, event: Extract<InteractionEvent, {
     };
   }
 
-  // C0-D：左键点击 out 端口开始连线草稿。B2 readOnly 态禁止。
+  // C0-D：左键点击端口开始连线草稿。B2 readOnly 态禁止。
   if (event.target.kind === 'port' && event.target.port.dir === 'out') {
     if (event.readOnly === true) {
       return { state, effects: [] };
     }
     const from = event.target.port;
     return {
-      state: { ...state, gesture: { kind: 'connection', from, current: event.point } },
-      effects: [{ type: 'connectionDraft', from, current: event.point }],
+      state: { ...state, gesture: { kind: 'connection', from, current: event.point, reverse: false } },
+      effects: [{ type: 'connectionDraft', from, current: event.point, reverse: false }],
     };
   }
   if (event.target.kind === 'port' && event.target.port.dir === 'in') {
-    // 单独点 in 端口不开始连线，也不改变当前选中与手势（out→in 规则）。
-    return { state, effects: [] };
+    // 从 in 端口反向拉线：起点是目标节点，落点取源 out。
+    if (event.readOnly === true) {
+      return { state, effects: [] };
+    }
+    const from = event.target.port;
+    return {
+      state: { ...state, gesture: { kind: 'connection', from, current: event.point, reverse: true } },
+      effects: [{ type: 'connectionDraft', from, current: event.point, reverse: true }],
+    };
   }
 
   const previous = state.selection;
@@ -399,7 +410,14 @@ function pointerMove(state: InteractionState, event: Extract<InteractionEvent, {
   if (gesture.kind === 'connection') {
     return {
       state: { ...state, gesture: { ...gesture, current: event.point } },
-      effects: [{ type: 'connectionDraft', from: gesture.from, current: event.point }],
+      effects: [
+        {
+          type: 'connectionDraft',
+          from: gesture.from,
+          current: event.point,
+          reverse: gesture.reverse,
+        },
+      ],
     };
   }
 
@@ -451,6 +469,58 @@ function pointerUp(state: InteractionState, event: Extract<InteractionEvent, { t
   // C0-D：合法目标端口/节点直接连线；仅空白落点弹「新建并连接」菜单。
   if (gesture.kind === 'connection') {
     const target = event.target;
+    if (gesture.reverse) {
+      // 反向：起点是 in 端口，落点必须提供 out（端口或节点主体）。
+      if (
+        target?.kind === 'port' &&
+        target.port.dir === 'out' &&
+        target.port.nodeId !== gesture.from.nodeId
+      ) {
+        return {
+          state: { ...state, gesture: null },
+          effects: [
+            {
+              type: 'connectionCommit',
+              fromNodeId: target.port.nodeId,
+              fromPortId: target.port.portId,
+              toNodeId: gesture.from.nodeId,
+              toPortId: gesture.from.portId,
+            },
+          ],
+        };
+      }
+      if (target?.kind === 'node' && target.id !== gesture.from.nodeId) {
+        return {
+          state: { ...state, gesture: null },
+          effects: [
+            {
+              type: 'connectionCommit',
+              fromNodeId: target.id,
+              fromPortId: 'out',
+              toNodeId: gesture.from.nodeId,
+              toPortId: gesture.from.portId,
+            },
+          ],
+        };
+      }
+      if (target !== undefined && target.kind !== 'blank') {
+        return {
+          state: { ...state, gesture: null },
+          effects: [{ type: 'connectionCancel' }],
+        };
+      }
+      return {
+        state: { ...state, gesture: null },
+        effects: [
+          {
+            type: 'connectionDropEmpty',
+            from: { nodeId: gesture.from.nodeId, portId: gesture.from.portId },
+            point: event.point,
+            reverse: true,
+          },
+        ],
+      };
+    }
     if (
       target?.kind === 'port' &&
       target.port.dir === 'in' &&
@@ -496,6 +566,7 @@ function pointerUp(state: InteractionState, event: Extract<InteractionEvent, { t
           type: 'connectionDropEmpty',
           from: { nodeId: gesture.from.nodeId, portId: gesture.from.portId },
           point: event.point,
+          reverse: false,
         },
       ],
     };

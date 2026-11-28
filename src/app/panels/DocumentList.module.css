@@ -209,6 +209,47 @@
   list-style: none;
 }
 
+/* 画布区：列表下方留出可点击空白，任意空白位置都可新建。 */
+.canvasArea {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-height: 96px;
+  padding-bottom: var(--space-xs);
+}
+
+.canvasAddRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  width: 100%;
+  margin-top: auto;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px dashed var(--ember-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ember-text-muted);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.canvasAddRow:hover {
+  border-color: var(--ember-border-strong);
+  background: var(--ember-bg-hover);
+  color: var(--ember-text-primary);
+}
+
+.canvasAddPlus {
+  font-size: var(--text-sm);
+  line-height: 1;
+}
+
 .canvasItem {
   min-width: 0;
 }

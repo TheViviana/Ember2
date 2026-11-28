@@ -27,14 +27,16 @@ function point({ x, y }: Point): string {
 /**
  * 起点为源端口锚点，终点为指针；控制柄水平，长度随水平距离增长并夹在
  * [EDGE_CURVE_OFFSET_MIN, EDGE_CURVE_OFFSET_MAX]，与落定边一致。
+ * reverse=true 时起点是目标 in 端口，切线朝左（从右侧反向拉线）。
  */
-export function draftCurve(anchor: Point, current: Point): DraftCurve {
+export function draftCurve(anchor: Point, current: Point, reverse = false): DraftCurve {
   const offset = Math.min(
     EDGE_CURVE_OFFSET_MAX,
     Math.max(EDGE_CURVE_OFFSET_MIN, Math.abs(current.x - anchor.x) * 0.5),
   );
-  const c1 = { x: anchor.x + offset, y: anchor.y };
-  const c2 = { x: current.x - offset, y: current.y };
+  const dir = reverse ? -1 : 1;
+  const c1 = { x: anchor.x + dir * offset, y: anchor.y };
+  const c2 = { x: current.x - dir * offset, y: current.y };
   return {
     p0: anchor,
     c1,

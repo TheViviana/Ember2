@@ -11,6 +11,7 @@ import {
   loadAiChatConfig,
   saveAiChatConfig,
 } from '../../../src/features/ai/ai-chat-store.ts';
+import { DEFAULT_GLOBAL_SYSTEM_PROMPT } from '../../../src/features/ai/default-system-prompt.ts';
 
 function memoryStorage(): Storage {
   const data = new Map<string, string>();
@@ -32,16 +33,17 @@ const CUSTOM = Object.freeze({
   baseUrl: 'https://api.deepseek.com',
   allowInsecureHttp: false,
   model: 'deepseek-chat',
+  systemPrompt: '始终用中文',
 });
 
-void test('AI 端点与模型写入后可按同名键读回', () => {
+void test('AI 端点、模型与全局提示词写入后可按同名键读回', () => {
   const storage = memoryStorage();
   saveAiChatConfig(CUSTOM, storage);
   assert.equal(storage.getItem(AI_CHAT_CONFIG_STORAGE_KEY), JSON.stringify(CUSTOM));
   assert.deepEqual(loadAiChatConfig(storage), CUSTOM);
 });
 
-void test('AI 配置只落五个字段，绝不包含 Key', () => {
+void test('AI 配置只落六个字段，绝不包含 Key', () => {
   const storage = memoryStorage();
   saveAiChatConfig(CUSTOM, storage);
   const parsed = JSON.parse(storage.getItem(AI_CHAT_CONFIG_STORAGE_KEY) ?? '{}') as Record<
@@ -54,7 +56,28 @@ void test('AI 配置只落五个字段，绝不包含 Key', () => {
     'model',
     'preset',
     'provider',
+    'systemPrompt',
   ]);
+});
+
+void test('旧配置缺 systemPrompt 时回退默认提示词', () => {
+  const storage = memoryStorage();
+  const legacy: Record<string, unknown> = { ...CUSTOM };
+  delete legacy.systemPrompt;
+  storage.setItem(AI_CHAT_CONFIG_STORAGE_KEY, JSON.stringify(legacy));
+  const loaded = loadAiChatConfig(storage);
+  assert.equal(loaded.systemPrompt, DEFAULT_GLOBAL_SYSTEM_PROMPT);
+  assert.equal(loaded.model, 'deepseek-chat');
+});
+
+void test('显式空串保持为空：清空仍表示不注入全局提示词', () => {
+  const storage = memoryStorage();
+  saveAiChatConfig({ ...CUSTOM, systemPrompt: '' }, storage);
+  assert.equal(loadAiChatConfig(storage).systemPrompt, '');
+});
+
+void test('初始配置自带默认系统提示词', () => {
+  assert.equal(AI_CHAT_CONFIG_INITIAL.systemPrompt, DEFAULT_GLOBAL_SYSTEM_PROMPT);
 });
 
 void test('缺省、坏 JSON 与非法 preset 都回退默认配置', () => {

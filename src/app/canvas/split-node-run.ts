@@ -13,6 +13,7 @@ import {
 import { formatUnknownError } from '../../core/errors.ts';
 import type { AiChatConfig } from '../../features/ai/ai-chat-store.ts';
 import { startChatSession, type ChatSession } from '../../features/ai/chat-session.ts';
+import { composeSystemPrompt } from '../../features/ai/system-prompt.ts';
 import type { AiChatRequest } from '../../types/ipc.ts';
 import { buildSplitFullText, computeSplitChunks } from './split-preview.ts';
 import {
@@ -53,6 +54,8 @@ export interface SplitRunDeps {
   readonly liveText: (path: string) => string | null;
   readonly readSnapshot: (path: string) => Promise<SplitRunSnapshot>;
   readonly aiConfig: AiChatConfig;
+  /** 全局与画布层提示词；分块提炼指令作为节点层。 */
+  readonly systemContext?: { readonly global: string; readonly canvas: string };
   readonly stream: (request: AiChatRequest, handlers: SplitStreamHandlers) => Promise<void>;
   readonly cancel: (requestId: string) => void;
   readonly notice: (
@@ -168,6 +171,20 @@ function blocksEdited(
     if (chunk === undefined) return true;
     const expected = fullText.slice(chunk.start, chunk.end);
     return (typeof node.label === 'string' ? node.label : '') !== expected;
+  });
+}
+
+/** 分块提炼指令作为节点层，拼接到全局与画布背景之后。 */
+function composeRefineSystem(
+  prompt: string,
+  context: SplitRunDeps['systemContext'],
+): string {
+  const nodeSystem = buildRefineSystem(prompt);
+  return composeSystemPrompt({
+    global: context?.global,
+    canvas: context?.canvas,
+    node: [nodeSystem],
+    fallback: nodeSystem,
   });
 }
 
@@ -361,7 +378,7 @@ export function createSplitNodeRunner(deps: SplitRunDeps): SplitRunner {
     active = run;
     cancelRequested = false;
 
-    const system = buildRefineSystem(config.prompt);
+    const system = composeRefineSystem(config.prompt, deps.systemContext);
     const chatConfig: AiChatConfig = { ...deps.aiConfig, model: config.model ?? deps.aiConfig.model };
     const labels = plans.map((plan) => plan.raw);
     const failedIndexes: number[] = [];
@@ -436,7 +453,7 @@ export function createSplitNodeRunner(deps: SplitRunDeps): SplitRunner {
     const run = { nodeId: block.sourceNodeId };
     active = run;
     cancelRequested = false;
-    const system = buildRefineSystem(config.prompt);
+    const system = composeRefineSystem(config.prompt, deps.systemContext);
     const chatConfig: AiChatConfig = { ...deps.aiConfig, model: config.model ?? deps.aiConfig.model };
     const outcome = await refineChunk(text, system, chatConfig);
     active = null;

@@ -21,13 +21,18 @@ function cubic(a: number, b: number, c: number, d: number, t: number): number {
 /** 屏幕几何不可变；调用方可用 WeakMap<ScreenEdge, EdgeSample> 按对象身份缓存。 */
 export function sampleScreenEdge(edge: ScreenEdge): EdgeSample {
   const points: Point[] = [];
-  const steps = edge.straight ? 1 : SAMPLE_STEPS;
-  for (let index = 0; index <= steps; index += 1) {
-    const t = index / steps;
-    points.push({
-      x: cubic(edge.p0.x, edge.c1.x, edge.c2.x, edge.p3.x, t),
-      y: cubic(edge.p0.y, edge.c1.y, edge.c2.y, edge.p3.y, t),
-    });
+  if (!edge.straight && edge.points !== undefined && edge.points.length >= 2) {
+    /* 直角折线：顶点即采样点，按折线累计弧长跑光段。 */
+    points.push(...edge.points);
+  } else {
+    const steps = edge.straight ? 1 : SAMPLE_STEPS;
+    for (let index = 0; index <= steps; index += 1) {
+      const t = index / steps;
+      points.push({
+        x: cubic(edge.p0.x, edge.c1.x, edge.c2.x, edge.p3.x, t),
+        y: cubic(edge.p0.y, edge.c1.y, edge.c2.y, edge.p3.y, t),
+      });
+    }
   }
   const cumulative: number[] = [0];
   for (let index = 1; index < points.length; index += 1) {

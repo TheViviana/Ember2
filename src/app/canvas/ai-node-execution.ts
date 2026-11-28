@@ -5,6 +5,7 @@
  * 提示词节点=指令、文本节点=输出目的地（均取直连，文本取首条），方向保持无关；
  * 多篇素材与多条提示词按连线在文档中的顺序收集。
  */
+import { composeSystemPrompt } from '../../features/ai/system-prompt.ts';
 
 export interface AiNeighborDoc {
   readonly nodeId: string;
@@ -126,21 +127,23 @@ export type AiRunMessages =
   | { readonly ok: true; readonly system: string; readonly user: string }
   | { readonly ok: false; readonly reason: 'empty_docs' | 'too_long' };
 
-/** 消息构造：提示词节点=system（缺省用内置指令），文章分节=user。 */
+/** 消息构造：全局/画布作为上下文，提示词节点=节点指令（缺省用内置指令），文章分节=user。 */
 export function buildAiRunMessages(args: {
   readonly docs: readonly { readonly title: string; readonly content: string }[];
   readonly prompts: readonly string[];
+  readonly context?: { readonly global?: string; readonly canvas?: string };
 }): AiRunMessages {
   if (args.docs.length === 0) return { ok: false, reason: 'empty_docs' };
   const sections = args.docs.map(
     (doc, index) => `【文章 ${index + 1}：${doc.title}】\n\n${doc.content}`,
   );
   const user = sections.join('\n\n');
-  const prompt = args.prompts
-    .map((text) => text.trim())
-    .filter((text) => text !== '')
-    .join('\n\n');
-  const system = prompt !== '' ? prompt : DEFAULT_AI_INSTRUCTION;
+  const system = composeSystemPrompt({
+    global: args.context?.global,
+    canvas: args.context?.canvas,
+    node: args.prompts,
+    fallback: DEFAULT_AI_INSTRUCTION,
+  });
   if (user.length + system.length > AI_RUN_MAX_CHARS) {
     return { ok: false, reason: 'too_long' };
   }

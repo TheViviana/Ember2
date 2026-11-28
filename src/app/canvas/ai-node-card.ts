@@ -68,8 +68,8 @@ export function createAiNodeCard(options: AiNodeCardOptions): AiNodeCard {
   const textarea = createElement('textarea') as HTMLTextAreaElement;
   textarea.className = classes.prompt;
   textarea.value = options.text;
-  textarea.placeholder = '输入提示词…';
-  textarea.setAttribute('aria-label', 'AI 提示词');
+  textarea.placeholder = '节点指令（可选，优先级最高）';
+  textarea.setAttribute('aria-label', 'AI 节点指令');
   textarea.setAttribute('data-node-control', 'true');
   textarea.setAttribute('data-node-scroll', 'true');
   textarea.spellcheck = false;

@@ -8,6 +8,7 @@ import { formatUnknownError } from '../../core/errors.ts';
 import type { AiChatConfig } from '../../features/ai/ai-chat-store.ts';
 import { startChatSession, type ChatSession } from '../../features/ai/chat-session.ts';
 import { charBudgetFor } from '../../features/ai/model-budget.ts';
+import { composeSystemPrompt } from '../../features/ai/system-prompt.ts';
 import type { AiChatRequest } from '../../types/ipc.ts';
 import type { AiRunApplyResult, AiRunOutput, AiRunSnapshot, AiStreamHandlers } from './ai-node-run.ts';
 import {
@@ -24,6 +25,8 @@ export interface MergeRunDeps {
     readonly edges: readonly unknown[];
   };
   readonly aiConfig: AiChatConfig;
+  /** 全局与画布层提示词；汇总指令作为节点层。 */
+  readonly systemContext?: { readonly global: string; readonly canvas: string };
   readonly stream: (request: AiChatRequest, handlers: AiStreamHandlers) => Promise<void>;
   readonly cancel: (requestId: string) => void;
   readonly notice: (message: string, tone: 'info' | 'warning' | 'error') => void;
@@ -181,6 +184,7 @@ export function createMergeNodeRunner(deps: MergeRunDeps): MergeRunner {
       deps.notice('汇总节点执行中…', 'info');
     };
 
+    const mergeSystem = buildMergeSystem(collected.prompt);
     const session = startChatSession(
       {
         config: { ...aiConfig, model: collected.model ?? aiConfig.model },
@@ -192,7 +196,12 @@ export function createMergeNodeRunner(deps: MergeRunDeps): MergeRunner {
             completed: true,
           },
         ],
-        system: buildMergeSystem(collected.prompt),
+        system: composeSystemPrompt({
+          global: deps.systemContext?.global,
+          canvas: deps.systemContext?.canvas,
+          node: [mergeSystem],
+          fallback: mergeSystem,
+        }),
       },
       {
         onDelta: (text) => {

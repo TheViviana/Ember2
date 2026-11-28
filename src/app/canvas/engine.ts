@@ -83,11 +83,13 @@ import {
   serializeCanvasDocument,
   type CanvasDocument,
 } from './format.ts';
-import type { CanvasCommand, CanvasSchemaIssue } from '#canvas-format';
+import type { CanvasCommand, CanvasNodeInput, CanvasSchemaIssue } from '#canvas-format';
 import {
+  collectNodeSnapshots,
   createCanvasSelectAllSelection,
   createDeleteSelectionCommands,
   createDuplicateNodeCommands,
+  createPasteNodeCommands,
   inspectConnectionCandidate,
   makeEdgeId,
   pruneInteraction,
@@ -197,6 +199,8 @@ export type CanvasEngineEvent =
       readonly screenPoint: Point;
       readonly worldPoint: Point;
       readonly from: { readonly nodeId: string; readonly portId: string };
+      /** true=从 in 端口反向拉线落空，新节点应作为源接到 from。 */
+      readonly reverse: boolean;
     };
 
 // CR-20261119-11：常量归 consts.ts，消除与 resize-math.ts 的 ESM 循环。
@@ -282,6 +286,9 @@ export class CanvasEngine {
   /** CR-20261122-63：每次 mount 的初始适配周期；用户操作即永久结束本周期。 */
   private initialFit: { stableFrames: number; fontsPending: boolean } | null = null;
   private interaction: InteractionState = createInteractionState();
+  /** ⌘C/⌘V：进程内节点快照；每次复制重置粘贴计数。 */
+  private clipboard: readonly CanvasNodeInput[] = [];
+  private pasteCount = 0;
   private edgeWarning: EdgeDrawWarning | null = null;
   private readonly frameState = createFrameState();
   private readonly gridInvalidation = createGridInvalidation();
@@ -1332,13 +1339,14 @@ export class CanvasEngine {
             screenPoint: effect.point,
             worldPoint: this.screenToWorld(effect.point),
             from: effect.from,
+            reverse: effect.reverse,
           });
           break;
         }
         case 'connectionDraft': {
           // C1-E：只读态不绘制（手势本就不会建立，双保险）。
           if (this.isReadOnly()) break;
-          this.updateDraftLine(effect.from, effect.current);
+          this.updateDraftLine(effect.from, effect.current, effect.reverse);
           // CR-20261121-59：拖拽经过端口 → 圆点放大+主题色（吸附反馈）；离开恢复选区高亮。
           const hovered = this.hitTestPort(effect.current);
           if (hovered !== null) {
@@ -1405,17 +1413,17 @@ export class CanvasEngine {
    * 世界坐标 `edgeAnchor(absolute, 'out', nodeSizeOf(node))` → `absoluteToScreen`；
    * 控制柄规则与落定边一致（connection-draft 与 edge-layout 共用常量）。
    */
-  private updateDraftLine(from: CanvasPortHit, current: Point): void {
+  private updateDraftLine(from: CanvasPortHit, current: Point, reverse = false): void {
     const node = this.nodeViews.find((item) => item.id === from.nodeId);
     if (node === undefined) {
       this.clearDraftLine();
       return;
     }
     const anchor = absoluteToScreen(
-      edgeAnchor({ x: node.x, y: node.y }, 'out', nodeSizeOf(node)),
+      edgeAnchor({ x: node.x, y: node.y }, reverse ? 'in' : 'out', nodeSizeOf(node)),
       this.transform,
     );
-    const curve = draftCurve(anchor, current);
+    const curve = draftCurve(anchor, current, reverse);
     if (this.draftElement === null) {
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       svg.setAttribute('class', classOf('draftCurve'));
@@ -1470,6 +1478,47 @@ export class CanvasEngine {
       if (isTextEditingTarget(event.target)) return;
       event.preventDefault();
       this.selectAll();
+      return;
+    }
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'c') {
+      if (isTextEditingTarget(event.target) || this.isReadOnly()) return;
+      const snapshots = collectNodeSnapshots(
+        this.getDocument().nodes,
+        this.interaction.selection.nodes,
+      );
+      if (snapshots.length === 0) return;
+      event.preventDefault();
+      this.clipboard = snapshots;
+      this.pasteCount = 0;
+      return;
+    }
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'v') {
+      if (isTextEditingTarget(event.target) || this.isReadOnly() || this.clipboard.length === 0) {
+        return;
+      }
+      event.preventDefault();
+      this.pasteCount += 1;
+      const offset = 24 * this.pasteCount;
+      const commands = createPasteNodeCommands(this.clipboard, { dx: offset, dy: offset });
+      if (commands.length === 0) return;
+      if (!this.executeCommands(commands)) {
+        this.emitNotice({
+          code: 'E_COMMAND',
+          message: '粘贴节点失败，未应用更改',
+          persistent: false,
+        });
+        return;
+      }
+      const pasted = new Set<string>();
+      for (const command of commands) {
+        if (command.kind === 'addNode') pasted.add(command.node.id);
+      }
+      this.interaction = setInteractionSelection(this.interaction, {
+        nodes: pasted,
+        edges: new Set(),
+      });
+      this.applySelection(this.interaction);
+      this.scheduleFrame();
       return;
     }
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
@@ -2069,8 +2118,7 @@ export class CanvasEngine {
     const plan = planEdgeDraw(this.screenEdges, this.size);
     this.edges.draw(plan); this.pulse.setEdges(plan.edges);
     this.edgeWarning = plan.warning;
-    const selectedIds = this.interaction.selection.edges;
-    this.highlight.drawHighlight(this.screenEdges.filter((edge) => selectedIds.has(edge.id)));
+    this.highlight.drawSelectionHighlight(this.screenEdges, this.edgeViews, this.interaction.selection);
     const edgeMs = performance.now() - edgeStart;
 
     this.dirtyNodeIds.clear();

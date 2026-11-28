@@ -11,6 +11,11 @@ import {
   inspect,
   type CanvasCommand,
   type CanvasDocument,
+  type CanvasEdgeArrow,
+  type CanvasEdgeColor,
+  type CanvasEdgeInput,
+  type CanvasEdgeLine,
+  type CanvasEdgeRoute,
   type CanvasNodeInput,
   type CanvasPortInput,
   type CanvasSchemaIssue,
@@ -294,6 +299,21 @@ export function createCanvasSelectAllSelection(document: CanvasDocument): {
   };
 }
 
+/** 画布级 AI 背景：顶层 aiContext，缺失或非字符串返回空串。 */
+export function readCanvasAiContext(document: CanvasDocument): string {
+  const value = (document as { readonly aiContext?: unknown }).aiContext;
+  return typeof value === 'string' ? value : '';
+}
+
+/** 画布级 AI 背景更新：trim 后空串等价删除字段。 */
+export function createUpdateCanvasAiContextCommand(context: string | null): CanvasCommand {
+  const trimmed = context?.trim() ?? '';
+  return {
+    kind: 'updateCanvasMeta',
+    changes: { aiContext: trimmed === '' ? null : trimmed },
+  };
+}
+
 export function createUpdateLabelCommand(id: string, label: string): CanvasCommand {
   return { kind: 'updateNode', id, changes: { label } };
 }
@@ -331,12 +351,15 @@ export function createConnectionNodePorts(): readonly CanvasPortInput[] {
 export function createConnectNewNodeCommands(
   node: CanvasNodeInput,
   from: { readonly nodeId: string; readonly portId: string },
+  reverse = false,
 ): readonly CanvasCommand[] {
   return [
     { kind: 'addNode', node },
     {
       kind: 'addEdge',
-      edge: { id: makeEdgeId(), from, to: { nodeId: node.id, portId: 'in' } },
+      edge: reverse
+        ? { id: makeEdgeId(), from: { nodeId: node.id, portId: 'out' }, to: from }
+        : { id: makeEdgeId(), from, to: { nodeId: node.id, portId: 'in' } },
     },
   ];
 }
@@ -414,6 +437,150 @@ export function createDuplicateNodeCommands(
     commands.push({ kind: 'addNode', node });
   }
   return commands;
+}
+
+/** 复制快照：按 id 顺序取原始节点，缺失或形状非法跳过。 */
+export function collectNodeSnapshots(
+  nodes: readonly unknown[],
+  ids: Iterable<string>,
+): readonly CanvasNodeInput[] {
+  const byId = new Map<string, CanvasNodeInput>();
+  for (const node of nodes) {
+    if (isCanvasNodeInput(node)) byId.set(node.id, node);
+  }
+  const snapshots: CanvasNodeInput[] = [];
+  for (const id of ids) {
+    const node = byId.get(id);
+    if (node !== undefined) snapshots.push(node);
+  }
+  return snapshots;
+}
+
+/** ⌘V：快照整体偏移后生成新节点，id 重生成，其余字段原样保留。 */
+export function createPasteNodeCommands(
+  snapshots: readonly CanvasNodeInput[],
+  offset: { readonly dx: number; readonly dy: number },
+): readonly CanvasCommand[] {
+  return snapshots.map((snapshot) => ({
+    kind: 'addNode' as const,
+    node: { ...snapshot, id: makeNodeId(), x: snapshot.x + offset.dx, y: snapshot.y + offset.dy },
+  }));
+}
+
+function rawRecord(value: unknown): Readonly<Record<string, unknown>> | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  return value as Readonly<Record<string, unknown>>;
+}
+
+function findRawEdgeIndex(edges: readonly unknown[], edgeId: string): number {
+  return edges.findIndex((edge) => rawRecord(edge)?.id === edgeId);
+}
+
+/** 用原 id 与下标重建一条边：removeEdge + addEdge 同批，undo/redo 原子。 */
+function rebuildEdgeCommands(
+  edgeId: string,
+  index: number,
+  next: Readonly<Record<string, unknown>>,
+): readonly CanvasCommand[] {
+  return [
+    { kind: 'removeEdge', id: edgeId },
+    { kind: 'addEdge', edge: next as unknown as CanvasEdgeInput, index },
+  ];
+}
+
+/** 连线标签（复用 edge.label）：trim 后为空即删除字段；边不存在返回 null。 */
+export function createSetEdgeLabelCommands(
+  document: CanvasDocument,
+  edgeId: string,
+  label: string,
+): readonly CanvasCommand[] | null {
+  const index = findRawEdgeIndex(document.edges, edgeId);
+  if (index < 0) return null;
+  const raw = rawRecord(document.edges[index]);
+  if (raw === null) return null;
+  const trimmed = label.trim();
+  const next: Record<string, unknown> = { ...raw };
+  if (trimmed === '') delete next.label;
+  else next.label = trimmed;
+  return rebuildEdgeCommands(edgeId, index, next);
+}
+
+/** 在节点显式端口中找指定方向的端口 id；缺省回退标准 in/out。 */
+function portIdWithDir(
+  document: CanvasDocument,
+  nodeId: unknown,
+  dir: 'in' | 'out',
+): string {
+  if (typeof nodeId !== 'string') return dir;
+  const node = document.nodes.find((candidate) => rawRecord(candidate)?.id === nodeId);
+  const ports = rawRecord(node)?.ports;
+  if (Array.isArray(ports)) {
+    for (const port of ports) {
+      const record = rawRecord(port);
+      if (record?.dir === dir && typeof record.id === 'string' && record.id !== '') {
+        return record.id;
+      }
+    }
+  }
+  return dir;
+}
+
+/** 样式补丁：`null` 表示删除该键；未出现的键保持不变。 */
+export interface EdgeStylePatch {
+  readonly line?: CanvasEdgeLine | null;
+  readonly arrow?: CanvasEdgeArrow | null;
+  readonly color?: CanvasEdgeColor | null;
+  readonly route?: CanvasEdgeRoute | null;
+}
+
+const EDGE_STYLE_KEYS = ['line', 'arrow', 'color', 'route'] as const;
+
+/**
+ * 修改连线样式：只改 `patch` 出现的键，`null` 删除该键；结果为空对象时删除整个
+ * `style` 字段。保留未知子键与边上其他未知字段，用 removeEdge + addEdge（同 id、
+ * 原下标）提交，undo/redo 原子。边不存在返回 null。
+ */
+export function createSetEdgeStyleCommands(
+  document: CanvasDocument,
+  edgeId: string,
+  patch: EdgeStylePatch,
+): readonly CanvasCommand[] | null {
+  const index = findRawEdgeIndex(document.edges, edgeId);
+  if (index < 0) return null;
+  const raw = rawRecord(document.edges[index]);
+  if (raw === null) return null;
+  const current = rawRecord(raw.style) ?? {};
+  const nextStyle: Record<string, unknown> = { ...current };
+  for (const key of EDGE_STYLE_KEYS) {
+    const value = patch[key];
+    if (value === undefined) continue;
+    if (value === null) delete nextStyle[key];
+    else nextStyle[key] = value;
+  }
+  const next: Record<string, unknown> = { ...raw };
+  if (Object.keys(nextStyle).length === 0) delete next.style;
+  else next.style = nextStyle;
+  return rebuildEdgeCommands(edgeId, index, next);
+}
+
+/** 反转连线方向：交换两端节点并按方向取端口，保留 id、下标与其余字段。 */
+export function createReverseEdgeCommands(
+  document: CanvasDocument,
+  edgeId: string,
+): readonly CanvasCommand[] | null {
+  const index = findRawEdgeIndex(document.edges, edgeId);
+  if (index < 0) return null;
+  const raw = rawRecord(document.edges[index]);
+  if (raw === null) return null;
+  const from = rawRecord(raw.from);
+  const to = rawRecord(raw.to);
+  if (from === null || to === null) return null;
+  const next = {
+    ...raw,
+    from: { ...to, portId: portIdWithDir(document, to.nodeId, 'out') },
+    to: { ...from, portId: portIdWithDir(document, from.nodeId, 'in') },
+  };
+  return rebuildEdgeCommands(edgeId, index, next);
 }
 
 /**

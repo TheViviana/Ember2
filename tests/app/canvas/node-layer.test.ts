@@ -446,7 +446,7 @@ void test('2026-11-28：AI 卡片 = 模型头 + 运行圆钮 + 内联提示词',
   assert.equal(run?.attributes['aria-label'], '运行 AI 节点');
 
   const prompt = card?.children[1];
-  assert.equal(prompt?.attributes['aria-label'], 'AI 提示词');
+  assert.equal(prompt?.attributes['aria-label'], 'AI 节点指令');
   assert.equal(prompt?.attributes['data-node-control'], 'true');
   assert.equal(card?.children[2]?.children.length, 0, '底部状态区保留为空');
 });

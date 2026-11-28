@@ -11,10 +11,18 @@ export interface ThemeColors {
   readonly edge: string;
   readonly edgeSelected: string;
   readonly edgeArrow: string;
+  /** 语义连线色：跟随主题令牌，切主题自动生效。 */
+  readonly edgePrimary: string;
+  readonly edgeSuccess: string;
+  readonly edgeWarning: string;
+  readonly edgeDanger: string;
   /** 2026-11-24：连线柔光（同路径宽描边，替代逐边 filter）。 */
   readonly edgeGlow: string;
   readonly edgePulse: string;
   readonly edgePulseGlow: string;
+  /** 连线标签文字与底色。 */
+  readonly labelText: string;
+  readonly labelBg: string;
 }
 
 /* 兜底调色板 = 深色档字面量（仅 node 测试环境使用；浏览器恒走令牌解析）。 */
@@ -24,9 +32,15 @@ const FALLBACK: ThemeColors = Object.freeze({
   edge: '#55555b',
   edgeSelected: '#e0e0e2',
   edgeArrow: '#55555b',
+  edgePrimary: '#f5a623',
+  edgeSuccess: '#3fb950',
+  edgeWarning: '#d29922',
+  edgeDanger: '#f85149',
   edgeGlow: 'rgba(255, 255, 255, 0.05)',
   edgePulse: 'rgba(255, 211, 164, 0.96)',
   edgePulseGlow: 'rgba(251, 146, 60, 0.28)',
+  labelText: '#e0e0e2',
+  labelBg: '#26262a',
 });
 
 const state: {
@@ -88,9 +102,15 @@ export function themeColors(): ThemeColors {
       edge: probe('--ember-edge'),
       edgeSelected: probe('--ember-edge-active'),
       edgeArrow: probe('--ember-edge'),
+      edgePrimary: probe('--ember-primary'),
+      edgeSuccess: probe('--ember-success'),
+      edgeWarning: probe('--ember-warning'),
+      edgeDanger: probe('--ember-danger'),
       edgeGlow: probe('--ember-edge-glow'),
       edgePulse: probe('--ember-edge-pulse'),
       edgePulseGlow: probe('--ember-edge-pulse-glow'),
+      labelText: probe('--ember-text-primary'),
+      labelBg: probe('--ember-bg-elevated'),
     });
   }
   return state.colors;

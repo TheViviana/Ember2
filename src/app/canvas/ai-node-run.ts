@@ -52,6 +52,8 @@ export interface AiNodeRunDeps {
   readonly liveText: (path: string) => string | null;
   readonly readSnapshot: (path: string) => Promise<AiRunSnapshot>;
   readonly aiConfig: AiChatConfig;
+  /** 全局与画布层提示词；节点指令仍取自 prompts。 */
+  readonly systemContext?: { readonly global: string; readonly canvas: string };
   readonly stream: (request: AiChatRequest, handlers: AiStreamHandlers) => Promise<void>;
   readonly cancel: (requestId: string) => void;
   readonly notice: (message: string, tone: 'info' | 'warning' | 'error') => void;
@@ -119,7 +121,11 @@ export function createAiNodeRunner(deps: AiNodeRunDeps): AiNodeRunner {
         return;
       }
     }
-    const messages = buildAiRunMessages({ docs: sections, prompts: collected.prompts });
+    const messages = buildAiRunMessages({
+      docs: sections,
+      prompts: collected.prompts,
+      context: deps.systemContext,
+    });
     if (!messages.ok) {
       deps.notice(
         messages.reason === 'empty_docs'

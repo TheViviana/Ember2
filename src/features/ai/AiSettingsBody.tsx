@@ -3,7 +3,7 @@
  *
  * 从 AiPanel 拆出；AI 对话浮窗只保留对话。外框由 SettingsShell 提供。
  */
-import { useCallback, useEffect, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import type { AiEndpointRequest, AiKeyStatusDto } from '../../types/ipc.ts';
 import {
   AI_PROVIDER_PRESETS,
@@ -19,6 +19,17 @@ import { describeModelListError, mapAiErrorCode } from './ai-error-map.ts';
 import { AI_PANEL_INITIAL, aiPanelReducer, type AiPanelState } from './ai-panel-reducer.ts';
 import { useAiChatStore } from './ai-chat-store.ts';
 import type { AiPanelEffects } from './AiPanel.tsx';
+import { DEFAULT_GLOBAL_SYSTEM_PROMPT } from './default-system-prompt.ts';
+import { PromptLibrary } from './PromptLibrary.tsx';
+import {
+  addPrompt,
+  addPromptFailureLabel,
+  loadPromptLibrary,
+  removePrompt,
+  renamePrompt,
+  savePromptLibrary,
+  type SavedPrompt,
+} from './prompt-library.ts';
 import styles from './ai-panel.module.css';
 
 export interface AiSettingsBodyProps {
@@ -66,6 +77,16 @@ export function AiSettingsBody({ effects, initialStatus }: AiSettingsBodyProps) 
       : hydrated;
   })();
   const [state, dispatch] = useReducer(aiPanelReducer, initialState);
+  const [promptLibrary, setPromptLibrary] = useState<readonly SavedPrompt[]>(() =>
+    typeof window === 'undefined' ? [] : loadPromptLibrary(window.localStorage),
+  );
+  const [restoreArmed, setRestoreArmed] = useState(false);
+
+  useEffect(() => {
+    if (!restoreArmed) return;
+    const timer = window.setTimeout(() => setRestoreArmed(false), 3000);
+    return () => window.clearTimeout(timer);
+  }, [restoreArmed]);
 
   // 设置项变化写回内存 store；Key 永不进入 store。
   useEffect(() => {
@@ -242,6 +263,47 @@ export function AiSettingsBody({ effects, initialStatus }: AiSettingsBodyProps) 
     dispatch({ type: 'SELECT_MODEL', model: value });
   }, []);
 
+  const commitLibrary = useCallback((items: readonly SavedPrompt[]) => {
+    setPromptLibrary(items);
+    if (typeof window !== 'undefined') savePromptLibrary(window.localStorage, items);
+  }, []);
+
+  const handleAddPrompt = useCallback((name: string, content: string): string | null => {
+    const result = addPrompt(promptLibrary, { name, content });
+    if (!result.ok) return addPromptFailureLabel(result.reason);
+    commitLibrary(result.items);
+    return null;
+  }, [promptLibrary, commitLibrary]);
+
+  const handleRenamePrompt = useCallback((id: string, name: string): string | null => {
+    const result = renamePrompt(promptLibrary, id, name);
+    if (!result.ok) {
+      return result.reason === 'not-found'
+        ? '提示词不存在'
+        : addPromptFailureLabel(result.reason);
+    }
+    commitLibrary(result.items);
+    return null;
+  }, [promptLibrary, commitLibrary]);
+
+  const handleRemovePrompt = useCallback((id: string) => {
+    commitLibrary(removePrompt(promptLibrary, id));
+  }, [promptLibrary, commitLibrary]);
+
+  const handleApplyPrompt = useCallback((content: string) => {
+    setChatConfig({ systemPrompt: content });
+  }, [setChatConfig]);
+
+  const restoreDefaultPrompt = useCallback(() => {
+    if (chatConfig.systemPrompt === DEFAULT_GLOBAL_SYSTEM_PROMPT) return;
+    if (!restoreArmed) {
+      setRestoreArmed(true);
+      return;
+    }
+    setChatConfig({ systemPrompt: DEFAULT_GLOBAL_SYSTEM_PROMPT });
+    setRestoreArmed(false);
+  }, [chatConfig.systemPrompt, restoreArmed, setChatConfig]);
+
   // 首次挂载：已配置或 Ollama 时自动拉模型。
   const mountedRef = useRef(false);
   useEffect(() => {
@@ -264,6 +326,43 @@ export function AiSettingsBody({ effects, initialStatus }: AiSettingsBodyProps) 
 
   return (
     <div className={styles.settingsBody}>
+      <section className={styles.section}>
+        <div className={styles.modelsHeader}>
+          <label className={styles.sectionLabel} htmlFor="ai-system-prompt">全局系统提示词</label>
+          <button
+            type="button"
+            className={styles.ghostBtn}
+            onClick={restoreDefaultPrompt}
+            onBlur={() => setRestoreArmed(false)}
+            disabled={blocking || chatConfig.systemPrompt === DEFAULT_GLOBAL_SYSTEM_PROMPT}
+            title="恢复内置默认提示词"
+          >
+            {restoreArmed ? '确认恢复？' : '恢复默认'}
+          </button>
+        </div>
+        <textarea
+          id="ai-system-prompt"
+          className={styles.textarea}
+          value={chatConfig.systemPrompt}
+          onChange={(e) => setChatConfig({ systemPrompt: e.target.value })}
+          placeholder="例如：始终用中文，输出结构化 Markdown。"
+          rows={4}
+          disabled={blocking}
+        />
+        <p className={styles.infoBox}>
+          会拼接在画布背景与节点指令之前；留空则不注入。
+        </p>
+        <PromptLibrary
+          items={promptLibrary}
+          currentContent={chatConfig.systemPrompt}
+          disabled={blocking}
+          onAdd={handleAddPrompt}
+          onApply={handleApplyPrompt}
+          onRemove={handleRemovePrompt}
+          onRename={handleRenamePrompt}
+        />
+      </section>
+
       <section className={styles.section} aria-label="生产商">
         <label className={styles.sectionLabel} htmlFor="ai-producer">生产商</label>
         <select

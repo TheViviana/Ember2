@@ -4,7 +4,7 @@
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { EdgeDrawPlan, ScreenEdge } from '../../../src/app/canvas/edge-layout.ts';
+import type { EdgeDrawPlan, EdgeStyleView, ScreenEdge } from '../../../src/app/canvas/edge-layout.ts';
 import {
   drawEdgeHighlight,
   drawEdgePlan,
@@ -98,7 +98,18 @@ function planOf(edges: readonly ScreenEdge[], straight = false): EdgeDrawPlan {
   return { straight, visibleCount: edges.length, edges, warning: null };
 }
 
-void test('普通边：两条曲线合并为单条 Path2D，一次 stroke + 一次箭头 fill', () => {
+const DEFAULT_STYLE: EdgeStyleView = {
+  line: 'solid',
+  arrow: 'end',
+  color: 'default',
+  route: 'curve',
+};
+
+function styledEdge(id: string, y: number, style: Partial<EdgeStyleView>): ScreenEdge {
+  return { ...curveEdge(id, y), style: { ...DEFAULT_STYLE, ...style } };
+}
+
+void test('普通边：两条曲线合并为单条 Path2D，一次描边 + 一次实心箭头填充', () => {
   const ctx = fakeContext();
   const paths: RecordingPath[] = [];
   const stats = drawEdgePlan(ctx, planOf([curveEdge('a', 10), curveEdge('b', 50)]), TEST_PALETTE, () => {
@@ -112,6 +123,7 @@ void test('普通边：两条曲线合并为单条 Path2D，一次 stroke + 一�
   assert.equal(ctx.fills.length, 1);
   assert.equal(ctx.lineWidth, 2.5);
   assert.equal(ctx.strokeStyle, TEST_PALETTE.edge);
+  assert.equal(ctx.fillStyle, TEST_PALETTE.arrow);
 
   const strokeOps = paths[0]?.ops ?? [];
   assert.equal(strokeOps.filter((op) => op.kind === 'moveTo').length, 2);
@@ -153,6 +165,31 @@ void test('空计划（视口裁剪后无可见边 / E_EDGE_BUDGET）：零绘�
   assert.equal(ctx.fills.length, 0);
 });
 
+void test('连线标签：具备文本能力时在中点绘制文字 pill', () => {
+  const texts: string[] = [];
+  const rects: number[] = [];
+  const ctx: EdgeContext = {
+    strokeStyle: '',
+    fillStyle: '',
+    lineWidth: 0,
+    stroke(): void {},
+    fill(): void {},
+    fillText(text: string): void {
+      texts.push(text);
+    },
+    measureText(text: string): { readonly width: number } {
+      return { width: text.length * 6 };
+    },
+    fillRect(): void {
+      rects.push(1);
+    },
+  };
+  const labeled = { ...curveEdge('labeled', 20), label: '进行中' };
+  drawEdgePlan(ctx, planOf([labeled]), TEST_PALETTE, () => new RecordingPath());
+  assert.deepEqual(texts, ['进行中']);
+  assert.equal(rects.length, 1);
+});
+
 void test('高亮层：选中边用独立画笔（2.5 px + selected 色），不被节点层共用', () => {
   const ctx = fakeContext();
   const paths: RecordingPath[] = [];
@@ -175,10 +212,181 @@ void test('高亮层：选中边用独立画笔（2.5 px + selected 色），不
   assert.equal(ctx.fillStyle, TEST_PALETTE.selected);
 });
 
+void test('直角折线绘制：lineTo + 8px 圆角，route 无 points 时回退贝塞尔', () => {
+  const ortho: ScreenEdge = {
+    ...curveEdge('ortho', 10),
+    p0: { x: 0, y: 0 },
+    c1: { x: 50, y: 0 },
+    c2: { x: 50, y: 100 },
+    p3: { x: 100, y: 100 },
+    aabb: { left: 0, top: 0, right: 100, bottom: 100 },
+    style: { ...DEFAULT_STYLE, route: 'orthogonal' },
+    route: 'orthogonal',
+    points: [
+      { x: 0, y: 0 },
+      { x: 50, y: 0 },
+      { x: 50, y: 100 },
+      { x: 100, y: 100 },
+    ],
+  };
+  const orthoPaths: RecordingPath[] = [];
+  drawEdgePlan(fakeContext(), planOf([ortho]), TEST_PALETTE, () => {
+    const path = new RecordingPath();
+    orthoPaths.push(path);
+    return path;
+  });
+  const orthoOps = orthoPaths[0]?.ops ?? [];
+  assert.equal(orthoOps.filter((op) => op.kind === 'bezierCurveTo').length, 2);
+  assert.equal(orthoOps.filter((op) => op.kind === 'lineTo').length, 3);
+
+  /* 缺 points（旧文件/渲染逻辑缺失）时按贝塞尔绘制，绝不留空白。 */
+  const fallback: ScreenEdge = { ...ortho, points: undefined };
+  const fallbackPaths: RecordingPath[] = [];
+  drawEdgePlan(fakeContext(), planOf([fallback]), TEST_PALETTE, () => {
+    const path = new RecordingPath();
+    fallbackPaths.push(path);
+    return path;
+  });
+  const fallbackOps = fallbackPaths[0]?.ops ?? [];
+  assert.equal(fallbackOps.filter((op) => op.kind === 'bezierCurveTo').length, 1);
+  assert.equal(fallbackOps.some((op) => op.kind === 'lineTo'), false);
+});
+
 void test('高亮层：无选中边时零绘制调用', () => {
   const ctx = fakeContext();
 
   assert.equal(drawEdgeHighlight(ctx, [], TEST_PALETTE, () => new RecordingPath()), 0);
   assert.equal(ctx.strokes.length, 0);
   assert.equal(ctx.fills.length, 0);
+});
+
+void test('虚线：setLineDash([7,5]) 绘制后复位，柔光不叠虚线', () => {
+  const dashCalls: (readonly number[])[] = [];
+  const base = fakeContext();
+  const ctx: FakeContext = {
+    ...base,
+    setLineDash(segments: readonly number[]): void {
+      dashCalls.push(segments);
+    },
+  };
+
+  const stats = drawEdgePlan(
+    ctx,
+    planOf([styledEdge('dashed', 10, { line: 'dashed' })]),
+    { ...TEST_PALETTE, glow: '#999999' },
+    () => new RecordingPath(),
+  );
+
+  assert.deepEqual(stats, { edges: 1, arrows: 1 });
+  assert.deepEqual(dashCalls, [[7, 5], []]);
+  // 柔光只给实线：虚线仍然只有一次普通描边，箭头是独立实心填充。
+  assert.equal(ctx.strokes.length, 1);
+  assert.equal(ctx.fills.length, 1);
+});
+
+void test('箭头三态：both 两端各一点，none 不画箭头', () => {
+  const bothCtx = fakeContext();
+  const bothPaths: RecordingPath[] = [];
+  drawEdgePlan(bothCtx, planOf([styledEdge('both', 10, { arrow: 'both' })]), TEST_PALETTE, () => {
+    const path = new RecordingPath();
+    bothPaths.push(path);
+    return path;
+  });
+  const bothArrowOps = bothPaths[1]?.ops ?? [];
+  const bothTips = bothArrowOps.filter((op) => op.kind === 'moveTo');
+  assert.equal(bothTips.length, 2);
+  assert.equal(bothTips.every((op) => Math.abs((op.args[1] ?? 0) - 10) < 1e-6), true);
+  assert.equal(bothTips.every((op) => (op.args[0] ?? 0) > 0 && (op.args[0] ?? 0) < 200), true);
+  assert.equal(bothArrowOps.filter((op) => op.kind === 'closePath').length, 2);
+
+  const noneCtx = fakeContext();
+  const noneStats = drawEdgePlan(
+    noneCtx,
+    planOf([styledEdge('none', 10, { arrow: 'none' })]),
+    TEST_PALETTE,
+    () => new RecordingPath(),
+  );
+  assert.deepEqual(noneStats, { edges: 1, arrows: 0 });
+  assert.equal(noneCtx.fills.length, 0);
+});
+
+void test('陡峭曲线：箭头沿曲线切线倾斜，不悬浮在端点水平线上', () => {
+  const edge: ScreenEdge = {
+    id: 'steep',
+    straight: false,
+    p0: { x: 0, y: 0 },
+    c1: { x: 30, y: 0 },
+    c2: { x: 30, y: 100 },
+    p3: { x: 60, y: 100 },
+    aabb: { left: 0, top: 0, right: 60, bottom: 100 },
+    style: { ...DEFAULT_STYLE, arrow: 'end' },
+  };
+  const paths: RecordingPath[] = [];
+  drawEdgePlan(fakeContext(), planOf([edge]), TEST_PALETTE, () => {
+    const path = new RecordingPath();
+    paths.push(path);
+    return path;
+  });
+
+  const ops = paths[1]?.ops ?? [];
+  const tip = ops.find((op) => op.kind === 'moveTo');
+  const wings = ops.filter((op) => op.kind === 'lineTo');
+  assert.ok(tip !== undefined && wings.length === 2);
+  const base = {
+    x: ((wings[0]?.args[0] ?? 0) + (wings[1]?.args[0] ?? 0)) / 2,
+    y: ((wings[0]?.args[1] ?? 0) + (wings[1]?.args[1] ?? 0)) / 2,
+  };
+  const dx = (tip?.args[0] ?? 0) - base.x;
+  const dy = (tip?.args[1] ?? 0) - base.y;
+  const length = Math.hypot(dx, dy);
+  /* 终点切线应明显向下（向右下进线），而不是旧实现的纯水平方向。 */
+  assert.equal(Math.abs(dy / length) > 0.2, true);
+  assert.equal((tip?.args[1] ?? 0) > 80, true);
+});
+
+void test('颜色分组：默认与语义色各一次 stroke / fill，端点跟随连线颜色', () => {
+  const ctx = fakeContext();
+  const stats = drawEdgePlan(
+    ctx,
+    planOf([
+      styledEdge('default', 10, { color: 'default' }),
+      styledEdge('primary', 40, { color: 'primary' }),
+    ]),
+    { ...TEST_PALETTE, colorPrimary: '#404040' },
+    () => new RecordingPath(),
+  );
+
+  assert.deepEqual(stats, { edges: 2, arrows: 2 });
+  assert.equal(ctx.strokes.length, 2);
+  assert.equal(ctx.fills.length, 2);
+  assert.equal(ctx.strokeStyle, '#404040');
+  assert.equal(ctx.fillStyle, '#404040');
+});
+
+void test('高亮层：related 先以 0.4 透明度弱描边，再复位画选中边', () => {
+  const alphaAtStroke: number[] = [];
+  const strokes: EdgePath[] = [];
+  const ctx: EdgeContext = {
+    strokeStyle: '',
+    fillStyle: '',
+    lineWidth: 0,
+    globalAlpha: 1,
+    stroke(path: EdgePath): void {
+      strokes.push(path);
+      alphaAtStroke.push(this.globalAlpha ?? 1);
+    },
+    fill(): void {},
+  };
+
+  const drawn = drawEdgeHighlight(
+    ctx,
+    [styledEdge('selected', 10, {})],
+    TEST_PALETTE,
+    () => new RecordingPath(),
+    [styledEdge('related', 50, {})],
+  );
+
+  assert.equal(drawn, 1);
+  assert.deepEqual(alphaAtStroke, [0.4, 1]);
+  assert.equal(ctx.globalAlpha, 1);
 });

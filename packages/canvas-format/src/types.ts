@@ -121,12 +121,28 @@ export type CanvasNode =
   | CanvasSplitNode
   | CanvasMergeNode;
 
+/** 连线样式（纯渲染提示）：缺省键 = 实线 / 单向 / 默认色 / 曲线。 */
+export type CanvasEdgeLine = 'solid' | 'dashed';
+export type CanvasEdgeArrow = 'end' | 'both' | 'none';
+export type CanvasEdgeColor = 'default' | 'primary' | 'success' | 'warning' | 'danger';
+export type CanvasEdgeRoute = 'curve' | 'orthogonal';
+
+export interface CanvasEdgeStyle {
+  readonly line?: CanvasEdgeLine;
+  readonly arrow?: CanvasEdgeArrow;
+  readonly color?: CanvasEdgeColor;
+  readonly route?: CanvasEdgeRoute;
+  readonly [key: string]: unknown;
+}
+
 export interface CanvasEdge {
   readonly id: string;
   readonly from: CanvasEndpoint;
   readonly to: CanvasEndpoint;
   readonly label?: string;
   readonly flow?: string;
+  /** 可选渲染样式；未知子键由旧版本原样保留。 */
+  readonly style?: CanvasEdgeStyle;
   readonly [key: string]: unknown;
 }
 
@@ -181,6 +197,7 @@ export interface CanvasEdgeInput {
   readonly to: CanvasEndpointInput;
   readonly label?: string;
   readonly flow?: string;
+  readonly style?: CanvasEdgeStyle;
   readonly [key: string]: unknown;
 }
 
@@ -190,6 +207,11 @@ export interface CanvasMoveEntry {
   readonly dy: number;
 }
 
+/** 画布级元信息变更：目前只承载 AI 背景，null=删除字段。 */
+export interface CanvasMetaChanges {
+  readonly aiContext?: string | null;
+}
+
 export type CanvasCommand =
   | { readonly kind: 'move'; readonly entries: readonly CanvasMoveEntry[] }
   | { readonly kind: 'addNode'; readonly node: CanvasNodeInput; readonly index?: number }
@@ -197,6 +219,7 @@ export type CanvasCommand =
   | { readonly kind: 'restoreNode'; readonly entry: CanvasNodeInput; readonly index: number }
   | { readonly kind: 'addEdge'; readonly edge: CanvasEdgeInput; readonly index?: number }
   | { readonly kind: 'removeEdge'; readonly id: string }
+  | { readonly kind: 'updateCanvasMeta'; readonly changes: CanvasMetaChanges }
   | {
       readonly kind: 'updateNode';
       readonly id: string;

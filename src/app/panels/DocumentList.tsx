@@ -447,9 +447,16 @@ export function DocumentList({ onOpenImport }: DocumentListProps) {
             </form>
           ) : null}
           {/* CR-20261121-58：列表区右键空白=新建画布（与区头一致） */}
-          <div onContextMenu={openCanvasBlankMenu}>
+          <div
+            className={styles.canvasArea}
+            onClick={(event) => {
+              // CR-20261128：画布区任意空白位置点击即可新建，不再只依赖右键。
+              if (event.target === event.currentTarget) createUntitledCanvas();
+            }}
+            onContextMenu={openCanvasBlankMenu}
+          >
             {canvases.length === 0 ? (
-              <p className={styles.sectionEmpty}>暂无画布。右键此处或区头新建。</p>
+              <p className={styles.sectionEmpty}>暂无画布。点击下方「新建画布」或右键空白新建。</p>
             ) : (
               <ul className={styles.canvasList}>
                 {canvases.map((entry) => (
@@ -504,6 +511,14 @@ export function DocumentList({ onOpenImport }: DocumentListProps) {
                 ))}
               </ul>
             )}
+            <button
+              type="button"
+              className={styles.canvasAddRow}
+              onClick={createUntitledCanvas}
+            >
+              <span className={styles.canvasAddPlus} aria-hidden="true">＋</span>
+              新建画布
+            </button>
           </div>
         </section>
 

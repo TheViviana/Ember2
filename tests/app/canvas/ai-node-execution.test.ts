@@ -117,6 +117,29 @@ void test('buildAiRunMessages：提示词=system、文章分节=user', () => {
   assert.ok(fallback.ok && fallback.system.length > 0, '无提示词回退内置指令');
 });
 
+void test('buildAiRunMessages：全局与画布上下文按序拼接在节点指令之前', () => {
+  const built = buildAiRunMessages({
+    docs: [{ title: '甲', content: 'c' }],
+    prompts: ['节点任务'],
+    context: { global: '始终用中文', canvas: '需求评审画布' },
+  });
+  assert.ok(built.ok);
+  assert.equal(
+    built.system,
+    '【工作台规范】\n始终用中文\n\n【画布背景】\n需求评审画布\n\n【节点指令】\n节点任务',
+  );
+});
+
+void test('buildAiRunMessages：无上下文时保持单层旧输出', () => {
+  const built = buildAiRunMessages({
+    docs: [{ title: '甲', content: 'c' }],
+    prompts: ['节点任务'],
+    context: { global: '  ', canvas: '' },
+  });
+  assert.ok(built.ok);
+  assert.equal(built.system, '节点任务');
+});
+
 void test('buildAiRunMessages：超长拒绝、空素材拒绝', () => {
   const tooLong = buildAiRunMessages({
     docs: [{ title: '甲', content: 'x'.repeat(AI_RUN_MAX_CHARS) }],

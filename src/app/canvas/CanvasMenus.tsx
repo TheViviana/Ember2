@@ -7,6 +7,7 @@
 import { useEffect, useRef } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { CanvasEngineEvent } from './engine.ts';
+import type { EdgeStyleView } from './edge-layout.ts';
 import type { TreeNode } from '../tree/build-tree.ts';
 import { DocSubmenu } from './DocSubmenu.tsx';
 import { docSubmenuRegistry } from './doc-submenu-model.ts';
@@ -27,6 +28,10 @@ export interface CanvasMenu {
   readonly nodeType: string | null;
   /** CR-20261121-53：右键命中节点的种类（ai/prompt/split/merge），null=其他。 */
   readonly nodeKind: 'ai' | 'prompt' | 'split' | 'merge' | null;
+  /** 右键命中连线时的原始 label（null=非连线）。 */
+  readonly edgeLabel: string | null;
+  /** 右键命中连线时的归一后样式（null=非连线）。 */
+  readonly edgeStyle: EdgeStyleView | null;
 }
 
 /** N4：拉线落空菜单状态；与右键菜单完全独立，不共用 target 类型。 */
@@ -35,6 +40,8 @@ export interface ConnectionMenuState {
   readonly y: number;
   readonly worldPoint: { readonly x: number; readonly y: number };
   readonly from: { readonly nodeId: string; readonly portId: string };
+  /** true=从 in 端口反拉拉线，新节点作为源接回 from。 */
+  readonly reverse: boolean;
 }
 
 /** C0-D：文本编辑状态。kind='text' 编辑自由文本；kind='prompt' 编辑提示词；其余为节点标题。 */
@@ -281,6 +288,19 @@ export function CanvasContextMenu({
             onMenuEnter={onMenuEnter}
             onMenuLeave={onMenuLeave}
           />
+          <li className={styles.contextMenuDivider} />
+          <li>
+            <button
+              type="button"
+              role="menuitem"
+              className={styles.contextMenuItem}
+              onClick={() => onAction('editCanvasContext')}
+              disabled={disabled}
+            >
+              画布 AI 背景…
+              <MenuNote reason={disabledReason} />
+            </button>
+          </li>
         </>
       ) : null}
       {onNode ? (
@@ -329,6 +349,18 @@ export function CanvasContextMenu({
           />
           {menu.nodeKind === 'ai' || menu.nodeKind === 'split' || menu.nodeKind === 'merge' ? (
             <>
+              {menu.nodeKind === 'ai' ? (
+                <li>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={styles.contextMenuItem}
+                    onClick={() => onAction('previewPrompt')}
+                  >
+                    查看完整 Prompt
+                  </button>
+                </li>
+              ) : null}
               <li>
                 <button
                   type="button"
@@ -377,6 +409,18 @@ export function CanvasContextMenu({
               <MenuNote reason={disabledReason} />
             </button>
           </li>
+          <li>
+            <button
+              type="button"
+              role="menuitem"
+              className={styles.contextMenuItem}
+              disabled={disabled}
+              onClick={() => onAction('duplicateNode')}
+            >
+              创建副本
+              <MenuNote reason={disabledReason} />
+            </button>
+          </li>
           <li className={styles.contextMenuDivider} />
           <li>
             <button
@@ -399,24 +443,63 @@ export function CanvasContextMenu({
         </>
       ) : null}
       {onEdge ? (
-        <li>
-          <button
-            type="button"
-            role="menuitem"
-            className={styles.contextMenuItem}
-            data-variant="danger"
-            onClick={() => onAction('deleteEdge')}
-            disabled={disabled}
-          >
-            <span className={styles.menuIcon} aria-hidden="true">
-              <Icon size={12} viewBox="0 0 12 12">
-                <path d="M2 3h8M4.5 3V2h3v1M3 3l.5 7h5L9 3" />
-              </Icon>
-            </span>
-            删除连线
-            <MenuNote reason={disabledReason} />
-          </button>
-        </li>
+        <>
+          <li>
+            <button
+              type="button"
+              role="menuitem"
+              className={styles.contextMenuItem}
+              onClick={() => onAction('editEdgeLabel')}
+              disabled={disabled}
+            >
+              编辑连线标签
+              <MenuNote reason={disabledReason} />
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              role="menuitem"
+              className={styles.contextMenuItem}
+              onClick={() => onAction('reverseEdge')}
+              disabled={disabled}
+            >
+              反转方向
+              <MenuNote reason={disabledReason} />
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              role="menuitem"
+              className={styles.contextMenuItem}
+              onClick={() => onAction('editEdgeStyle')}
+              disabled={disabled}
+            >
+              连线样式…
+              <MenuNote reason={disabledReason} />
+            </button>
+          </li>
+          <li className={styles.contextMenuDivider} />
+          <li>
+            <button
+              type="button"
+              role="menuitem"
+              className={styles.contextMenuItem}
+              data-variant="danger"
+              onClick={() => onAction('deleteEdge')}
+              disabled={disabled}
+            >
+              <span className={styles.menuIcon} aria-hidden="true">
+                <Icon size={12} viewBox="0 0 12 12">
+                  <path d="M2 3h8M4.5 3V2h3v1M3 3l.5 7h5L9 3" />
+                </Icon>
+              </span>
+              删除连线
+              <MenuNote reason={disabledReason} />
+            </button>
+          </li>
+        </>
       ) : null}
       {!onBlank && !onNode && !onEdge ? (
         <>
@@ -646,6 +729,47 @@ export function CanvasEditOverlay({
           onCommitLabel((e.target as HTMLInputElement).value);
         } else if (e.key === 'Escape') {
           e.preventDefault();
+          onCancel();
+        }
+      }}
+    />
+  );
+}
+
+export interface CanvasEdgeLabelInputProps {
+  readonly left: number;
+  readonly top: number;
+  readonly defaultValue: string;
+  readonly onCommit: (label: string) => void;
+  readonly onCancel: () => void;
+}
+
+/** 连线状态/标签内联输入：回车提交、Esc 取消、失焦提交。 */
+export function CanvasEdgeLabelInput({
+  left,
+  top,
+  defaultValue,
+  onCommit,
+  onCancel,
+}: CanvasEdgeLabelInputProps) {
+  return (
+    <input
+      autoFocus
+      className={styles.editInput}
+      aria-label="编辑连线标签"
+      style={{ left, top, width: 180, height: 28, fontSize: 12 }}
+      defaultValue={defaultValue}
+      type="text"
+      placeholder="输入状态…"
+      onFocus={(event) => event.currentTarget.select()}
+      onBlur={(event) => onCommit(event.currentTarget.value)}
+      onKeyDown={(event) => {
+        if (event.nativeEvent.isComposing) return;
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          onCommit(event.currentTarget.value);
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
           onCancel();
         }
       }}

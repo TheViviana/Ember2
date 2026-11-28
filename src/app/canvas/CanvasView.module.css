@@ -291,6 +291,89 @@
   background: var(--ember-menu-divider);
 }
 
+/* 连线样式浮层：四组选项，复用菜单视觉；点击保持打开便于连续调整。 */
+.edgeStyleMenu {
+  position: absolute;
+  z-index: calc(var(--layer-sidebar-overlay) + 1);
+  width: 208px;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  padding: var(--menu-padding);
+  border: 1px solid var(--ember-menu-border);
+  border-radius: var(--radius-menu);
+  background: var(--ember-menu-bg);
+  box-shadow: var(--ember-menu-shadow);
+  font-size: var(--menu-font-size);
+}
+
+.edgeStyleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 0;
+}
+
+.edgeStyleGroup + .edgeStyleGroup {
+  border-top: 1px solid var(--ember-menu-divider);
+}
+
+.edgeStyleGroupLabel {
+  padding: 0 var(--menu-item-padding-x);
+  color: var(--ember-text-muted);
+  font-size: var(--menu-accelerator-size);
+}
+
+.edgeStyleOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.edgeStyleOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: calc(var(--menu-item-height) - 4px);
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--ember-text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.edgeStyleOption:hover:not(:disabled) {
+  background: var(--ember-menu-hover);
+}
+
+.edgeStyleOption[data-selected='true'] {
+  border-color: var(--ember-border-focus);
+  background: var(--ember-menu-hover);
+}
+
+.edgeStyleOption:disabled {
+  color: var(--ember-text-muted);
+  opacity: 0.4;
+  cursor: default;
+}
+
+.edgeStyleSwatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--ember-menu-border);
+}
+
+.edgeStyleCheck {
+  margin-left: auto;
+  opacity: 0;
+}
+
+.edgeStyleOption[data-selected='true'] .edgeStyleCheck {
+  opacity: 1;
+}
+
 /* CR-20261121-58：菜单图标（12px 细线）与快捷键加速器（12px 灰，右侧） */
 /* 菜单图标槽固定 20px，内部图形 14px；图标缺失时文字仍从同一列起排。 */
 .menuIcon {
@@ -466,4 +549,113 @@
   font-family: var(--font-body);
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
+}
+
+/* 画布级 AI 背景弹窗：独立组件，避免节点层与菜单样式复用。 */
+.aiContextOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2xl);
+  background: var(--ember-overlay-scrim);
+}
+
+.aiContextPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  width: min(520px, 100%);
+  padding: var(--space-xl);
+  border: 1px solid var(--ember-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--ember-bg-elevated);
+  box-shadow: var(--ember-shadow-lg);
+  color: var(--ember-text-primary);
+}
+
+.aiContextTitle {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.aiContextHint {
+  margin: 0;
+  color: var(--ember-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.aiContextTextarea {
+  width: 100%;
+  min-height: 140px;
+  resize: vertical;
+  padding: var(--space-md);
+  border: 1px solid var(--ember-border-input);
+  border-radius: var(--radius-sm);
+  background: var(--ember-bg-input);
+  color: var(--ember-text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  box-sizing: border-box;
+  outline: none;
+}
+
+.aiContextTextarea:focus-visible {
+  border-color: var(--ember-border-focus);
+  box-shadow: 0 0 0 var(--focus-ring-width) var(--ember-border-focus);
+}
+
+.aiContextTextarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.aiContextActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.aiContextSpacer {
+  flex: 1;
+}
+
+.aiContextGhost,
+.aiContextPrimary {
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--ember-border-input);
+  background: transparent;
+  color: var(--ember-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.aiContextGhost:hover:not(:disabled) {
+  border-color: var(--ember-border-strong);
+  color: var(--ember-text-primary);
+}
+
+.aiContextPrimary {
+  border-color: var(--ember-primary);
+  background: var(--ember-primary);
+  color: var(--ember-text-on-accent);
+}
+
+.aiContextPrimary:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.aiContextGhost:disabled,
+.aiContextPrimary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

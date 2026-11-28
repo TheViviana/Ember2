@@ -32,6 +32,7 @@ export type CreateEmptyArticleAt = (
   screenPoint: { readonly x: number; readonly y: number },
   from: CanvasPortAnchor | null,
   worldPoint?: { readonly x: number; readonly y: number },
+  reverse?: boolean,
 ) => Promise<void>;
 
 function createDocumentNode(
@@ -123,6 +124,7 @@ export function useCreateEmptyArticle(deps: CreateEmptyArticleDeps): CreateEmpty
       screenPoint: { readonly x: number; readonly y: number },
       from: CanvasPortAnchor | null,
       worldPoint?: { readonly x: number; readonly y: number },
+      reverse = false,
     ): Promise<void> => {
       const engine = sessionRef.current?.engine;
       if (engine === undefined) return;
@@ -147,7 +149,11 @@ export function useCreateEmptyArticle(deps: CreateEmptyArticleDeps): CreateEmpty
       const commands: readonly CanvasCommand[] =
         from === null
           ? [createAddDocumentNodeCommand(world.x, world.y, rel)]
-          : createConnectNewNodeCommands(createDocumentNode(world.x, world.y, rel, true), from);
+          : createConnectNewNodeCommands(
+            createDocumentNode(world.x, world.y, rel, true),
+            from,
+            reverse,
+          );
       if (!currentEngine.executeCommands(commands)) {
         pushNotice('文章已创建，但画布节点添加失败', 'error');
       }

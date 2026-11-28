@@ -42,6 +42,48 @@ void test('非空批次遇既有 issues 返回 kind:document；空批次不写�
   assert.deepEqual(empty.inspection, inspection);
 });
 
+void test('updateCanvasMeta：写入 aiContext 保留顶层未知键，undo 还原缺失状态', () => {
+  const original = document([text('a')]);
+  const applied = succeed(
+    mutate(original, [{ kind: 'updateCanvasMeta', changes: { aiContext: '画布背景' } }]),
+  );
+  assert.equal((applied.document as { aiContext?: string }).aiContext, '画布背景');
+  assert.deepEqual((applied.document as { customRoot?: unknown }).customRoot, { kept: true });
+
+  const undone = succeed(mutate(applied.document, applied.inverse));
+  assert.equal('aiContext' in undone.document, false);
+  assert.deepEqual((undone.document as { customRoot?: unknown }).customRoot, { kept: true });
+});
+
+void test('updateCanvasMeta：null 删除 aiContext，inverse 恢复旧值', () => {
+  const original: CanvasDocument = {
+    ...document([text('a')]),
+    aiContext: '旧背景',
+  };
+  const cleared = succeed(
+    mutate(original, [{ kind: 'updateCanvasMeta', changes: { aiContext: null } }]),
+  );
+  assert.equal('aiContext' in cleared.document, false);
+
+  const restored = succeed(mutate(cleared.document, cleared.inverse));
+  assert.equal((restored.document as { aiContext?: string }).aiContext, '旧背景');
+});
+
+void test('updateCanvasMeta：只接受 aiContext 且值只能是 string/null', () => {
+  const original = document([text('a')]);
+  const extraKey = {
+    kind: 'updateCanvasMeta',
+    changes: { aiContext: 'x', other: 'y' },
+  } as unknown as CanvasCommand;
+  const badValue = {
+    kind: 'updateCanvasMeta',
+    changes: { aiContext: 42 },
+  } as unknown as CanvasCommand;
+
+  assert.equal(mutate(original, [extraKey]).ok, false);
+  assert.equal(mutate(original, [badValue]).ok, false);
+});
+
 void test('命令形状非法返回 E_MUTATE_COMMAND，并钉住 commandIndex/path', () => {
   const original = document([text('a')]);
   const malformed = {

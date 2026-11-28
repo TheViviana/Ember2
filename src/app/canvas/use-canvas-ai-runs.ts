@@ -14,6 +14,7 @@ import {
   createUpdateLabelCommand,
   makeEdgeId,
   makeNodeId,
+  readCanvasAiContext,
 } from './canvas-interactions.ts';
 import { nodeSizeOf } from './node-layout.ts';
 import type { CanvasEngine } from './engine.ts';
@@ -36,6 +37,14 @@ import { createSplitFailureCleanup, finishRetryBlock } from './split-failure-cle
 export interface RunningAiState {
   readonly nodeId: string;
   readonly requestId: string;
+}
+
+/** 运行期读取三层来源中的全局与画布层；节点层由各 runner 自行收集。 */
+function readSystemContext(engine: CanvasEngine): { readonly global: string; readonly canvas: string } {
+  return {
+    global: useAiChatStore.getState().config.systemPrompt,
+    canvas: readCanvasAiContext(engine.getDocument()),
+  };
 }
 
 export interface UseCanvasAiRunsOptions {
@@ -147,6 +156,7 @@ export function useCanvasAiRuns(options: UseCanvasAiRunsOptions): CanvasAiRuns {
         liveText: (path) => useEmberStore.getState().docs.get(path)?.text ?? null,
         readSnapshot: (path) => docApi.read(path),
         aiConfig: useAiChatStore.getState().config,
+        systemContext: readSystemContext(engine),
         stream: (request, handlers) => {
           setRunningAi({ nodeId: aiNodeId, requestId: request.requestId });
           return aiApi.chatStream(request, {
@@ -203,6 +213,7 @@ export function useCanvasAiRuns(options: UseCanvasAiRunsOptions): CanvasAiRuns {
       liveText: (path) => useEmberStore.getState().docs.get(path)?.text ?? null,
       readSnapshot: (path) => docApi.read(path),
       aiConfig: useAiChatStore.getState().config,
+      systemContext: readSystemContext(engine),
       stream: (request, handlers) => {
         setRunningAi({ nodeId: runNodeId, requestId: request.requestId });
         return aiApi.chatStream(request, {
@@ -252,6 +263,7 @@ export function useCanvasAiRuns(options: UseCanvasAiRunsOptions): CanvasAiRuns {
       createMergeNodeRunner({
       getDocument: () => engine.getDocument(),
       aiConfig: useAiChatStore.getState().config,
+      systemContext: readSystemContext(engine),
       stream: (request, handlers) => {
         setRunningAi({ nodeId: runNodeId, requestId: request.requestId });
         return aiApi.chatStream(request, {

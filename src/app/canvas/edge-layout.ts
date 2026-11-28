@@ -10,6 +10,12 @@
  * 降级链（§13.4）：视口裁剪 → LOD（scale < 0.3 直线）→ Path2D 批量（edge-layer）→
  * 可见边 > 5000 只保留告警（不绘制）→ WebGL 另开 CR（Backlog ⑨）。
  */
+import type {
+  CanvasEdgeArrow,
+  CanvasEdgeColor,
+  CanvasEdgeLine,
+  CanvasEdgeRoute,
+} from '#canvas-format';
 import type { CanvasDocument } from './format.ts';
 import {
   composeScreenPosition,
@@ -24,11 +30,60 @@ import type { Point, Rect, ViewportSize, ViewportTransform } from './viewport.ts
 
 const DEFAULT_NODE_SIZE: NodeSize = { w: NODE_WIDTH, h: NODE_HEIGHT };
 
+/** 归一后的连线样式：四键必填，缺省值在读取时补齐。 */
+export interface EdgeStyleView {
+  readonly line: CanvasEdgeLine;
+  readonly arrow: CanvasEdgeArrow;
+  readonly color: CanvasEdgeColor;
+  readonly route: CanvasEdgeRoute;
+}
+
+export const DEFAULT_EDGE_STYLE: EdgeStyleView = Object.freeze({
+  line: 'solid',
+  arrow: 'end',
+  color: 'default',
+  route: 'curve',
+});
+
+const EDGE_LINES: readonly CanvasEdgeLine[] = ['solid', 'dashed'];
+const EDGE_ARROWS: readonly CanvasEdgeArrow[] = ['end', 'both', 'none'];
+const EDGE_COLORS: readonly CanvasEdgeColor[] = ['default', 'primary', 'success', 'warning', 'danger'];
+const EDGE_ROUTES: readonly CanvasEdgeRoute[] = ['curve', 'orthogonal'];
+
+/** 虚线节距（CSS px）：线宽不变，只换线型。 */
+export const EDGE_DASH_PATTERN: readonly number[] = [7, 5];
+/** 直角折线出线短桩长度（屏幕 px）。 */
+export const EDGE_ORTHOGONAL_STUB = 24;
+/** 直角折线拐角圆角半径（屏幕 px）。 */
+export const EDGE_ORTHOGONAL_CORNER = 8;
+
+function pick<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  return typeof value === 'string' && (allowed as readonly string[]).includes(value)
+    ? (value as T)
+    : fallback;
+}
+
+/** 逐键白名单归一：非法值回退默认，不抛错；坏值不阻塞整幅画布。 */
+export function readEdgeStyle(raw: unknown): EdgeStyleView {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return DEFAULT_EDGE_STYLE;
+  const record = raw as Readonly<Record<string, unknown>>;
+  return {
+    line: pick(record.line, EDGE_LINES, DEFAULT_EDGE_STYLE.line),
+    arrow: pick(record.arrow, EDGE_ARROWS, DEFAULT_EDGE_STYLE.arrow),
+    color: pick(record.color, EDGE_COLORS, DEFAULT_EDGE_STYLE.color),
+    route: pick(record.route, EDGE_ROUTES, DEFAULT_EDGE_STYLE.route),
+  };
+}
+
 /** 连线渲染视图：只取端点引用，不定义连线 schema（format.ts 仍原样保留）。 */
 export interface CanvasEdgeView {
   readonly id: string;
   readonly from: string;
   readonly to: string;
+  /** 归一后的渲染样式；缺省即默认样式（兼容未带样式的测试 fixture）。 */
+  readonly style?: EdgeStyleView;
+  /** 连线状态/标签（复用格式层 edge.label）。 */
+  readonly label?: string;
 }
 
 /** 命中容差基准：CSS px（S2），与 dpr 无关。 */
@@ -59,6 +114,13 @@ export interface ScreenEdge {
   readonly p3: Point;
   /** 控制多边形包围盒（保守上界），用于视口裁剪与命中预筛。 */
   readonly aabb: Rect;
+  /** 归一后的样式；缺省视为默认（兼容既有测试 fixture）。 */
+  readonly style?: EdgeStyleView;
+  /** 走线方式；缺省视为曲线。 */
+  readonly route?: CanvasEdgeRoute;
+  /** 直角折线的折线点（仅 route='orthogonal' 且非 LOD 时提供）。 */
+  readonly points?: readonly Point[];
+  readonly label?: string;
 }
 
 export interface EdgeHit {
@@ -114,7 +176,9 @@ export function extractEdgeViews(
     if (from === null || to === null) continue;
     if (!known.has(from) || !known.has(to)) continue;
     seen.add(id);
-    edges.push({ id, from, to });
+    const label = typeof raw.label === 'string' && raw.label.trim() !== '' ? raw.label : undefined;
+    const style = readEdgeStyle(raw.style);
+    edges.push({ id, from, to, style, ...(label === undefined ? {} : { label }) });
   }
   return edges;
 }
@@ -162,8 +226,32 @@ function boundsOf(points: readonly Point[]): Rect {
 }
 
 /**
+ * 直角折线点集（确定性三点/五点路由，不做避障）：
+ * - 水平对齐（|dy| < 0.5）：直线 `[p0,p3]`；
+ * - 正向空间足够（dx >= 2*STUB）：`p0 → 中线 → p3` 三点；
+ * - 其余情况（目标在左侧/空间不足）：先出线 STUB，再沿中线下绕后回到 p3 左边缘。
+ */
+export function buildOrthogonalPoints(p0: Point, p3: Point): readonly Point[] {
+  if (Math.abs(p3.y - p0.y) < 0.5) return [p0, p3];
+  const midX = (p0.x + p3.x) / 2;
+  if (p3.x - p0.x >= EDGE_ORTHOGONAL_STUB * 2) {
+    return [p0, { x: midX, y: p0.y }, { x: midX, y: p3.y }, p3];
+  }
+  const midY = (p0.y + p3.y) / 2;
+  return [
+    p0,
+    { x: p0.x + EDGE_ORTHOGONAL_STUB, y: p0.y },
+    { x: p0.x + EDGE_ORTHOGONAL_STUB, y: midY },
+    { x: p3.x - EDGE_ORTHOGONAL_STUB, y: midY },
+    { x: p3.x - EDGE_ORTHOGONAL_STUB, y: p3.y },
+    p3,
+  ];
+}
+
+/**
  * 构建屏幕空间连线几何。所有边共用同一变换，故 `straight`（LOD）在构建时定死。
  * 曲线为三次贝塞尔：控制柄水平，端点切线水平（端口在左右边缘中点）。
+ * 直角折线只换屏幕几何（points/aabb），端点与命中仍由同一 ScreenEdge 承载。
  */
 function buildScreenEdge(
   edge: CanvasEdgeView,
@@ -183,6 +271,7 @@ function buildScreenEdge(
     edgeAnchor(to, 'in', sizes.get(edge.to) ?? DEFAULT_NODE_SIZE),
     transform,
   );
+  const style = edge.style ?? DEFAULT_EDGE_STYLE;
   const offset = clamp(
     Math.abs(p3.x - p0.x) * 0.5,
     EDGE_CURVE_OFFSET_MIN,
@@ -190,7 +279,21 @@ function buildScreenEdge(
   );
   const c1 = { x: p0.x + offset, y: p0.y };
   const c2 = { x: p3.x - offset, y: p3.y };
-  return { id: edge.id, straight, p0, c1, c2, p3, aabb: boundsOf([p0, c1, c2, p3]) };
+  const points =
+    style.route === 'orthogonal' && !straight ? buildOrthogonalPoints(p0, p3) : undefined;
+  return {
+    id: edge.id,
+    straight,
+    p0,
+    c1,
+    c2,
+    p3,
+    aabb: points === undefined ? boundsOf([p0, c1, c2, p3]) : boundsOf(points),
+    style,
+    route: style.route,
+    ...(points === undefined ? {} : { points }),
+    ...(edge.label === undefined ? {} : { label: edge.label }),
+  };
 }
 
 function nodePositions(nodes: readonly CanvasNodeView[]): Map<string, Point> {
@@ -249,6 +352,27 @@ export function buildNodeAdjacency(
     add(edge.to, edge.id);
   }
   return new Map([...adjacency].map(([id, bucket]) => [id, [...bucket]]));
+}
+
+/**
+ * 节点 → incident edge id 集合。重复 id、空 id、坏边跳过；自环只计一次；
+ * 选中集中不存在的节点不产生边。
+ */
+export function incidentEdgeIds(
+  edges: readonly CanvasEdgeView[],
+  nodeIds: Iterable<string>,
+): ReadonlySet<string> {
+  const wanted = new Set(nodeIds);
+  const result = new Set<string>();
+  if (wanted.size === 0) return result;
+  const seen = new Set<string>();
+  for (const edge of edges) {
+    if (edge.id === '' || seen.has(edge.id)) continue;
+    if (!wanted.has(edge.from) && !wanted.has(edge.to)) continue;
+    seen.add(edge.id);
+    result.add(edge.id);
+  }
+  return result;
 }
 
 export interface ScreenEdgeUpdate {
@@ -367,9 +491,18 @@ export function cubicAt(edge: ScreenEdge, t: number): Point {
   };
 }
 
-/** 命中测试用折线：直线 LOD 只取两端点，曲线按固定段数采样。 */
+/** 连线中点（标签锚点）：直角折线按折线弧长 50% 取点。 */
+export function edgeMidpoint(edge: ScreenEdge): Point {
+  if (edge.points !== undefined && edge.points.length >= 2) {
+    return pointAtPolylineLength(edge.points, polylineLength(edge.points) / 2);
+  }
+  return cubicAt(edge, 0.5);
+}
+
+/** 命中测试用折线：直线 LOD 只取两端点，直角折线直接返回顶点，曲线按固定段数采样。 */
 export function edgeSamples(edge: ScreenEdge): readonly Point[] {
   if (edge.straight) return [edge.p0, edge.p3];
+  if (edge.points !== undefined && edge.points.length >= 2) return edge.points;
   const samples: Point[] = [];
   for (let index = 0; index <= EDGE_SAMPLE_STEPS; index += 1) {
     samples.push(cubicAt(edge, index / EDGE_SAMPLE_STEPS));
@@ -387,6 +520,25 @@ export function polylineLength(points: readonly Point[]): number {
     total += Math.hypot(b.x - a.x, b.y - a.y);
   }
   return total;
+}
+
+/** 折线弧长 `distance` 处的点（夹在 [0, 总长] 内）。 */
+export function pointAtPolylineLength(points: readonly Point[], distance: number): Point {
+  const fallback = points[0] ?? { x: 0, y: 0 };
+  if (points.length === 0) return fallback;
+  let remaining = Math.max(0, Math.min(polylineLength(points), distance));
+  for (let index = 0; index + 1 < points.length; index += 1) {
+    const a = points[index];
+    const b = points[index + 1];
+    if (a === undefined || b === undefined) continue;
+    const segment = Math.hypot(b.x - a.x, b.y - a.y);
+    if (remaining <= segment || index + 2 === points.length) {
+      const ratio = segment === 0 ? 0 : remaining / segment;
+      return { x: a.x + (b.x - a.x) * ratio, y: a.y + (b.y - a.y) * ratio };
+    }
+    remaining -= segment;
+  }
+  return points.at(-1) ?? fallback;
 }
 
 /** 只保留与视口（外扩 pad）相交的边。 */

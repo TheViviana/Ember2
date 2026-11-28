@@ -284,6 +284,42 @@
   cursor: not-allowed;
 }
 
+.textarea {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--ember-bg-input);
+  border: 1px solid var(--ember-border-input);
+  color: var(--ember-text-primary);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  line-height: 1.5;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.textarea::placeholder {
+  color: var(--ember-text-muted);
+  opacity: 1;
+}
+
+.textarea:hover:not(:disabled) {
+  border-color: var(--ember-border-strong);
+}
+
+.textarea:focus-visible {
+  border-color: var(--ember-border-focus);
+  box-shadow: 0 0 0 var(--focus-ring-width) var(--ember-border-focus);
+}
+
+.textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .checkboxRow {
   display: flex;
   align-items: center;

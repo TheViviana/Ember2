@@ -17,6 +17,7 @@ import {
   type AiProvider,
   type AiProviderPreset,
 } from './ai-endpoint.ts';
+import { DEFAULT_GLOBAL_SYSTEM_PROMPT } from './default-system-prompt.ts';
 
 export interface AiChatConfig {
   readonly preset: AiProviderPreset;
@@ -24,6 +25,8 @@ export interface AiChatConfig {
   readonly baseUrl: string;
   readonly allowInsecureHttp: boolean;
   readonly model: string | null;
+  /** 全局系统提示词：人格与输出规范，拼接在画布背景与节点指令之前。 */
+  readonly systemPrompt: string;
 }
 
 export const AI_CHAT_CONFIG_INITIAL: AiChatConfig = Object.freeze({
@@ -32,6 +35,7 @@ export const AI_CHAT_CONFIG_INITIAL: AiChatConfig = Object.freeze({
   baseUrl: DEFAULT_OLLAMA_BASE_URL,
   allowInsecureHttp: true,
   model: null,
+  systemPrompt: DEFAULT_GLOBAL_SYSTEM_PROMPT,
 });
 
 /** 设置页「AI / AI 设置」的持久化键（只含端点与模型，绝不含 Key）。 */
@@ -84,6 +88,10 @@ export function loadAiChatConfig(storage?: Storage | null): AiChatConfig {
           ? record.allowInsecureHttp
           : AI_CHAT_CONFIG_INITIAL.allowInsecureHttp,
       model: typeof record.model === 'string' && record.model !== '' ? record.model : null,
+      systemPrompt:
+        typeof record.systemPrompt === 'string'
+          ? record.systemPrompt
+          : DEFAULT_GLOBAL_SYSTEM_PROMPT,
     });
   } catch {
     return AI_CHAT_CONFIG_INITIAL;
@@ -102,6 +110,7 @@ export function saveAiChatConfig(config: AiChatConfig, storage?: Storage | null)
         baseUrl: config.baseUrl,
         allowInsecureHttp: config.allowInsecureHttp,
         model: config.model,
+        systemPrompt: config.systemPrompt,
       }),
     );
   } catch {

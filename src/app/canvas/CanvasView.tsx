@@ -46,20 +46,27 @@ import {
   createAddTextNodeCommand,
   createConnectNewNodeCommands,
   createConnectionNodePorts,
+  createDuplicateNodeCommands,
   createRemoveEdgeCommands,
   createRemoveNodeCommands,
+  createReverseEdgeCommands,
+  createSetEdgeLabelCommands,
   createUpdateAiModelCommand,
   createUpdateAiTextCommand,
+  createUpdateCanvasAiContextCommand,
   createUpdateDocPathCommand,
   createUpdateSplitConfigCommand,
   documentTitleFromPath,
   isSafeLibraryDocPath,
+  readCanvasAiContext,
   resolveFinderDocumentPath,
   textLabelFromText,
 } from './canvas-interactions.ts';
 import { useAiChatStore } from '../../features/ai/ai-chat-store.ts';
 import { POINTER_DRAG_DROP_EVENT, readPointerDragDropDetail } from '../dnd/pointer-drag.ts';
 import { hasOutsideNodeLabel, hitTestNodes, nodeOutsideLabelLayout, nodeScreenPosition, nodeSizeOf } from './node-layout.ts';
+import { readEdgeStyle } from './edge-layout.ts';
+import { useCanvasEdgeStyleMenu } from './use-canvas-edge-style.tsx';
 import { pushNotice } from '../stores/notice-store';
 import { openLibraryDocument } from '../doc-open.ts';
 import { createDropTargetRegistry, readPayload } from '../dnd/index.ts';
@@ -78,9 +85,13 @@ import { useEditorModeRequestStore } from '../stores/editor-mode-requests.ts';
 import { useTranslateStore } from '../translate/translate-store.ts';
 import { buildTree } from '../tree/build-tree.ts';
 import { buildMediaMenuTree } from './media-menu-tree.ts';
+import { CanvasAiContextDialog } from './CanvasAiContextDialog.tsx';
+import { CanvasPromptPreviewDialog } from './CanvasPromptPreviewDialog.tsx';
+import { buildAiNodePromptPreview, type AiPromptPreview } from './prompt-preview.ts';
 import {
   CanvasConnectionMenu,
   CanvasContextMenu,
+  CanvasEdgeLabelInput,
   CanvasEditOverlay,
   CanvasModelMenu,
   type CanvasMenu,
@@ -323,6 +334,23 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
 
   /** N4：拉线落空建节点菜单（与右键菜单独立）。 */
   const [connectionMenu, setConnectionMenu] = useState<ConnectionMenuState | null>(null);
+  /** 连线标签内联输入：记录目标边、菜单定位点与初始值。 */
+  const [edgeLabelEdit, setEdgeLabelEdit] = useState<{
+    readonly edgeId: string;
+    readonly x: number;
+    readonly y: number;
+    readonly value: string;
+  } | null>(null);
+  /** 连线样式浮层：状态与命令在独立 hook 内装配。 */
+  const {
+    element: edgeStyleElement,
+    open: openEdgeStyleMenu,
+    close: closeEdgeStyleMenu,
+  } = useCanvasEdgeStyleMenu(sessionRef, readOnly);
+  /** 画布 AI 背景弹窗；null=关闭。 */
+  const [canvasContextEdit, setCanvasContextEdit] = useState<{ readonly value: string } | null>(null);
+  /** System Prompt 预览弹窗；null=关闭。 */
+  const [promptPreview, setPromptPreview] = useState<AiPromptPreview | null>(null);
 
   const resolveDocPath = useEmberStore((state) => state.resolveDocPath);
   const libraryRoot = useEmberStore((state) => state.identity?.root ?? null);
@@ -461,6 +489,8 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
       if (event.kind === 'contextMenu') {
         setEditing(null);
         setRebindNodeId(null);
+        setEdgeLabelEdit(null);
+        closeEdgeStyleMenu();
         // 2026-11-23：右键打开菜单时收掉可能还开着的拉线菜单，避免两层菜单叠加。
         setConnectionMenu(null);
         const hit = event.target;
@@ -473,6 +503,12 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
               (node) => node !== null && typeof node === 'object' &&
                 (node as { readonly id?: unknown }).id === hit.id,
             ) as { readonly type?: unknown } | undefined
+          : undefined;
+        const rawEdge = hit.kind === 'edge'
+          ? engine.getDocument().edges.find(
+              (edge) => edge !== null && typeof edge === 'object' &&
+                (edge as { readonly id?: unknown }).id === hit.id,
+            ) as { readonly label?: unknown; readonly style?: unknown } | undefined
           : undefined;
         const host = hostRef.current;
         const point = clampMenuPoint(
@@ -488,12 +524,18 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
           nodeLabel: hitNode?.label ?? null,
           nodeType: typeof rawNode?.type === 'string' ? rawNode.type : null,
           nodeKind: hitNode?.kind ?? null,
+          edgeLabel:
+            hit.kind === 'edge'
+              ? (typeof rawEdge?.label === 'string' ? rawEdge.label : '')
+              : null,
+          edgeStyle: hit.kind === 'edge' ? readEdgeStyle(rawEdge?.style) : null,
         });
         return;
       }
       if (event.kind === 'connectionDropEmpty') {
         setMenu(null);
         setEditing(null);
+        setEdgeLabelEdit(null);
         const host = hostRef.current;
         const point = clampMenuPoint(
           event.screenPoint,
@@ -507,6 +549,7 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
           y: point.y,
           worldPoint: event.worldPoint,
           from: event.from,
+          reverse: event.reverse,
         });
         return;
       }
@@ -592,7 +635,7 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
         });
       }
     },
-    [setEditing],
+    [setEditing, closeEdgeStyleMenu],
   );
 
   // CR-20261121-53：AI 节点模型选择浮层；打开时按当前 AI 设置拉取模型列表。
@@ -942,6 +985,94 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
           commands.push(...createRemoveEdgeCommands([tgt.target.id]));
           break;
         }
+        case 'duplicateNode': {
+          if (tgt.kind !== 'contextMenu' || tgt.target.kind !== 'node') {
+            closeMenu();
+            return;
+          }
+          const duplicateNodeId = tgt.target.id;
+          const dupNode = engine.getDocument().nodes.find(
+            (n) => n !== null && typeof n === 'object' &&
+              (n as { readonly id?: unknown }).id === duplicateNodeId,
+          ) as { readonly x?: unknown; readonly y?: unknown } | undefined;
+          if (dupNode === undefined || typeof dupNode.x !== 'number' || typeof dupNode.y !== 'number') {
+            closeMenu();
+            return;
+          }
+          commands.push(
+            ...createDuplicateNodeCommands(
+              [{ id: duplicateNodeId, x: dupNode.x + 24, y: dupNode.y + 24 }],
+              engine.getDocument().nodes,
+            ),
+          );
+          break;
+        }
+        case 'previewPrompt': {
+          if (tgt.kind !== 'contextMenu' || tgt.target.kind !== 'node') {
+            closeMenu();
+            return;
+          }
+          const document = engine.getDocument();
+          const config = useAiChatStore.getState().config;
+          const preview = buildAiNodePromptPreview(document, tgt.target.id, {
+            global: config.systemPrompt,
+            canvas: readCanvasAiContext(document),
+          });
+          if (preview === null) {
+            pushNotice('该节点不存在或不是 AI 节点', 'error');
+          } else {
+            setPromptPreview(preview);
+          }
+          closeMenu();
+          return;
+        }
+        case 'editCanvasContext': {
+          if (tgt.kind !== 'contextMenu' || tgt.target.kind !== 'blank') {
+            closeMenu();
+            return;
+          }
+          setCanvasContextEdit({ value: readCanvasAiContext(engine.getDocument()) });
+          closeMenu();
+          return;
+        }
+        case 'editEdgeLabel': {
+          if (tgt.kind !== 'contextMenu' || tgt.target.kind !== 'edge') {
+            closeMenu();
+            return;
+          }
+          setEdgeLabelEdit({
+            edgeId: tgt.target.id,
+            x: currentMenu.x,
+            y: currentMenu.y,
+            value: currentMenu.edgeLabel ?? '',
+          });
+          closeMenu();
+          return;
+        }
+        case 'reverseEdge': {
+          if (tgt.kind !== 'contextMenu' || tgt.target.kind !== 'edge') {
+            closeMenu();
+            return;
+          }
+          const commandsForEdge = createReverseEdgeCommands(
+            engine.getDocument(),
+            tgt.target.id,
+          );
+          if (commandsForEdge === null) {
+            pushNotice('连线不存在，无法反转', 'error');
+          } else if (!engine.executeCommands(commandsForEdge)) {
+            pushNotice('反转连线失败，未应用更改', 'error');
+          }
+          closeMenu();
+          return;
+        }
+        case 'editEdgeStyle': {
+          if (tgt.kind === 'contextMenu' && tgt.target.kind === 'edge') {
+            openEdgeStyleMenu(tgt.target.id, currentMenu.x, currentMenu.y);
+          }
+          closeMenu();
+          return;
+        }
         case 'openDoc': {
           if (
             tgt.kind !== 'contextMenu' ||
@@ -1028,6 +1159,7 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
       cancelStepRun,
       createEmptyArticleAt,
       setEditing,
+      openEdgeStyleMenu,
     ],
   );
 
@@ -1142,6 +1274,7 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
         createConnectNewNodeCommands(
           { ...node, ports: createConnectionNodePorts() },
           current.from,
+          current.reverse,
         ),
       );
       if (!ok) {
@@ -1166,8 +1299,43 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
   const chooseConnectionArticle = useCallback((): void => {
     const current = connectionMenu;
     if (current === null) return;
-    void createEmptyArticleAt({ x: current.x, y: current.y }, current.from, current.worldPoint);
+    void createEmptyArticleAt(
+      { x: current.x, y: current.y },
+      current.from,
+      current.worldPoint,
+      current.reverse,
+    );
   }, [connectionMenu, createEmptyArticleAt]);
+
+  /** 连线标签提交：空串等价清空；与当前值相同则直接关闭。 */
+  const commitEdgeLabel = useCallback(
+    (label: string): void => {
+      const engine = sessionRef.current?.engine;
+      const current = edgeLabelEdit;
+      setEdgeLabelEdit(null);
+      if (engine === undefined || current === null) return;
+      if (label.trim() === current.value.trim()) return;
+      const commands = createSetEdgeLabelCommands(engine.getDocument(), current.edgeId, label);
+      if (commands === null) {
+        pushNotice('连线不存在，标签未保存', 'error');
+        return;
+      }
+      if (!engine.executeCommands(commands)) {
+        pushNotice('连线标签保存失败，未应用更改', 'error');
+      }
+    },
+    [edgeLabelEdit],
+  );
+
+  /** 画布 AI 背景保存：空串等价删除，统一走 updateCanvasMeta 命令与历史。 */
+  const saveCanvasContext = useCallback((value: string): void => {
+    const engine = sessionRef.current?.engine;
+    setCanvasContextEdit(null);
+    if (engine === undefined) return;
+    if (!engine.executeCommands([createUpdateCanvasAiContextCommand(value)])) {
+      pushNotice('画布 AI 背景保存失败，未应用更改', 'error');
+    }
+  }, []);
 
   // CR-20261121-58：右键菜单「离开即闭」——指针离开菜单根起 180ms 定时器，
   // 进入菜单/子面板（pointerenter 冒泡回根）即取消；超时未回才关闭。不驻留、不误伤子菜单。
@@ -1806,6 +1974,35 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
           onClose={closeConnectionMenu}
         />
       ) : null}
+      {/* 画布级 AI 背景 */}
+      {canvasContextEdit !== null ? (
+        <CanvasAiContextDialog
+          value={canvasContextEdit.value}
+          readOnly={readOnly}
+          onSave={saveCanvasContext}
+          onCancel={() => setCanvasContextEdit(null)}
+        />
+      ) : null}
+      {/* AI 节点 System Prompt 预览 */}
+      {promptPreview !== null ? (
+        <CanvasPromptPreviewDialog
+          preview={promptPreview}
+          onClose={() => setPromptPreview(null)}
+        />
+      ) : null}
+      {/* 连线状态/标签内联输入 */}
+      {edgeLabelEdit !== null ? (
+        <CanvasEdgeLabelInput
+          key={edgeLabelEdit.edgeId}
+          left={edgeLabelEdit.x}
+          top={edgeLabelEdit.y}
+          defaultValue={edgeLabelEdit.value}
+          onCommit={commitEdgeLabel}
+          onCancel={() => setEdgeLabelEdit(null)}
+        />
+      ) : null}
+      {/* 连线样式浮层 */}
+      {edgeStyleElement}
       {/* C0-D：文本编辑覆盖层；提示词改为独立可缩放浮窗 */}
       {editing !== null && sessionRef.current !== null ? (
         editing.kind === 'prompt' ? (

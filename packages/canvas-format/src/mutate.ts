@@ -33,6 +33,8 @@ const CHUNK_CHANGE_KEYS = ['chunkChars'] as const;
 interface Draft {
   nodes: unknown[];
   edges: unknown[];
+  /** 顶层非 nodes/edges/schemaVersion 字段，承载 aiContext 等画布级元信息。 */
+  meta: Record<string, unknown>;
 }
 
 type CommandApplication =
@@ -95,6 +97,24 @@ function insertionIndex(command: RawRecord, length: number): number | null {
   if (!hasOwn(command, 'index')) return length;
   const index = command.index;
   return typeof index === 'number' && Number.isInteger(index) && index >= 0 && index <= length ? index : null;
+}
+
+/**
+ * 按原文档键序重建：nodes/edges 用草稿，顶层 meta 从草稿取值并跳过已删除键，
+ * 新写入的 meta 键追加在末尾；保证未触碰命令的 JSON 字节完全不变。
+ */
+function materialize(document: CanvasDocument, draft: Draft): CanvasDocument {
+  const next: Record<string, unknown> = {};
+  for (const key of Object.keys(document)) {
+    if (key === 'nodes') next.nodes = draft.nodes;
+    else if (key === 'edges') next.edges = draft.edges;
+    else if (key === 'schemaVersion') next.schemaVersion = document.schemaVersion;
+    else if (hasOwn(draft.meta, key)) next[key] = draft.meta[key];
+  }
+  for (const [key, value] of Object.entries(draft.meta)) {
+    if (!(key in next)) next[key] = value;
+  }
+  return next as CanvasDocument;
 }
 
 function applyMove(draft: Draft, command: RawRecord, commandIndex: number): CommandApplication {
@@ -434,6 +454,49 @@ function applyUpdateNode(draft: Draft, command: RawRecord, commandIndex: number)
   return success([{ kind: 'restoreNode', entry: node as CanvasNodeInput, index }]);
 }
 
+function applyUpdateCanvasMeta(
+  draft: Draft,
+  command: RawRecord,
+  commandIndex: number,
+): CommandApplication {
+  const changes = command.changes;
+  const changesPath = `/commands/${commandIndex}/changes`;
+  if (!isRecord(changes)) {
+    return failure(commandIndex, 'E_MUTATE_COMMAND', changesPath, 'updateCanvasMeta.changes 必须是对象');
+  }
+  const keys = Object.keys(changes);
+  if (keys.length === 0 || !keys.every((key) => key === 'aiContext')) {
+    return failure(
+      commandIndex,
+      'E_MUTATE_COMMAND',
+      changesPath,
+      'updateCanvasMeta.changes 只支持 aiContext',
+    );
+  }
+  const value = changes.aiContext;
+  if (value !== null && typeof value !== 'string') {
+    return failure(
+      commandIndex,
+      'E_MUTATE_COMMAND',
+      `${changesPath}/aiContext`,
+      'aiContext 只能是 string 或 null',
+    );
+  }
+
+  const previous = draft.meta.aiContext;
+  if (value === null) {
+    delete draft.meta.aiContext;
+  } else {
+    draft.meta.aiContext = value;
+  }
+  return success([
+    {
+      kind: 'updateCanvasMeta',
+      changes: { aiContext: typeof previous === 'string' ? previous : null },
+    },
+  ]);
+}
+
 function applyCommand(draft: Draft, command: unknown, commandIndex: number): CommandApplication {
   if (!isRecord(command)) {
     return failure(commandIndex, 'E_MUTATE_COMMAND', `/commands/${commandIndex}`, '命令必须是对象');
@@ -453,6 +516,8 @@ function applyCommand(draft: Draft, command: unknown, commandIndex: number): Com
       return applyRemoveEdge(draft, command, commandIndex);
     case 'updateNode':
       return applyUpdateNode(draft, command, commandIndex);
+    case 'updateCanvasMeta':
+      return applyUpdateCanvasMeta(draft, command, commandIndex);
     default:
       return failure(commandIndex, 'E_MUTATE_COMMAND', `/commands/${commandIndex}/kind`, '未知画布命令');
   }
@@ -468,7 +533,12 @@ export function mutate(document: CanvasDocument, commands: readonly CanvasComman
     return { ok: false, kind: 'document', issues: initialInspection.issues };
   }
 
-  const draft: Draft = { nodes: [...document.nodes], edges: [...document.edges] };
+  const meta = Object.fromEntries(
+    Object.entries(document).filter(
+      ([key]) => key !== 'nodes' && key !== 'edges' && key !== 'schemaVersion',
+    ),
+  );
+  const draft: Draft = { nodes: [...document.nodes], edges: [...document.edges], meta };
   const inverses: CanvasCommand[][] = [];
   let current = document;
   let inspection = initialInspection;
@@ -477,7 +547,7 @@ export function mutate(document: CanvasDocument, commands: readonly CanvasComman
     const application = applyCommand(draft, command, commandIndex);
     if (!application.ok) return { ok: false, kind: 'command', errors: [application.error] };
 
-    current = { ...document, nodes: draft.nodes, edges: draft.edges };
+    current = materialize(document, draft);
     inspection = inspect(current);
     if (inspection.issues.length > 0) {
       return {

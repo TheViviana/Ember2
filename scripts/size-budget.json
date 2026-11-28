@@ -2,8 +2,8 @@
   "_note": "行数棘轮（ADR 0003 决策二）：budget 与真实行数必须一致；只允许在拆分后下调，增长必须在 PR 中显式上调并说明理由。",
   "files": [
     { "path": "src/features/board/BoardView.tsx", "budget": 2152 },
-    { "path": "src/app/canvas/engine.ts", "budget": 2113 },
-    { "path": "src/app/canvas/CanvasView.tsx", "budget": 1878 },
+    { "path": "src/app/canvas/engine.ts", "budget": 2161 },
+    { "path": "src/app/canvas/CanvasView.tsx", "budget": 2075 },
     { "path": "src/app/canvas/node-layer.ts", "budget": 1482 },
     { "path": "src/features/board/network.ts", "budget": 760 }
   ]

@@ -12,6 +12,7 @@ import type {
   AiChatRequest,
 } from '../../types/ipc.ts';
 import { mapAiErrorCode } from './ai-error-map.ts';
+import { withSystemPrompt } from './system-prompt.ts';
 import { validateBaseUrl } from './ai-endpoint.ts';
 import {
   buildChatRequest,
@@ -114,7 +115,7 @@ export function AiChatView({ effects, configured }: AiChatViewProps) {
     setInput('');
 
     try {
-      await effects.chatStream(built.request, {
+      await effects.chatStream(withSystemPrompt(built.request, config.systemPrompt), {
         onDelta: (event) => dispatch({
           type: 'DELTA',
           requestId: event.requestId,
@@ -161,7 +162,7 @@ export function AiChatView({ effects, configured }: AiChatViewProps) {
     setCancelError(null);
     dispatch({ type: 'RETRY', requestId, assistantId: lastAssistant.id });
     try {
-      await effects.chatStream(built.request, {
+      await effects.chatStream(withSystemPrompt(built.request, config.systemPrompt), {
         onDelta: (event) => dispatch({
           type: 'DELTA',
           requestId: event.requestId,

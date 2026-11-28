@@ -1,8 +1,8 @@
 {
   "src/app/shell/AppShell.tsx": { "target": 1000, "frozenMax": 1200 },
-  "src/app/canvas/CanvasView.tsx": { "target": 1900, "frozenMax": 2450 },
-  "src/app/canvas/engine.ts": { "target": 2113, "frozenMax": 2113 },
-  "src/app/panels/DocumentList.tsx": { "target": 700, "frozenMax": 950 },
+  "src/app/canvas/CanvasView.tsx": { "target": 2075, "frozenMax": 2450 },
+  "src/app/canvas/engine.ts": { "target": 2162, "frozenMax": 2162 },
+  "src/app/panels/DocumentList.tsx": { "target": 707, "frozenMax": 950 },
   "src/app/panels/EditorWindow.tsx": { "target": 480, "frozenMax": 620 },
   "src/editor/EditorView.tsx": { "target": 800, "frozenMax": 960 }
 }
