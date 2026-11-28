@@ -386,6 +386,73 @@ async function checkInteractions(): Promise<Record<string, unknown>> {
   };
 }
 
+const STEP_DOC = JSON.stringify({
+  schemaVersion: 3,
+  lastOrigin: { x: 0, y: 0 },
+  nodes: [
+    { id: 'sp', type: 'split', label: '分块', x: 0, y: 0, mode: 'split', chunkChars: 500 },
+    { id: 'mg', type: 'merge', label: '汇总', x: 0, y: 320 },
+    { id: 'blk', type: 'text', label: '块内容', x: 480, y: 0, chunkIndex: 0, sourceNodeId: 'sp' },
+    { id: 'ai', type: 'ai', label: 'AI', x: 0, y: 560, text: '总结' },
+  ],
+  edges: [],
+});
+
+/** 分块/汇总/AI 卡片：运行圆钮位置与三态、块序号标题、页脚字数。 */
+async function checkStepCards(): Promise<Record<string, unknown>> {
+  const host = makeHost(900, 760);
+  const engine = new CanvasEngine({ host, store: createStore(STEP_DOC), canvasId: 'steps' });
+  await engine.mount();
+  await nextFrame();
+
+  const layer = engine.getWorldElement().children.item(0);
+  const card = (id: string): HTMLElement | null =>
+    layer?.querySelector<HTMLElement>(`[data-node-id="${id}"]`) ?? null;
+  const split = card('sp');
+  const merge = card('mg');
+  const block = card('blk');
+  const ai = card('ai');
+  const runOf = (root: HTMLElement | null): HTMLButtonElement | null =>
+    root?.querySelector<HTMLButtonElement>('button') ?? null;
+  const splitRun = runOf(split);
+  const mergeRun = runOf(merge);
+  const aiRun = runOf(ai);
+  const sizeOf = (el: Element | null): { w: number; h: number } | null => {
+    const rect = el?.getBoundingClientRect();
+    return rect === undefined ? null : { w: round(rect.width), h: round(rect.height) };
+  };
+  const header = split?.children.item(0)?.children.item(0) ?? null;
+  const model = header?.children.item(1) ?? null;
+  const modelRect = model?.getBoundingClientRect() ?? null;
+  const runRect = splitRun?.getBoundingClientRect() ?? null;
+
+  const idle = {
+    splitRunning: splitRun?.dataset.running ?? null,
+    splitLabel: splitRun?.getAttribute('aria-label') ?? null,
+    splitSize: sizeOf(splitRun),
+    splitRadius: splitRun === null ? null : getComputedStyle(splitRun).borderRadius,
+    mergeSize: sizeOf(mergeRun),
+    aiSize: sizeOf(aiRun),
+    runInHeader: splitRun?.parentElement === header,
+    runRightOfModel: modelRect !== null && runRect !== null && runRect.left >= modelRect.right,
+    stopBar: splitRun === null ? null : getComputedStyle(splitRun, '::after').content,
+    blockTitle: block?.children.item(0)?.textContent?.trim() ?? null,
+    blockFooter: block?.children.item(2)?.children.item(0)?.textContent?.trim() ?? null,
+  };
+
+  engine.setAiRunning('sp');
+  await nextFrame();
+  const running = {
+    splitRunning: splitRun?.dataset.running ?? null,
+    splitLabel: splitRun?.getAttribute('aria-label') ?? null,
+    stopBar: splitRun === null ? null : getComputedStyle(splitRun, '::after').content,
+  };
+  engine.setAiRunning(null);
+  await nextFrame();
+
+  return { idle, running, restored: splitRun?.dataset.running ?? null };
+}
+
 function percentile(sorted: readonly number[], ratio: number): number {
   if (sorted.length === 0) return 0;
   const index = Math.min(sorted.length - 1, Math.floor(sorted.length * ratio));
@@ -610,6 +677,7 @@ async function main(): Promise<void> {
   const structure = await checkMount();
   const edgeLayers = await checkEdgeLayers();
   const interactions = await checkInteractions();
+  const stepCards = await checkStepCards();
   const rawRaf = await measureRawRaf();
   const perf = {
     c2_500_0: await measure(500, 0),
@@ -621,6 +689,7 @@ async function main(): Promise<void> {
     structure,
     edgeLayers,
     interactions,
+    stepCards,
     env: snapshotEnv(),
     rawRaf,
     perf,
