@@ -303,6 +303,8 @@ export function useCanvasAiRuns(options: UseCanvasAiRunsOptions): CanvasAiRuns {
             })
           : createMergeRunnerFor(engine, nodeId);
       stepRunnerRef.current = runner;
+      // 分块模式不发流事件，也要在开始时点亮运行态（卡片切停止钮），否则只有 refine 才有指示。
+      setRunningAi({ nodeId, requestId: kind });
       try {
         if (kind === 'split') await runner.start(nodeId, options);
         else await runner.start(nodeId);

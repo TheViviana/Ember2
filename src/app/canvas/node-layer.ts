@@ -961,7 +961,7 @@ export function createNodeLayer(parent: NodeLayerParent, options: NodeLayerOptio
     if (current === undefined || current.kind !== kind || current.isBlock !== isBlock) {
       if (item.textContent !== '') item.textContent = '';
       clearSimple(node.id);
-      const title = createCardTitle(kind, kind === 'prompt' ? '提示词' : '文本');
+      const title = createCardTitle(kind, isBlock ? `块 ${(node.chunkIndex ?? 0) + 1}` : kind === 'prompt' ? '提示词' : '文本');
       const content = createChild('div');
       content.className = simpleClassNames.content;
       content.dataset.simpleKind = kind;
@@ -1073,7 +1073,7 @@ export function createNodeLayer(parent: NodeLayerParent, options: NodeLayerOptio
     if (parts.content.textContent !== node.label) parts.content.textContent = node.label;
     if (parts.isBlock && parts.footerText !== null && parts.footerText !== undefined) {
       const count = node.label.replace(/\s+/g, '').length;
-      const text = `${count} 字 · 块 ${(node.chunkIndex ?? 0) + 1}`;
+      const text = `${count} 字`;
       if (parts.footerText.textContent !== text) parts.footerText.textContent = text;
     } else if (parts.footer != null) {
       const count = node.label.replace(/\s+/g, '').length;

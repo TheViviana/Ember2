@@ -494,7 +494,9 @@ void test('分块子块：编辑/重试按钮随所属分块运行锁定，结�
     createViewportTransform(),
   );
   const item = world.element.children[0]?.children[0];
+  assert.equal(item?.children[0]?.textContent, '块 1', '块序号升到卡片标题，避免只在页脚小字里');
   const footer = item?.children[2];
+  assert.equal(footer?.children[0]?.textContent, '3 字', '页脚只保留字数，序号已在标题');
   const edit = footer?.children[1];
   const retry = footer?.children[2];
   assert.equal(edit?.textContent, '编辑块内容');
@@ -569,6 +571,7 @@ void test('S1：merge 卡片上游段数复用去重后的输入计数', () => {
   layer.setNodes([{ type: 'merge', kind: 'merge', id: 'm1', label: '汇总', x: 0, y: 0 }], createViewportTransform());
 
   assert.match(collectText(world.element), /上游 2 段/, '去重后 2 个 text 上游');
+  assert.match(collectText(world.element), /上游 2 段 · 按连线顺序 1…2/, '段数与序号区间一致');
   assert.doesNotMatch(collectText(world.element), /上游 3 段|上游 4 段/);
 });
 
