@@ -25,8 +25,8 @@ export interface CanvasMenu {
   readonly nodeLabel: string | null;
   /** 原始节点类型：用于区分文本正文编辑与独立标题改名。 */
   readonly nodeType: string | null;
-  /** CR-20261121-53：右键命中节点的种类（ai/prompt），null=其他。 */
-  readonly nodeKind: 'ai' | 'prompt' | null;
+  /** CR-20261121-53：右键命中节点的种类（ai/prompt/split/merge），null=其他。 */
+  readonly nodeKind: 'ai' | 'prompt' | 'split' | 'merge' | null;
 }
 
 /** N4：拉线落空菜单状态；与右键菜单完全独立，不共用 target 类型。 */
@@ -212,6 +212,40 @@ export function CanvasContextMenu({
               type="button"
               role="menuitem"
               className={styles.contextMenuItem}
+              onClick={() => onAction('addSplit')}
+              disabled={disabled}
+            >
+              <span className={styles.menuIcon} aria-hidden="true">
+                <Icon size={12} viewBox="0 0 12 12">
+                  <path d="M2 2.5h8M2 6h3M7 6h3M2 9.5h8" />
+                </Icon>
+              </span>
+              新建分块节点
+              <MenuNote reason={disabledReason} />
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              role="menuitem"
+              className={styles.contextMenuItem}
+              onClick={() => onAction('addMerge')}
+              disabled={disabled}
+            >
+              <span className={styles.menuIcon} aria-hidden="true">
+                <Icon size={12} viewBox="0 0 12 12">
+                  <path d="M2 2.5h3l2 3.5M2 9.5h3l2-3.5M10 6H7" />
+                </Icon>
+              </span>
+              新建汇总节点
+              <MenuNote reason={disabledReason} />
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              role="menuitem"
+              className={styles.contextMenuItem}
               onClick={() => onAction('createArticle')}
               disabled={disabled}
             >
@@ -293,7 +327,7 @@ export function CanvasContextMenu({
             onMenuEnter={onMenuEnter}
             onMenuLeave={onMenuLeave}
           />
-          {menu.nodeKind === 'ai' ? (
+          {menu.nodeKind === 'ai' || menu.nodeKind === 'split' || menu.nodeKind === 'merge' ? (
             <>
               <li>
                 <button
@@ -408,6 +442,8 @@ export interface CanvasConnectionMenuProps {
   readonly menu: ConnectionMenuState;
   readonly onChooseText: () => void;
   readonly onChooseAi: () => void;
+  readonly onChooseSplit: () => void;
+  readonly onChooseMerge: () => void;
   /** 用户 2026-11-23：直接新建空文章（库根）并连边。 */
   readonly onChooseArticle: () => void;
   readonly docTree: readonly TreeNode[];
@@ -423,6 +459,8 @@ export function CanvasConnectionMenu({
   menu,
   onChooseText,
   onChooseAi,
+  onChooseSplit,
+  onChooseMerge,
   onChooseArticle,
   docTree,
   onPickDoc,
@@ -482,6 +520,30 @@ export function CanvasConnectionMenu({
           disabled={readOnly}
         >
           新建 AI 节点
+          <MenuNote reason={disabledReason} />
+        </button>
+      </li>
+      <li>
+        <button
+          type="button"
+          role="menuitem"
+          className={styles.contextMenuItem}
+          onClick={onChooseSplit}
+          disabled={readOnly}
+        >
+          新建分块节点
+          <MenuNote reason={disabledReason} />
+        </button>
+      </li>
+      <li>
+        <button
+          type="button"
+          role="menuitem"
+          className={styles.contextMenuItem}
+          onClick={onChooseMerge}
+          disabled={readOnly}
+        >
+          新建汇总节点
           <MenuNote reason={disabledReason} />
         </button>
       </li>

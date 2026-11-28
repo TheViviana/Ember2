@@ -13,7 +13,7 @@ import type { CanvasMoveCommand } from '../../../src/app/canvas/interaction.ts';
 type MutateSuccess = Extract<CanvasMutateResult, { readonly ok: true }>;
 
 function document(nodes: readonly unknown[] = [], edges: readonly unknown[] = []): CanvasDocument {
-  return { schemaVersion: 2, nodes, edges, customRoot: { kept: true } };
+  return { schemaVersion: 3, nodes, edges, customRoot: { kept: true } };
 }
 
 function text(id: string, extra: Readonly<Record<string, unknown>> = {}): Readonly<Record<string, unknown>> {
@@ -300,4 +300,36 @@ void test('CR-20261121-53：updateNode 接受 text/model，null 删除字段，�
   const badChanges = { color: 'red' } as unknown as { label: string };
   const rejected = mutate(original, [{ kind: 'updateNode', id: 'p', changes: badChanges }]);
   assert.equal(rejected.ok, false, '夹带未知键仍被拒');
+});
+
+void test('v3：updateNode 接受 mode/chunkChars，null 删除字段，非法值被拒', () => {
+  const original = document([text('s', { type: 'split' })]);
+  const result = succeed(
+    mutate(original, [
+      { kind: 'updateNode', id: 's', changes: { mode: 'refine', chunkChars: 8000 } },
+    ]),
+  );
+  const nodes = result.document.nodes as readonly Readonly<Record<string, unknown>>[];
+  assert.equal(nodes[0]?.mode, 'refine');
+  assert.equal(nodes[0]?.chunkChars, 8000);
+
+  const cleared = succeed(
+    mutate(result.document, [
+      { kind: 'updateNode', id: 's', changes: { mode: null, chunkChars: null } },
+    ]),
+  );
+  const clearedNodes = cleared.document.nodes as readonly Readonly<Record<string, unknown>>[];
+  assert.equal('mode' in (clearedNodes[0] ?? {}), false, 'null 删除 mode 字段');
+  assert.equal('chunkChars' in (clearedNodes[0] ?? {}), false, 'null 删除 chunkChars 字段');
+
+  assert.equal(
+    mutate(original, [{ kind: 'updateNode', id: 's', changes: { chunkChars: -1 } }]).ok,
+    false,
+    'chunkChars 非正数被拒',
+  );
+  assert.equal(
+    mutate(original, [{ kind: 'updateNode', id: 's', changes: { mode: 'bad' as never } }]).ok,
+    false,
+    'mode 非法值被拒',
+  );
 });

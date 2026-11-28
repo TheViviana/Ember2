@@ -342,7 +342,7 @@ void test('单播放策略：一个控件开始播放时暂停其它媒体控件
 
 void test('engine 注入媒体类名，且 CSS 规则显式放开 pointer-events', () => {
   const engine = readFileSync(
-    new URL('../../../src/app/canvas/engine.ts', import.meta.url),
+    new URL('../../../src/app/canvas/node-class-names.ts', import.meta.url),
     'utf8',
   );
   const css = readFileSync(

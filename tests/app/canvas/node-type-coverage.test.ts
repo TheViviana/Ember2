@@ -172,6 +172,50 @@ const COVERAGE: Readonly<Record<CanvasNodeType, Readonly<Record<Touchpoint, Land
       note: '提示词专属菜单项（编辑提示词）',
     },
   },
+  split: {
+    schema: {
+      files: ['packages/canvas-format/src/types.ts', 'packages/canvas-format/src/document.ts'],
+      note: 'CanvasSplitNode：mode/chunkChars/text/model，仅 split 允许 mode/chunkChars',
+    },
+    projection: {
+      files: ['src/app/canvas/node-layout.ts'],
+      note: 'extractNodeViews 写入 kind=split 与 splitMode/chunkChars/promptText/aiModel；固定尺寸 SPLIT_NODE_WIDTH/HEIGHT',
+    },
+    factory: {
+      files: ['src/app/canvas/canvas-interactions.ts'],
+      note: 'createAddSplitNodeCommand；拉线落空菜单可新建并连边',
+    },
+    render: {
+      files: ['src/app/canvas/node-layer.ts'],
+      note: '分块卡片：模式/块大小 chip + 运行钮 + 运行/完成态',
+    },
+    menu: {
+      files: ['src/app/canvas/CanvasMenus.tsx'],
+      note: '右键/拉线菜单「分块节点」；节点菜单含选择模型与执行',
+    },
+  },
+  merge: {
+    schema: {
+      files: ['packages/canvas-format/src/types.ts', 'packages/canvas-format/src/document.ts'],
+      note: 'CanvasMergeNode：text/model，不接受 mode/chunkChars',
+    },
+    projection: {
+      files: ['src/app/canvas/node-layout.ts'],
+      note: 'extractNodeViews 写入 kind=merge 与 promptText/aiModel；固定尺寸 MERGE_NODE_WIDTH/HEIGHT',
+    },
+    factory: {
+      files: ['src/app/canvas/canvas-interactions.ts'],
+      note: 'createAddMergeNodeCommand；拉线落空菜单可新建并连边',
+    },
+    render: {
+      files: ['src/app/canvas/node-layer.ts'],
+      note: '汇总卡片：说明 + 运行钮 + 运行/完成态',
+    },
+    menu: {
+      files: ['src/app/canvas/CanvasMenus.tsx'],
+      note: '右键/拉线菜单「汇总节点」；节点菜单含选择模型与执行',
+    },
+  },
 };
 
 void test('每个画布节点类型都声明了五个触点', () => {

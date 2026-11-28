@@ -35,7 +35,7 @@ function succeed(result: CanvasMutateResult): MutateSuccess {
 
 function document(nodes: readonly unknown[], edges: readonly unknown[]): CanvasDocument {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     nodes,
     edges,
     lastOrigin: { x: 17, y: -29 },
@@ -188,5 +188,5 @@ void test('updateNode 仅清除非末位 w：restoreNode 恢复键序且 redo �
 void test('公共入口不暴露 v1 upgrade 或 side 模型 API', () => {
   assert.equal('upgrade' in canvasFormat, false);
   assert.equal('side' in canvasFormat, false);
-  assert.equal(canvasFormat.CANVAS_SCHEMA_VERSION, 2);
+  assert.equal(canvasFormat.CANVAS_SCHEMA_VERSION, 3);
 });

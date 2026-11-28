@@ -4,6 +4,8 @@ import {
   canQueryModels,
   derivePresetId,
   inferAllowInsecureHttp,
+  isKeyOptional,
+  isLocalProvider,
   requiresApiKey,
   validateBaseUrl,
   AI_PROVIDER_PRESETS,
@@ -69,20 +71,24 @@ void test('validateBaseUrl：格式无效 → 错误', () => {
 // ─── AI_PROVIDER_PRESETS ─────────────────────────────────────────────
 
 void test('预设表：常见生产商全部暴露，provider 值与 AiProvider 对齐', () => {
-  // 8 个已知生产商；`custom` 不在表中，由 derivePresetId 回退。
-  assert.equal(AI_PROVIDER_PRESETS.length, 8);
+  // 9 个已知生产商；`custom` 不在表中，由 derivePresetId 回退。
+  assert.equal(AI_PROVIDER_PRESETS.length, 9);
 
-  // Provider 值只能是 2 个 AiProvider 有效值
-  const validProviders: readonly string[] = ['ollama', 'openai-compatible'];
+  // Provider 值只能是 3 个 AiProvider 有效值
+  const validProviders: readonly string[] = ['ollama', 'openai-compatible', 'openai-compatible-local'];
   for (const preset of AI_PROVIDER_PRESETS) {
     assert.ok(validProviders.includes(preset.provider), `${preset.label} provider 非法: ${preset.provider}`);
   }
-  // 除 Ollama 外均为 openai-compatible，且除 Ollama 外都需 Key。
   for (const preset of AI_PROVIDER_PRESETS) {
     if (preset.id === 'ollama') {
       assert.equal(preset.provider, 'ollama');
       assert.equal(preset.showKeyField, false);
       assert.equal(preset.hideSaveDelete, true);
+    } else if (preset.id === 'openai-compatible-local') {
+      assert.equal(preset.provider, 'openai-compatible-local');
+      assert.equal(preset.showKeyField, true, '本地端点 Key 可选，但仍展示 Key 输入框');
+      assert.equal(preset.hideSaveDelete, false);
+      assert.equal(preset.defaultBaseUrl, 'http://127.0.0.1:8000/v1');
     } else {
       assert.equal(preset.provider, 'openai-compatible');
       assert.equal(preset.showKeyField, true);
@@ -90,7 +96,7 @@ void test('预设表：常见生产商全部暴露，provider 值与 AiProvider 
     }
   }
   // id 唯一
-  assert.equal(new Set(AI_PROVIDER_PRESETS.map((p) => p.id)).size, 8);
+  assert.equal(new Set(AI_PROVIDER_PRESETS.map((p) => p.id)).size, 9);
 
   // DeepSeek 预设的 BASE URL 已预填
   const deepseek = AI_PROVIDER_PRESETS.find((p) => p.id === 'deepseek');
@@ -115,14 +121,26 @@ void test('derivePresetId：不匹配 → custom；provider 不同即使 URL 相
 
 // ─── Key 语义（Ollama 无 Key） ───────────────────────────────────────
 
-void test('requiresApiKey：仅 openai-compatible 需要 Key', () => {
+void test('requiresApiKey：仅公网 openai-compatible 强制需要 Key', () => {
   assert.equal(requiresApiKey('ollama'), false);
   assert.equal(requiresApiKey('openai-compatible'), true);
+  assert.equal(requiresApiKey('openai-compatible-local'), false);
 });
 
-void test('canQueryModels：Ollama 未配置也可查，openai-compatible 需 configured', () => {
+void test('isKeyOptional / isLocalProvider：本地 OpenAI 兼容端点 Key 可选', () => {
+  assert.equal(isKeyOptional('openai-compatible-local'), true);
+  assert.equal(isKeyOptional('ollama'), false);
+  assert.equal(isKeyOptional('openai-compatible'), false);
+  assert.equal(isLocalProvider('ollama'), true);
+  assert.equal(isLocalProvider('openai-compatible-local'), true);
+  assert.equal(isLocalProvider('openai-compatible'), false);
+});
+
+void test('canQueryModels：本地端点未配置也可查，公网 openai-compatible 需 configured', () => {
   assert.equal(canQueryModels('ollama', false), true);
   assert.equal(canQueryModels('ollama', true), true);
+  assert.equal(canQueryModels('openai-compatible-local', false), true);
+  assert.equal(canQueryModels('openai-compatible-local', true), true);
   assert.equal(canQueryModels('openai-compatible', false), false);
   assert.equal(canQueryModels('openai-compatible', true), true);
 });

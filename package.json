@@ -22,7 +22,7 @@
     "tauri": "tauri",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit && tsc -p tests/tsconfig.json --noEmit",
     "lint": "eslint . --max-warnings=0",
-    "test": "node --test \"tests/**/*.test.ts\"",
+    "test": "node --import ./tests/helpers/css-hooks.mjs --test \"tests/**/*.test.ts\"",
     "gate": "node scripts/gates/all.mjs",
     "audit:tokens": "node scripts/audit-tokens.mjs",
     "audit:deps": "pnpm audit --audit-level=high --registry=https://registry.npmjs.org/",

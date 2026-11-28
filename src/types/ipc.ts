@@ -41,6 +41,7 @@ export const IPC_ERROR_CODES = Object.freeze([
   'E_AI_CONNECT_TIMEOUT',
   'E_AI_NETWORK',
   'E_AI_MODEL_UNAVAILABLE',
+  'E_AI_BAD_REQUEST',
   'E_AI_UNSUPPORTED_PROVIDER',
   'E_AI_INVALID_RESPONSE',
   'E_AI_RESPONSE_TOO_LARGE',
@@ -504,8 +505,8 @@ export interface LibraryCurrentRequest {
 
 // ------------------------------------------------------------------ §III ai
 
-/** 契约 §III：只接受这两个 provider。 */
-export type AiProvider = 'ollama' | 'openai-compatible';
+/** 契约 §III：只接受这三个 provider（本地 OpenAI 兼容端点 Key 可选）。 */
+export type AiProvider = 'ollama' | 'openai-compatible' | 'openai-compatible-local';
 
 /** AI 配置不落盘，每次调用随请求传入。 */
 export interface AiEndpointRequest {

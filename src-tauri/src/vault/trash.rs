@@ -644,9 +644,9 @@ fn system_trash(_path: &Path) -> Result<(), String> {
     Err("当前平台未实现系统回收站".to_string())
 }
 
-/// 回收站没有独立日志后端：写 stderr，由宿主日志采集读取。
+/// 回收站清扫报告：走结构化日志落盘到 ember.log（打包后 stderr 不可见）。
 pub(crate) fn warn(detail: &str) {
-    eprintln!("[vault/trash] {detail}");
+    tracing::warn!(target: "vault::trash", "{}", detail);
 }
 
 #[cfg(test)]

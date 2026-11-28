@@ -21,7 +21,7 @@ function expectFormatError(code: 'E_FORMAT' | 'E_UNSUPPORTED_VERSION', text: str
   );
 }
 
-void test('空文档：schemaVersion 2、nodes/edges 均为空数组', () => {
+void test('空文档：schemaVersion 3、nodes/edges 均为空数组', () => {
   const document = createEmptyCanvasDocument();
 
   assert.equal(document.schemaVersion, CANVAS_SCHEMA_VERSION);
@@ -33,7 +33,7 @@ void test('空文档：schemaVersion 2、nodes/edges 均为空数组', () => {
 void test('序列化：2 空格缩进 + 末尾换行', () => {
   const text = serializeCanvasDocument(createEmptyCanvasDocument());
 
-  assert.equal(text, '{\n  "schemaVersion": 2,\n  "nodes": [],\n  "edges": []\n}\n');
+  assert.equal(text, '{\n  "schemaVersion": 3,\n  "nodes": [],\n  "edges": []\n}\n');
 });
 
 void test('往返：解析后序列化字节稳定', () => {
@@ -74,10 +74,19 @@ void test('顶层非对象：E_FORMAT', () => {
   expectFormatError('E_FORMAT', '42');
 });
 
-void test('非 v2 版本：E_UNSUPPORTED_VERSION', () => {
+void test('非 v3 版本（且非 v2）：E_UNSUPPORTED_VERSION', () => {
   expectFormatError('E_UNSUPPORTED_VERSION', '{"schemaVersion":1,"nodes":[],"edges":[]}');
-  expectFormatError('E_UNSUPPORTED_VERSION', '{"schemaVersion":3,"nodes":[],"edges":[]}');
+  expectFormatError('E_UNSUPPORTED_VERSION', '{"schemaVersion":4,"nodes":[],"edges":[]}');
   expectFormatError('E_UNSUPPORTED_VERSION', '{"nodes":[],"edges":[]}');
+});
+
+void test('v2 画布读入后内存归一为 v3，字段原样保留', () => {
+  const parsed = parseCanvasDocument(
+    '{"schemaVersion":2,"nodes":[{"id":"a","x":1,"y":2}],"edges":[]}',
+  );
+
+  assert.equal(parsed.schemaVersion, CANVAS_SCHEMA_VERSION);
+  assert.deepEqual(parsed.nodes, [{ id: 'a', x: 1, y: 2 }]);
 });
 
 void test('v1 文件只报错，不静默升级或改写', () => {

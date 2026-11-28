@@ -8,7 +8,7 @@ function succeed(result: CanvasMutateResult) {
 }
 
 const original: CanvasDocument = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   nodes: [
     {
       id: 'a',

@@ -12,6 +12,9 @@ pub enum Provider {
     Ollama,
     /// OpenAI 兼容端点：只允许公网地址，需要 API Key。
     OpenAiCompatible,
+    /// 本地 OpenAI 兼容运行时（LM Studio / vLLM / oMLX 等）：允许回环与
+    /// 私网，Key 可选（有则随请求携带，无则匿名访问）。
+    OpenAiCompatibleLocal,
 }
 
 impl Provider {
@@ -20,19 +23,26 @@ impl Provider {
         match self {
             Self::Ollama => "ollama",
             Self::OpenAiCompatible => "openai-compatible",
+            Self::OpenAiCompatibleLocal => "openai-compatible-local",
         }
     }
 
     /// 端点解析后的网段策略。
     pub fn policy(self) -> Policy {
         match self {
-            Self::Ollama => Policy::Local,
+            Self::Ollama | Self::OpenAiCompatibleLocal => Policy::Local,
             Self::OpenAiCompatible => Policy::Public,
         }
     }
 
     pub fn requires_key(self) -> bool {
         matches!(self, Self::OpenAiCompatible)
+    }
+
+    /// 本地 OpenAI 兼容端点：Key 可选。有 Key 就发 Authorization，
+    /// 没有也允许访问（oMLX / LM Studio / 部分 vLLM 默认不校验 Key）。
+    pub fn key_optional(self) -> bool {
+        matches!(self, Self::OpenAiCompatibleLocal)
     }
 }
 

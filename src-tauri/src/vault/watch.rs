@@ -529,7 +529,7 @@ fn legacy_ignore_dirs(root: &Path) -> Vec<String> {
 }
 
 pub(crate) fn warn(detail: &str) {
-    eprintln!("[vault/watch] {detail}");
+    tracing::warn!(target: "vault::watch", "{}", detail);
 }
 
 #[cfg(test)]

@@ -7,6 +7,7 @@ import type {
   CanvasMoveEntry,
   CanvasMutateResult,
   CanvasNodeInput,
+  CanvasSplitMode,
 } from './types.ts';
 
 type RawRecord = Readonly<Record<string, unknown>>;
@@ -19,9 +20,15 @@ type MutableChanges = {
   text?: string | null;
   /** CR-20261121-53：ai 节点选用模型；null=未选择。 */
   model?: string | null;
+  /** split 节点的分块方式；null=缺省 split。 */
+  mode?: CanvasSplitMode | null;
+  /** split 节点的目标块大小；null=按预算。 */
+  chunkChars?: number | null;
 };
 const TEXT_CHANGE_KEYS = ['label', 'docPath', 'text', 'model'] as const;
 const SIZE_CHANGE_KEYS = ['w', 'h'] as const;
+const MODE_CHANGE_KEYS = ['mode'] as const;
+const CHUNK_CHANGE_KEYS = ['chunkChars'] as const;
 
 interface Draft {
   nodes: unknown[];
@@ -303,13 +310,20 @@ function applyUpdateNode(draft: Draft, command: RawRecord, commandIndex: number)
   }
   const keys = Object.keys(changes);
   const isAllowedKey = (key: string): boolean =>
-    key === 'label' || key === 'docPath' || key === 'w' || key === 'h' || key === 'text' || key === 'model';
+    key === 'label' ||
+    key === 'docPath' ||
+    key === 'w' ||
+    key === 'h' ||
+    key === 'text' ||
+    key === 'model' ||
+    key === 'mode' ||
+    key === 'chunkChars';
   if (keys.length === 0 || !keys.every(isAllowedKey)) {
     return failure(
       commandIndex,
       'E_MUTATE_COMMAND',
       changesPath,
-      'updateNode.changes 至少含一个 label/docPath/w/h/text/model，且不得夹带其他键',
+      'updateNode.changes 至少含一个 label/docPath/w/h/text/model/mode/chunkChars，且不得夹带其他键',
     );
   }
 
@@ -344,6 +358,31 @@ function applyUpdateNode(draft: Draft, command: RawRecord, commandIndex: number)
     }
     updates[key] = value;
   }
+  for (const key of MODE_CHANGE_KEYS) {
+    if (!hasOwn(changes, key)) continue;
+    const value = changes[key];
+    if (value !== null && value !== 'split' && value !== 'refine') {
+      return failure(commandIndex, 'E_MUTATE_COMMAND', `${changesPath}/${key}`, "mode 只能是 'split'、'refine' 或 null");
+    }
+    updates.mode = value;
+  }
+  for (const key of CHUNK_CHANGE_KEYS) {
+    if (!hasOwn(changes, key)) continue;
+    const value = changes[key];
+    if (value === null) {
+      updates.chunkChars = null;
+      continue;
+    }
+    if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+      return failure(
+        commandIndex,
+        'E_MUTATE_COMMAND',
+        `${changesPath}/${key}`,
+        'chunkChars 只能是正的有限数或 null',
+      );
+    }
+    updates.chunkChars = value;
+  }
 
   const index = findNodeIndex(draft.nodes, id);
   if (index < 0) {
@@ -365,6 +404,24 @@ function applyUpdateNode(draft: Draft, command: RawRecord, commandIndex: number)
     }
   }
   for (const key of SIZE_CHANGE_KEYS) {
+    if (!hasOwn(changes, key)) continue;
+    const value = updates[key];
+    if (value === null) {
+      delete next[key];
+    } else if (typeof value === 'number') {
+      next[key] = value;
+    }
+  }
+  for (const key of MODE_CHANGE_KEYS) {
+    if (!hasOwn(changes, key)) continue;
+    const value = updates[key];
+    if (value === null) {
+      delete next[key];
+    } else if (typeof value === 'string') {
+      next[key] = value;
+    }
+  }
+  for (const key of CHUNK_CHANGE_KEYS) {
     if (!hasOwn(changes, key)) continue;
     const value = updates[key];
     if (value === null) {

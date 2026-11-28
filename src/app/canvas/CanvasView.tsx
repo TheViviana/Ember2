@@ -41,6 +41,8 @@ import {
   createAddAiNodeCommand,
   createAddDocumentNodeCommand,
   createAddMediaNodeCommand,
+  createAddMergeNodeCommand,
+  createAddSplitNodeCommand,
   createAddTextNodeCommand,
   createConnectNewNodeCommands,
   createConnectionNodePorts,
@@ -49,7 +51,7 @@ import {
   createUpdateAiModelCommand,
   createUpdateAiTextCommand,
   createUpdateDocPathCommand,
-  createUpdateLabelCommand,
+  createUpdateSplitConfigCommand,
   documentTitleFromPath,
   isSafeLibraryDocPath,
   resolveFinderDocumentPath,
@@ -87,7 +89,8 @@ import {
   type CanvasOverlayRect,
   type ConnectionMenuState,
 } from './CanvasMenus.tsx';
-import { createAiNodeRunner, type AiNodeRunner } from './ai-node-run.ts';
+import { useCanvasAiRuns } from './use-canvas-ai-runs.ts';
+import { startSplitPreviewProjection } from './split-preview-projection.ts';
 import { findPromptAiNode } from './ai-node-execution.ts';
 import type { MediaEntry } from '../../features/media/media-groups.ts';
 import { docViewerFor } from '../../features/media/doc-viewer.ts';
@@ -99,6 +102,7 @@ import { useCreateEmptyArticle } from './use-create-empty-article.ts';
 import { useConnectionNodeChoice } from './use-connection-node-choice.ts';
 import { useCanvasEditing } from './use-canvas-editing.ts';
 import { PromptEditorWindow } from './PromptEditorWindow.tsx';
+import { SplitRerunConfirmDialog } from './SplitRerunConfirmDialog.tsx';
 import styles from './CanvasView.module.css';
 import { formatUnknownError } from '../../core/errors.ts';
 
@@ -573,7 +577,7 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
           });
           return;
         }
-        if (node.type === 'ai') {
+        if (node.type === 'ai' || node.type === 'split' || node.type === 'merge') {
           setModelPicker({ nodeId: node.id, nodeX: node.x, nodeY: node.y });
           return;
         }
@@ -617,10 +621,6 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
   }, [modelPicker]);
 
   // CR-20261122-62：AI 节点执行（有向文档素材/输出 → chatStream → 文本或空文档写回）。
-  const [runningAi, setRunningAi] = useState<
-    { readonly nodeId: string; readonly requestId: string } | null
-  >(null);
-  const aiRunnerRef = useRef<AiNodeRunner | null>(null);
   const aiFlashTimerRef = useRef<{
     readonly engine: CanvasEngine;
     readonly timer: ReturnType<typeof setTimeout>;
@@ -644,6 +644,28 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
     },
     [clearAiFlash],
   );
+  const {
+    runningAi,
+    stepProgress,
+    splitConfirm,
+    retryConfirm,
+    runAiNode,
+    cancelAiRun,
+    runStepNode,
+    cancelStepRun,
+    confirmSplitRerun,
+    cancelSplitRerun,
+    confirmRetryBlock,
+    cancelRetryBlock,
+    retryStepBlockRef,
+    runAiNodeRef,
+    runStepNodeRef,
+  } = useCanvasAiRuns({
+    getEngine: () => sessionRef.current?.engine ?? null,
+    readOnly,
+    clearAiFlash,
+    flashAiResult,
+  });
   useEffect(() => {
     const engine = sessionRef.current?.engine;
     engine?.setAiRunning(runningAi?.nodeId ?? null);
@@ -651,85 +673,10 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
       engine?.setAiRunning(null);
     };
   }, [runningAi]);
+  useEffect(() => {
+    sessionRef.current?.engine.setStepProgress(stepProgress);
+  }, [stepProgress]);
   useEffect(() => clearAiFlash, [clearAiFlash]);
-
-  const runAiNodeRef = useRef<(aiNodeId: string) => Promise<void> | void>(() => undefined);
-  const runAiNode = useCallback(
-    async (aiNodeId: string): Promise<void> => {
-      const session = sessionRef.current;
-      if (session === null) return;
-      if (readOnly) {
-        pushNotice('画布只读，无法执行 AI 节点', 'warning');
-        return;
-      }
-      if (aiRunnerRef.current !== null) {
-        pushNotice('已有 AI 节点在执行，请先取消', 'warning');
-        return;
-      }
-      const engine = session.engine;
-      clearAiFlash();
-      const runner = createAiNodeRunner({
-        getDocument: () => engine.getDocument(),
-        liveText: (path) => useEmberStore.getState().docs.get(path)?.text ?? null,
-        readSnapshot: (path) => docApi.read(path),
-        aiConfig: useAiChatStore.getState().config,
-        stream: (request, handlers) => {
-          setRunningAi({ nodeId: aiNodeId, requestId: request.requestId });
-          return aiApi.chatStream(request, {
-            onDelta: (event) => handlers.onDelta(event.text),
-            onDone: () => handlers.onDone(),
-            onError: (_error, event) => handlers.onError(event.code, event.message),
-          });
-        },
-        cancel: (requestId) => {
-          void aiApi.cancel(requestId).catch(() => undefined);
-        },
-        notice: (message, tone) => pushNotice(message, tone),
-        execute: async (output) => {
-          if (output.kind === 'label') {
-            return engine.executeCommands([createUpdateLabelCommand(output.nodeId, output.text)])
-              ? { ok: true }
-              : { ok: false, reason: 'command' };
-          }
-          try {
-            const result = await useEmberStore
-              .getState()
-              .writeDocText(output.docPath, output.text, output.expectedSha);
-            if (!result.ok) {
-              return result.reason === 'dirty'
-                ? { ok: false, reason: 'dirty' }
-                : { ok: false, reason: 'failed', error: result.error };
-            }
-            engine.invalidateDocPreview(output.docPath);
-            engine.refreshViews();
-            return { ok: true };
-          } catch (error: unknown) {
-            return { ok: false, reason: 'failed', error };
-          }
-        },
-        flash: (nodeId, kind) => flashAiResult(engine, nodeId, kind),
-      });
-      aiRunnerRef.current = runner;
-      try {
-        await runner.start(aiNodeId);
-      } finally {
-        if (aiRunnerRef.current === runner) {
-          aiRunnerRef.current = null;
-          setRunningAi(null);
-        }
-      }
-    },
-    [clearAiFlash, flashAiResult, readOnly],
-  );
-  runAiNodeRef.current = runAiNode;
-
-  const cancelAiRun = useCallback((): void => {
-    const runner = aiRunnerRef.current;
-    if (runner === null) return;
-    aiRunnerRef.current = null;
-    setRunningAi(null);
-    runner.cancel();
-  }, []);
 
   const closeMenu = useCallback((): void => {
     setMenu(null);
@@ -833,6 +780,14 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
         }
         case 'addAi': {
           if (worldPt !== null) commands.push(createAddAiNodeCommand(worldPt.x, worldPt.y));
+          break;
+        }
+        case 'addSplit': {
+          if (worldPt !== null) commands.push(createAddSplitNodeCommand(worldPt.x, worldPt.y));
+          break;
+        }
+        case 'addMerge': {
+          if (worldPt !== null) commands.push(createAddMergeNodeCommand(worldPt.x, worldPt.y));
           break;
         }
         case 'createArticle': {
@@ -943,12 +898,21 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
             return;
           }
           const aiNodeId = tgt.target.id;
+          const runNode = engine.getDocument().nodes.find(
+            (n) =>
+              n !== null &&
+              typeof n === 'object' &&
+              (n as { readonly id?: unknown }).id === aiNodeId,
+          ) as { readonly type?: unknown } | undefined;
           closeMenu();
-          void runAiNode(aiNodeId);
+          if (runNode?.type === 'split') void runStepNode('split', aiNodeId);
+          else if (runNode?.type === 'merge') void runStepNode('merge', aiNodeId);
+          else void runAiNode(aiNodeId);
           return;
         }
         case 'cancelAi': {
           cancelAiRun();
+          cancelStepRun();
           closeMenu();
           return;
         }
@@ -1059,7 +1023,9 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
       translateNodeDoc,
       onOpenReadMode,
       runAiNode,
+      runStepNode,
       cancelAiRun,
+      cancelStepRun,
       createEmptyArticleAt,
       setEditing,
     ],
@@ -1191,6 +1157,8 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
   const {
     chooseText: chooseConnectionText,
     chooseAi: chooseConnectionAi,
+    chooseSplit: chooseConnectionSplit,
+    chooseMerge: chooseConnectionMerge,
     chooseDoc: chooseConnectionDoc,
   } = useConnectionNodeChoice(connectionMenu, commitConnectionNode);
 
@@ -1285,6 +1253,10 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
         return;
       }
 
+      const docSource = {
+        readLiveText: (path: string) => useEmberStore.getState().docs.get(path)?.text ?? null,
+        readSnapshot: (path: string) => useEmberStore.getState().readDocSnapshot(path),
+      };
       const engine = new CanvasEngine({
         host,
         store,
@@ -1292,10 +1264,7 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
         registry,
         initialOpen: opened,
         // CR-20261119-05：已打开编辑器的 live text 优先，否则 vault_read 只读快照。
-        docSource: {
-          readLiveText: (path) => useEmberStore.getState().docs.get(path)?.text ?? null,
-          readSnapshot: (path) => useEmberStore.getState().readDocSnapshot(path),
-        },
+        docSource,
         // CR-20261121-56：卡片出链/反链（wiki 语义；索引未就绪返回 null，整行隐藏）。
         // CR-20261121-59：提示词右下角「开始」钮 → 找所连 AI 节点执行（未连接给出指引）。
         // 经 ref 调用（runAiNode 声明在本回调之后，避免 TDZ）。
@@ -1330,6 +1299,19 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
           return ok;
         },
         onRunAi: (id) => { void runAiNodeRef.current(id); },
+        onRunSplit: (id) => { void runStepNodeRef.current('split', id); }, onRunMerge: (id) => { void runStepNodeRef.current('merge', id); },
+        onCancelRun: (kind) => { if (kind === 'ai') cancelAiRun(); else cancelStepRun(); },
+        onRetryBlock: (id) => { void retryStepBlockRef.current(id); },
+        onUpdateSplitConfig: (id, patch) => {
+          const sessionNow = sessionRef.current;
+          if (sessionNow === null || sessionNow.engine.isReadOnly()) {
+            pushNotice('画布只读，无法修改分块设置', 'warning');
+            return;
+          }
+          if (!sessionNow.engine.executeCommands([createUpdateSplitConfigCommand(id, patch)])) {
+            pushNotice('分块设置保存失败，请查看画布通知', 'error');
+          }
+        },
         onOpenReadMode,
       });
       const session: MountedSession = {
@@ -1347,10 +1329,12 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
       });
       // 内容驱动背景：恰好选中一个图片节点时，用其媒体图做 L2；其余情况回落到 L1。
       const stopAmbientWatch = watchAmbientSource(engine, setAmbientSource);
+      const stopSplitPreviews = startSplitPreviewProjection(engine, docSource);
       session.unsubscribe = () => {
         offNotices();
         offEvents();
         stopAmbientWatch();
+        stopSplitPreviews();
       };
       sessionRef.current = session;
       setReadOnly(classification.readOnly);
@@ -1378,7 +1362,7 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
       setReadOnly(engine.isReadOnly());
       setCanvasStatus(engine.getCanvasStatus());
     },
-    [store, registry, handleEngineEvent, onOpenReadMode, setEditing],
+    [store, registry, handleEngineEvent, onOpenReadMode, setEditing, runAiNodeRef, runStepNodeRef, retryStepBlockRef, cancelAiRun, cancelStepRun],
   );
 
   useEffect(() => {
@@ -1811,6 +1795,8 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
           menu={connectionMenu}
           onChooseText={chooseConnectionText}
           onChooseAi={chooseConnectionAi}
+          onChooseSplit={chooseConnectionSplit}
+          onChooseMerge={chooseConnectionMerge}
           onChooseArticle={chooseConnectionArticle}
           docTree={docTree}
           onPickDoc={chooseConnectionDoc}
@@ -1869,6 +1855,22 @@ export const CanvasView = forwardRef<CanvasViewController, CanvasViewProps>(func
           onLoaded={() => dispatchDocViewer({ type: 'DOC_LOADED', token: docViewer.token })}
           onTimeout={() => dispatchDocViewer({ type: 'DOC_TIMEOUT', token: docViewer.token })}
           onClose={() => dispatchDocViewer({ type: 'CLOSE_DOC' })}
+        />
+      ) : null}
+      {splitConfirm !== null ? (
+        <SplitRerunConfirmDialog
+          message={splitConfirm.message}
+          onCancel={cancelSplitRerun}
+          onConfirm={() => { void confirmSplitRerun(); }}
+        />
+      ) : null}
+      {retryConfirm !== null ? (
+        <SplitRerunConfirmDialog
+          title="确认重试"
+          confirmLabel="继续重试"
+          message={retryConfirm.message}
+          onCancel={cancelRetryBlock}
+          onConfirm={() => { void confirmRetryBlock(); }}
         />
       ) : null}
     </div>

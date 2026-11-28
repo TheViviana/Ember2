@@ -8,7 +8,7 @@ import { test } from 'node:test';
 
 const ROOT = process.cwd();
 const canvasCss = readFileSync(join(ROOT, 'src/app/canvas/canvas.module.css'), 'utf8');
-const engine = readFileSync(join(ROOT, 'src/app/canvas/engine.ts'), 'utf8');
+const engine = readFileSync(join(ROOT, 'src/app/canvas/node-class-names.ts'), 'utf8');
 
 void test('文档内容有独立裁切壳：overflow hidden + 小一阶内表面圆角', () => {
   const rule = canvasCss.match(/\.docClip\s*\{[^}]*\}/)?.[0] ?? '';

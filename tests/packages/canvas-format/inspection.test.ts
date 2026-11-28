@@ -13,7 +13,7 @@ function document(
   edges: readonly unknown[] = [],
   extra: Readonly<Record<string, unknown>> = {},
 ): CanvasDocument {
-  return { ...extra, schemaVersion: 2, nodes, edges };
+  return { ...extra, schemaVersion: 3, nodes, edges };
 }
 
 function text(id: string, extra: Readonly<Record<string, unknown>> = {}): Readonly<Record<string, unknown>> {
@@ -38,12 +38,12 @@ function issueCodes(value: CanvasDocument): readonly CanvasSchemaIssueCode[] {
   return inspect(value).issues.map((issue) => issue.code);
 }
 
-void test('CANVAS_NODE_TYPES：六种合法 type 全量且冻结', () => {
-  assert.deepEqual([...CANVAS_NODE_TYPES], ['document', 'media', 'text', 'group', 'ai', 'prompt']);
+void test('CANVAS_NODE_TYPES：八种合法 type 全量且冻结', () => {
+  assert.deepEqual([...CANVAS_NODE_TYPES], ['document', 'media', 'text', 'group', 'ai', 'prompt', 'split', 'merge']);
   assert.equal(Object.isFrozen(CANVAS_NODE_TYPES), true);
 });
 
-void test('isCanvasNodeType：6 合法通过、2 非法拒绝', () => {
+void test('isCanvasNodeType：8 合法通过、2 非法拒绝', () => {
   for (const type of CANVAS_NODE_TYPES) assert.equal(isCanvasNodeType(type), true);
   assert.equal(isCanvasNodeType('file'), false);
   assert.equal(isCanvasNodeType(null), false);

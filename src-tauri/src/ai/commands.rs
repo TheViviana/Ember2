@@ -234,6 +234,7 @@ fn provider_of(raw: &str) -> Result<Provider, ErrorPayload> {
     match raw {
         "ollama" => Ok(Provider::Ollama),
         "openai-compatible" => Ok(Provider::OpenAiCompatible),
+        "openai-compatible-local" => Ok(Provider::OpenAiCompatibleLocal),
         _ => Err(AiError::UnsupportedProvider.into()),
     }
 }
@@ -553,6 +554,10 @@ mod tests {
         assert_eq!(
             provider_of("openai-compatible").expect("openai"),
             Provider::OpenAiCompatible
+        );
+        assert_eq!(
+            provider_of("openai-compatible-local").expect("local openai"),
+            Provider::OpenAiCompatibleLocal
         );
         assert_eq!(
             provider_of("other").expect_err("未知提供方").code,

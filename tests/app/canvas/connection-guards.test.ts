@@ -14,7 +14,7 @@ const ports = [
 ] as const;
 
 const document: CanvasDocument = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   nodes: [
     { id: 'a', x: 0, y: 0, type: 'text', ports },
     { id: 'b', x: 200, y: 0, type: 'text', ports },

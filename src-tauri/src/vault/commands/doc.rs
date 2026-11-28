@@ -133,9 +133,11 @@ fn snapshot_current(session: &Session, root: &Path, path: &str) {
         Err(VaultError::NotFound) => return,
         Err(error) => {
             let payload = ErrorPayload::from(error);
-            eprintln!(
-                "[history] 旧内容读取失败，跳过快照：{path}：{} {}",
-                payload.code, payload.message
+            tracing::warn!(
+                target: "vault::history",
+                "旧内容读取失败，跳过快照：{path}：{} {}",
+                payload.code,
+                payload.message
             );
             return;
         }
@@ -145,9 +147,11 @@ fn snapshot_current(session: &Session, root: &Path, path: &str) {
     };
     if let Err(error) = history::snapshot(&session.gate, root, &doc_id, &current.text) {
         let payload = ErrorPayload::from(error);
-        eprintln!(
-            "[history] 快照失败（不阻塞写入）：docId={doc_id} path={path}：{} {}",
-            payload.code, payload.message
+        tracing::warn!(
+            target: "vault::history",
+            "快照失败（不阻塞写入）：docId={doc_id} path={path}：{} {}",
+            payload.code,
+            payload.message
         );
     }
 }

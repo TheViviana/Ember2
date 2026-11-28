@@ -15,7 +15,7 @@ import {
 } from '../../../src/app/canvas/interaction.ts';
 
 const sourceDocument: CanvasDocument = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   nodes: [
     {
       id: 'a',

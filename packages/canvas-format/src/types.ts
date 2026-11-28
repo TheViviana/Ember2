@@ -1,7 +1,7 @@
-/** 画布 v2 的无损原文、渲染投影与可逆命令公共类型。 */
+/** 画布 v3 的无损原文、渲染投影与可逆命令公共类型。 */
 
 export interface CanvasDocument {
-  readonly schemaVersion: 2;
+  readonly schemaVersion: 3;
   readonly nodes: readonly unknown[];
   readonly edges: readonly unknown[];
   readonly [key: string]: unknown;
@@ -65,6 +65,9 @@ export interface CanvasMediaNode extends CanvasNodeBase {
 
 export interface CanvasTextNode extends CanvasNodeBase {
   readonly type: 'text';
+  /** 分块子块元数据：仅 split 生成的块携带，chunkIndex/sourceNodeId 成对出现。 */
+  readonly chunkIndex?: number;
+  readonly sourceNodeId?: string;
 }
 
 export interface CanvasGroupNode extends CanvasNodeBase {
@@ -85,13 +88,38 @@ export interface CanvasPromptNode extends CanvasNodeBase {
   readonly text?: string;
 }
 
+/** 分块方式：只切分，或切分后逐块提炼。 */
+export type CanvasSplitMode = 'split' | 'refine';
+
+export interface CanvasSplitNode extends CanvasNodeBase {
+  readonly type: 'split';
+  /** 缺省视为 'split'。 */
+  readonly mode?: CanvasSplitMode;
+  /** 目标块大小（字符）；缺省时由调用方按 provider 预算决定。 */
+  readonly chunkChars?: number;
+  /** refine 模式的提炼提示词；缺省用内置默认指令。 */
+  readonly text?: string;
+  /** 提炼选用的模型 id；缺省用全局模型。 */
+  readonly model?: string;
+}
+
+export interface CanvasMergeNode extends CanvasNodeBase {
+  readonly type: 'merge';
+  /** 汇总提示词；缺省用内置默认指令。 */
+  readonly text?: string;
+  /** 汇总选用的模型 id；缺省用全局模型。 */
+  readonly model?: string;
+}
+
 export type CanvasNode =
   | CanvasDocumentNode
   | CanvasMediaNode
   | CanvasTextNode
   | CanvasGroupNode
   | CanvasAiNode
-  | CanvasPromptNode;
+  | CanvasPromptNode
+  | CanvasSplitNode
+  | CanvasMergeNode;
 
 export interface CanvasEdge {
   readonly id: string;
@@ -136,12 +164,14 @@ export interface CanvasNodeInput {
   readonly y: number;
   readonly w?: number;
   readonly h?: number;
-  readonly type?: 'document' | 'media' | 'text' | 'group' | 'ai' | 'prompt';
+  readonly type?: 'document' | 'media' | 'text' | 'group' | 'ai' | 'prompt' | 'split' | 'merge';
   readonly ports?: readonly CanvasPortInput[];
   readonly label?: string;
   readonly parentId?: string;
   readonly docPath?: string;
   readonly kind?: 'image' | 'audio' | 'video' | 'doc';
+  readonly mode?: CanvasSplitMode;
+  readonly chunkChars?: number;
   readonly [key: string]: unknown;
 }
 
@@ -179,6 +209,10 @@ export type CanvasCommand =
         readonly text?: string | null;
         /** CR-20261121-53：ai 节点选用模型；null 删除字段（未选择）。 */
         readonly model?: string | null;
+        /** split 节点的分块方式；null 删除字段（缺省 split）。 */
+        readonly mode?: CanvasSplitMode | null;
+        /** split 节点的目标块大小；null 删除字段（按预算）。 */
+        readonly chunkChars?: number | null;
       };
     };
 

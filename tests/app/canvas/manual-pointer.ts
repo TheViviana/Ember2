@@ -37,7 +37,7 @@ function createStore(text: string): CanvasDocumentStore {
 
 // host 720×360；节点 A 放在 host 中心，便于 browser_drag 从 host 中心按下命中节点。
 const DOC = JSON.stringify({
-  schemaVersion: 2,
+  schemaVersion: 3,
   lastOrigin: { x: 24, y: 48 },
   nodes: [
     { id: 'a', label: 'A', x: 304, y: 180 },

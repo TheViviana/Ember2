@@ -28,6 +28,12 @@ use super::sse::{SseEvent, SseParser};
 /// 单次响应总字节上限（64 MiB）。超出即视为异常响应，立即断开。
 pub const MAX_RESPONSE_BYTES: u64 = 64 * 1024 * 1024;
 
+/// 非 2xx 时最多读取的错误正文（8 KiB），用于提取提供方的可读原因。
+const MAX_ERROR_BODY_BYTES: u64 = 8 * 1024;
+
+/// 错误原因展示上限（字符），避免把整段日志塞进 UI。
+const MAX_ERROR_DETAIL_CHARS: usize = 480;
+
 /// 建立连接的超时。
 pub const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -40,7 +46,7 @@ pub const HEADER_TIMEOUT_PUBLIC: Duration = Duration::from_secs(30);
 /// 按提供方选择等待响应头的超时。
 fn header_timeout(provider: Provider) -> Duration {
     match provider {
-        Provider::Ollama => HEADER_TIMEOUT_LOCAL,
+        Provider::Ollama | Provider::OpenAiCompatibleLocal => HEADER_TIMEOUT_LOCAL,
         Provider::OpenAiCompatible => HEADER_TIMEOUT_PUBLIC,
     }
 }
@@ -198,7 +204,7 @@ impl HttpTransport {
     ) -> AiResult<Value> {
         let request = self.build(Method::GET, url, bearer)?;
         let response = self.send(request, cancel).await?;
-        let mut response = ensure_success(response)?;
+        let mut response = ensure_success(response, cancel).await?;
         let bytes = read_body_limited(&mut response, limit, cancel).await?;
         serde_json::from_slice(&bytes).map_err(|_| AiError::InvalidResponse)
     }
@@ -213,7 +219,7 @@ impl HttpTransport {
     ) -> AiResult<Value> {
         let request = self.build(Method::POST, url, bearer)?.json(body);
         let response = self.send(request, cancel).await?;
-        let mut response = ensure_success(response)?;
+        let mut response = ensure_success(response, cancel).await?;
         let bytes = read_body_limited(&mut response, limit, cancel).await?;
         serde_json::from_slice(&bytes).map_err(|_| AiError::InvalidResponse)
     }
@@ -232,7 +238,7 @@ impl HttpTransport {
     {
         let request = self.build(Method::POST, url, bearer)?.json(body);
         let response = self.send(request, cancel).await?;
-        let mut response = ensure_success(response)?;
+        let mut response = ensure_success(response, cancel).await?;
         let mut parser = SseParser::new();
         stream_body(&mut response, limit, cancel, |chunk| {
             for event in parser.push(chunk)? {
@@ -260,7 +266,7 @@ impl HttpTransport {
     {
         let request = self.build(Method::POST, url, bearer)?.json(body);
         let response = self.send(request, cancel).await?;
-        let mut response = ensure_success(response)?;
+        let mut response = ensure_success(response, cancel).await?;
         let mut parser = NdjsonParser::new();
         stream_body(&mut response, limit, cancel, |chunk| {
             for value in parser.push(chunk)? {
@@ -302,25 +308,72 @@ impl HttpTransport {
     }
 }
 
-/// 2xx 放行，其余按固定表映射。
-fn ensure_success(response: Response) -> AiResult<Response> {
+/// 2xx 放行；其余读取有限错误正文后按状态码映射。
+///
+/// 非 2xx 的响应体不能丢：本地模型（oMLX 等）常用 400/507 携带
+/// 「内存不足 / 模型加载失败」等可读原因，丢掉后前端只能显示泛化文案。
+async fn ensure_success(mut response: Response, cancel: &CancelToken) -> AiResult<Response> {
     let status = response.status();
     if status.is_success() {
-        Ok(response)
-    } else {
-        Err(map_status(status))
+        return Ok(response);
     }
+    let detail = read_body_limited(&mut response, MAX_ERROR_BODY_BYTES, cancel)
+        .await
+        .ok()
+        .and_then(|bytes| extract_error_detail(&bytes));
+    Err(map_status(status, detail))
 }
 
-/// 状态码映射：503 单独识别为模型不可用，其余 5xx 归网络错误。
-fn map_status(status: StatusCode) -> AiError {
+/// 状态码映射：400/422 等 4xx 归「提供方拒绝请求」，503/507 归模型不可用，
+/// 其余 5xx 归网络错误。
+fn map_status(status: StatusCode, detail: Option<String>) -> AiError {
     match status.as_u16() {
         401 | 403 => AiError::Unauthorized,
         429 => AiError::RateLimited,
-        503 => AiError::ModelUnavailable,
+        503 | 507 => AiError::ModelUnavailable(
+            detail.unwrap_or_else(|| "可能未下载、名称不对或内存不足".to_string()),
+        ),
+        400..=499 => {
+            AiError::BadRequest(detail.unwrap_or_else(|| format!("HTTP {}", status.as_u16())))
+        }
         500..=599 => AiError::Network,
         _ => AiError::InvalidResponse,
     }
+}
+
+/// 从错误正文提取可读原因：优先 `error.message`，其次 `detail` / `message`，
+/// 纯文本则截断。合法但无原因的 JSON（如 `{}`）返回 `None`。
+fn extract_error_detail(bytes: &[u8]) -> Option<String> {
+    let text = String::from_utf8_lossy(bytes);
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    match serde_json::from_str::<Value>(trimmed) {
+        Ok(value) => json_detail(&value).map(truncate_detail),
+        Err(_) => Some(truncate_detail(trimmed)),
+    }
+}
+
+fn json_detail(value: &Value) -> Option<&str> {
+    value
+        .get("error")
+        .and_then(|error| error.get("message"))
+        .and_then(Value::as_str)
+        .or_else(|| value.get("error").and_then(Value::as_str))
+        .or_else(|| value.get("detail").and_then(Value::as_str))
+        .or_else(|| value.get("message").and_then(Value::as_str))
+}
+
+/// 折叠空白并限制长度，避免把多行日志或超长正文塞进 UI。
+fn truncate_detail(raw: &str) -> String {
+    let collapsed = raw.split_whitespace().collect::<Vec<_>>().join(" ");
+    if collapsed.chars().count() <= MAX_ERROR_DETAIL_CHARS {
+        return collapsed;
+    }
+    let mut truncated: String = collapsed.chars().take(MAX_ERROR_DETAIL_CHARS).collect();
+    truncated.push('…');
+    truncated
 }
 
 fn map_reqwest(error: reqwest::Error) -> AiError {
@@ -433,7 +486,7 @@ impl<R: DnsResolver> AiTransport<R> {
         let (endpoint, transport, bearer) = self.prepare(config)?;
         let path = match config.provider {
             Provider::Ollama => "api/tags",
-            Provider::OpenAiCompatible => "models",
+            Provider::OpenAiCompatible | Provider::OpenAiCompatibleLocal => "models",
         };
         let value = transport
             .get_json(endpoint.request_url(path)?, bearer.as_deref(), cancel)
@@ -467,7 +520,7 @@ impl<R: DnsResolver> AiTransport<R> {
                     })
                     .await
             }
-            Provider::OpenAiCompatible => {
+            Provider::OpenAiCompatible | Provider::OpenAiCompatibleLocal => {
                 let url = endpoint.request_url("chat/completions")?;
                 transport
                     .post_sse(url, bearer.as_deref(), &payload, cancel, |event| {
@@ -496,6 +549,9 @@ impl<R: DnsResolver> AiTransport<R> {
                     .load(config.provider.id(), &endpoint)?
                     .ok_or(AiError::KeyMissing)?,
             )
+        } else if config.provider.key_optional() {
+            // 本地 OpenAI 兼容端点：有 Key 就带，没有也允许匿名访问。
+            self.keys.load(config.provider.id(), &endpoint)?
         } else {
             None
         };
@@ -516,7 +572,7 @@ fn chat_payload(model: &str, messages: &[ChatTurn<'_>]) -> Value {
 fn parse_models(provider: Provider, value: &Value) -> AiResult<Vec<String>> {
     let (list_key, name_key) = match provider {
         Provider::Ollama => ("models", "name"),
-        Provider::OpenAiCompatible => ("data", "id"),
+        Provider::OpenAiCompatible | Provider::OpenAiCompatibleLocal => ("data", "id"),
     };
     let items = value
         .get(list_key)
@@ -676,12 +732,69 @@ mod tests {
             ("403 Forbidden", "E_AI_UNAUTHORIZED"),
             ("429 Too Many Requests", "E_AI_RATE_LIMITED"),
             ("503 Service Unavailable", "E_AI_MODEL_UNAVAILABLE"),
+            ("507 Insufficient Storage", "E_AI_MODEL_UNAVAILABLE"),
             ("500 Internal Server Error", "E_AI_NETWORK"),
-            ("404 Not Found", "E_AI_INVALID_RESPONSE"),
+            ("400 Bad Request", "E_AI_BAD_REQUEST"),
+            ("404 Not Found", "E_AI_BAD_REQUEST"),
         ];
         for (status, expected) in cases {
             assert_eq!(runtime.block_on(status_error(status)), expected, "{status}");
         }
+    }
+
+    #[test]
+    fn error_detail_extracts_json_and_plain_text() {
+        assert_eq!(
+            extract_error_detail(br#"{"error":{"message":"boom"}}"#).as_deref(),
+            Some("boom")
+        );
+        assert_eq!(
+            extract_error_detail(br#"{"detail":"Not Found"}"#).as_deref(),
+            Some("Not Found")
+        );
+        assert_eq!(extract_error_detail(b"{}"), None);
+        assert_eq!(
+            extract_error_detail(b"plain failure").as_deref(),
+            Some("plain failure")
+        );
+    }
+
+    #[test]
+    fn bad_request_surfaces_provider_message() {
+        let server = StubServer::spawn(|stream| {
+            let body = r#"{"error":{"message":"oMLX prefill memory guard rejected this prompt"}}"#;
+            respond(stream, "400 Bad Request", body.as_bytes());
+        });
+        let client = transport(&server);
+        let error = tokio::runtime::Runtime::new()
+            .expect("测试运行时")
+            .block_on(client.get_json(server.url("/v1/models"), None, &CancelToken::new()))
+            .expect_err("400 应失败");
+        server.join();
+        assert_eq!(error.code(), "E_AI_BAD_REQUEST");
+        assert!(
+            error.to_string().contains("prefill memory guard"),
+            "错误文案应包含提供方原因：{error}"
+        );
+    }
+
+    #[test]
+    fn insufficient_storage_surfaces_load_failure_detail() {
+        let server = StubServer::spawn(|stream| {
+            let body = r#"{"error":{"message":"Cannot load model: projected memory 20.29GB would exceed the dynamic memory ceiling 20.00GB"}}"#;
+            respond(stream, "507 Insufficient Storage", body.as_bytes());
+        });
+        let client = transport(&server);
+        let error = tokio::runtime::Runtime::new()
+            .expect("测试运行时")
+            .block_on(client.get_json(server.url("/v1/models"), None, &CancelToken::new()))
+            .expect_err("507 应失败");
+        server.join();
+        assert_eq!(error.code(), "E_AI_MODEL_UNAVAILABLE");
+        assert!(
+            error.to_string().contains("projected memory"),
+            "错误文案应包含提供方原因：{error}"
+        );
     }
 
     #[test]
@@ -861,6 +974,21 @@ mod tests {
     }
 
     #[test]
+    fn local_openai_compatible_uses_local_policy() {
+        assert_eq!(Provider::OpenAiCompatibleLocal.policy(), Policy::Local);
+        assert!(!Provider::OpenAiCompatibleLocal.requires_key());
+        assert!(Provider::OpenAiCompatibleLocal.key_optional());
+        assert_eq!(
+            Provider::OpenAiCompatibleLocal.id(),
+            "openai-compatible-local"
+        );
+        assert_eq!(
+            header_timeout(Provider::OpenAiCompatibleLocal),
+            HEADER_TIMEOUT_LOCAL
+        );
+    }
+
+    #[test]
     fn cancel_before_send_returns_immediately() {
         let endpoint = AiEndpoint::parse("http://127.0.0.1:9/v1", true).expect("测试端点");
         let target = pin(&endpoint, Policy::Local, &SystemResolver).expect("钉死快照");
@@ -914,6 +1042,28 @@ mod tests {
             .expect("模型列表");
         server.join();
         assert_eq!(models, vec!["llama3:latest", "qwen2.5:7b"]);
+    }
+
+    #[test]
+    fn local_openai_compatible_lists_models_without_key() {
+        let server = StubServer::spawn(|stream| {
+            // 中文 alias 直接作为模型 id 返回：Ember 不应对模型名做 ASCII 限制。
+            let body = r#"{"data":[{"id":"主力：编程/写作/看图"},{"id":"qwen2.5:7b"}]}"#;
+            respond(stream, "200 OK", body.as_bytes());
+        });
+        let dir = tempdir().expect("tempdir");
+        let transport = AiTransport::with_parts(test_keys(&dir), SystemResolver);
+        let config = AiConfig {
+            provider: Provider::OpenAiCompatibleLocal,
+            base_url: format!("http://{}/v1", server.addr),
+            allow_insecure_http: false,
+        };
+        let models = tokio::runtime::Runtime::new()
+            .expect("测试运行时")
+            .block_on(transport.list_models(&config, &CancelToken::new()))
+            .expect("本地模型列表");
+        server.join();
+        assert_eq!(models, vec!["主力：编程/写作/看图", "qwen2.5:7b"]);
     }
 
     #[test]

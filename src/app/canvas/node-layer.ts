@@ -32,6 +32,14 @@ import {
 import type { ViewportSize, ViewportTransform } from './viewport.ts';
 import { tagLeaf } from '../../core/tag-path.ts';
 import { createAiNodeCard, type AiNodeCard, type AiNodeCardClassNames } from './ai-node-card.ts';
+import { nextChunkChars } from './split-node-execution.ts';
+import {
+  createStepNodeCard,
+  type StepNodeCard,
+  type StepNodeCardClassNames,
+  type StepProgressView,
+} from './step-node-card.ts';
+import type { SplitPreview } from './split-preview.ts';
 
 /** 只要求 append：真实世界层与测试替身都满足。 */
 export interface NodeLayerParent {
@@ -101,7 +109,12 @@ export interface NodeSimpleClassNames {
   readonly empty: string;
   /** 2026-11-25：文本节点底部固定信息（字数 | EMBER）。 */
   readonly footer: string;
+  /** 2026-11-28：分块子块卡片的「编辑块内容」按钮。 */
+  readonly edit: string;
 }
+
+/** 分块/汇总卡片部件类名（engine 注入 CSS Modules 哈希名）。 */
+export type NodeStepClassNames = StepNodeCardClassNames;
 
 export interface NodeLayerOptions {
   readonly className: string;
@@ -131,7 +144,32 @@ export interface NodeLayerOptions {
   readonly onRunAi?: (id: string) => void;
   /** 2026-11-24：单击 AI 卡片右上角模型 → 打开模型选择浮层。 */
   readonly onOpenAiModel?: (id: string) => void;
+  /** 分块/汇总节点：执行切分、逐块提炼或合并。 */
+  readonly onRunSplit?: (id: string) => void;
+  readonly onRunMerge?: (id: string) => void;
+  readonly onCancelRun?: (kind: 'ai' | 'step') => void;
+  /** 分块节点内联配置：mode 切换与块大小循环；chunkChars=null 删除字段（按预算自动）。 */
+  readonly onUpdateSplitConfig?: (
+    id: string,
+    patch: { readonly mode?: 'split' | 'refine'; readonly chunkChars?: number | null },
+  ) => void;
   readonly aiClassNames?: AiNodeCardClassNames;
+  /** 分块/汇总卡片部件类名。 */
+  readonly stepClassNames?: NodeStepClassNames;
+  /** 分块子块：卡片上的「编辑块内容」入口。 */
+  readonly onEditBlock?: (id: string) => void;
+  /** merge 节点：读取上游输入数量（按入边顺序）。 */
+  readonly readMergeInputCount?: (id: string) => number;
+  /** merge 节点：输出目标是否为 document。 */
+  readonly readMergeOutputIsDocument?: (id: string) => boolean;
+  /** split 节点：运行前块数预览（瞬态）；缺省 null → 隐藏预览行。 */
+  readonly readSplitPreview?: (id: string) => SplitPreview | null;
+  /** split 节点：运行中 k/N 进度（瞬态）；缺省 null → 不显示进度。 */
+  readonly readStepProgress?: (id: string) => StepProgressView | null;
+  /** B1：失败块持久标记；缺省 false。 */
+  readonly readStepFailed?: (id: string) => boolean;
+  /** 分块子块：单块重试提炼。 */
+  readonly onRetryBlock?: (id: string) => void;
   /** CR-20261121-59：卡片部件类名。 */
   readonly simpleClassNames?: NodeSimpleClassNames;
   /** CR-20261120-34：内容模式的阅读渲染（安全 DOM）；缺省退化为纯文本。 */
@@ -313,9 +351,16 @@ export function createNodeLayer(parent: NodeLayerParent, options: NodeLayerOptio
       run?: HTMLElement | null;
       /** 2026-11-25：文本节点底部固定信息（字数 | EMBER）。 */
       footer?: HTMLElement | null;
+      /** 2026-11-28：分块子块标记与页脚部件。 */
+      isBlock: boolean;
+      sourceNodeId?: string;
+      footerText?: HTMLElement | null;
+      edit?: HTMLElement | null;
+      retry?: HTMLElement | null;
     }
   >();
   const aiParts = new Map<string, AiNodeCard>();
+  const stepParts = new Map<string, StepNodeCard>();
 
   /** 12px 细线节点图标（innerHTML 一次性注入静态串；假元素无 innerHTML 时安全跳过）。 */
   const NODE_ICON_HTML: Record<'text' | 'prompt' | 'ai', string> = {
@@ -376,6 +421,10 @@ export function createNodeLayer(parent: NodeLayerParent, options: NodeLayerOptio
     aiParts.get(id)?.root.remove();
     aiParts.delete(id);
   };
+  const clearStep = (id: string): void => {
+    stepParts.get(id)?.root.remove();
+    stepParts.delete(id);
+  };
   /* CR-20261121-45 外标题：卡片外左上标注（文档=文档名；媒体=自定义名；缩放补偿 ≥11px 屏幕） */
   const labelEls = new Map<string, HTMLElement>();
   /* 项E：空文本节点占位 */
@@ -387,11 +436,17 @@ export function createNodeLayer(parent: NodeLayerParent, options: NodeLayerOptio
     run: 'node-run-btn',
     empty: 'node-card-empty',
     footer: 'node-card-footer',
+    edit: 'node-edit-btn',
   };
   const aiClassNames = options.aiClassNames ?? {
     root: 'ai-card', header: 'ai-header', title: 'ai-title', model: 'ai-model',
-    prompt: 'ai-prompt', footer: 'ai-footer', actions: 'ai-actions', chip: 'ai-chip',
-    run: 'ai-run', runner: 'ai-runner', runnerGlow: 'ai-runner-glow', runnerCore: 'ai-runner-core',
+    prompt: 'ai-prompt', footer: 'ai-footer', run: 'ai-run', runner: 'ai-runner',
+    runnerGlow: 'ai-runner-glow', runnerCore: 'ai-runner-core',
+  };
+  const stepClassNames = options.stepClassNames ?? {
+    root: 'step-card', header: 'step-header', title: 'step-title', model: 'step-model',
+    body: 'step-body', meta: 'step-meta', chip: 'step-chip', preview: 'step-preview',
+    footer: 'step-footer', status: 'step-status', run: 'step-run',
   };
   const docClassNames = options.docClassNames ?? {
     body: 'doc-body',
@@ -900,8 +955,10 @@ export function createNodeLayer(parent: NodeLayerParent, options: NodeLayerOptio
   /** CR-20261121-59：文本/提示词/AI 卡片——小标题(图标) + 内容（+ 提示词右下角开始钮）。 */
   const renderSimpleCard = (item: HTMLElement, node: CanvasNodeView): void => {
     const kind = node.kind === 'prompt' ? 'prompt' : 'text';
+    const isBlock =
+      kind === 'text' && node.sourceNodeId !== undefined && node.chunkIndex !== undefined;
     const current = simpleParts.get(node.id);
-    if (current === undefined || current.kind !== kind) {
+    if (current === undefined || current.kind !== kind || current.isBlock !== isBlock) {
       if (item.textContent !== '') item.textContent = '';
       clearSimple(node.id);
       const title = createCardTitle(kind, kind === 'prompt' ? '提示词' : '文本');
@@ -915,6 +972,9 @@ export function createNodeLayer(parent: NodeLayerParent, options: NodeLayerOptio
       }
       let run: HTMLElement | null = null;
       let footer: HTMLElement | null = null;
+      let footerText: HTMLElement | null = null;
+      let edit: HTMLElement | null = null;
+      let retry: HTMLElement | null = null;
       if (kind === 'prompt') {
         run = createRunButton(node.id);
         item.append(title);
@@ -924,15 +984,49 @@ export function createNodeLayer(parent: NodeLayerParent, options: NodeLayerOptio
         // 2026-11-25：文本节点改为 top kicker + 内容 + 外轮廓底部固定页脚。
         footer = createChild('div');
         footer.className = simpleClassNames.footer;
+        if (isBlock) {
+          footerText = createChild('span');
+          edit = createChild('button');
+          edit.className = simpleClassNames.edit;
+          edit.setAttribute('type', 'button');
+          edit.setAttribute('data-node-control', 'true');
+          edit.setAttribute('aria-label', `编辑第 ${(node.chunkIndex ?? 0) + 1} 块内容`);
+          edit.textContent = '编辑块内容';
+          if (typeof edit.addEventListener === 'function') {
+            edit.addEventListener('click', (event) => {
+              event.stopPropagation();
+              if (edit?.dataset.locked === 'true') return;
+              options.onEditBlock?.(node.id);
+            });
+            edit.addEventListener('dblclick', (event) => event.stopPropagation());
+          }
+          footer.append(footerText, edit);
+          retry = createChild('button');
+          retry.className = simpleClassNames.edit;
+          retry.setAttribute('type', 'button');
+          retry.setAttribute('data-node-control', 'true');
+          retry.textContent = '重试提炼';
+          if (typeof retry.addEventListener === 'function') {
+            retry.addEventListener('click', (event) => {
+              event.stopPropagation();
+              if (retry?.dataset.locked === 'true') return;
+              options.onRetryBlock?.(node.id);
+            });
+            retry.addEventListener('dblclick', (event) => event.stopPropagation());
+          }
+          footer.append(retry);
+        }
         item.dataset.simple = kind;
         item.append(title);
         item.append(content);
         item.append(footer);
       }
-      simpleParts.set(node.id, { kind, title, content, run, footer });
+      simpleParts.set(node.id, { kind, title, content, run, footer, isBlock, sourceNodeId: node.sourceNodeId, footerText, edit, retry });
     }
     const parts = simpleParts.get(node.id);
     if (parts === undefined) return;
+    if (parts.isBlock && options.readStepFailed?.(node.id) === true) item.dataset.stepFailed = 'true';
+    else if (item.dataset.stepFailed !== undefined) delete item.dataset.stepFailed;
     if (kind === 'prompt') {
       const text = node.promptText ?? '';
       if (text === '') {
@@ -977,10 +1071,25 @@ export function createNodeLayer(parent: NodeLayerParent, options: NodeLayerOptio
       placeholderEls.delete(node.id);
     }
     if (parts.content.textContent !== node.label) parts.content.textContent = node.label;
-    if (parts.footer != null) {
+    if (parts.isBlock && parts.footerText !== null && parts.footerText !== undefined) {
+      const count = node.label.replace(/\s+/g, '').length;
+      const text = `${count} 字 · 块 ${(node.chunkIndex ?? 0) + 1}`;
+      if (parts.footerText.textContent !== text) parts.footerText.textContent = text;
+    } else if (parts.footer != null) {
       const count = node.label.replace(/\s+/g, '').length;
       const footerText = count > 0 ? `${count} 字` : '';
       if (parts.footer.textContent !== footerText) parts.footer.textContent = footerText;
+    }
+    if (parts.isBlock) {
+      const locked =
+        aiRunning === node.id ||
+        (parts.sourceNodeId !== undefined && aiRunning === parts.sourceNodeId);
+      for (const button of [parts.edit, parts.retry]) {
+        if (button !== null && button !== undefined) {
+          button.setAttribute('aria-disabled', String(locked));
+          button.dataset.locked = locked ? 'true' : 'false';
+        }
+      }
     }
   };
 
@@ -994,7 +1103,7 @@ export function createNodeLayer(parent: NodeLayerParent, options: NodeLayerOptio
         classNames: aiClassNames,
         createElement: createChild,
         onCommit: (id, text) => options.onUpdateAiText?.(id, text) ?? false,
-        onRun: (id) => options.onRunAi?.(id),
+        onRun: (id) => options.onRunAi?.(id), onCancel: () => options.onCancelRun?.('ai'),
         onOpenModel: (id) => options.onOpenAiModel?.(id),
       });
       aiParts.set(node.id, card);
@@ -1003,6 +1112,47 @@ export function createNodeLayer(parent: NodeLayerParent, options: NodeLayerOptio
     card.setText(node.promptText ?? '');
     card.setModel(node.aiModel);
     card.setRunning(aiRunning === node.id);
+  };
+
+  /** 分块 / 汇总卡片：复用 step-node-card，按 id 缓存。 */
+  const renderStepCard = (
+    item: HTMLElement,
+    node: CanvasNodeView,
+    kind: 'split' | 'merge',
+  ): void => {
+    let card = stepParts.get(node.id);
+    if (card === undefined || card.kind !== kind) {
+      card?.root.remove();
+      card = createStepNodeCard({
+        id: node.id,
+        kind,
+        classNames: stepClassNames,
+        createElement: createChild,
+        onRun: (id) => {
+          if (kind === 'split') options.onRunSplit?.(id);
+          else options.onRunMerge?.(id);
+        },
+        onUpdateConfig: (id, patch) => options.onUpdateSplitConfig?.(id, patch),
+        onOpenModel: (id) => options.onOpenAiModel?.(id), onCancel: () => options.onCancelRun?.('step'),
+        nextChunkChars,
+      });
+      stepParts.set(node.id, card);
+      item.append(card.root);
+    }
+    card.update(
+      kind === 'merge'
+        ? {
+            ...node,
+            mergeInputCount: options.readMergeInputCount?.(node.id) ?? 0,
+            mergeOutputIsDocument: options.readMergeOutputIsDocument?.(node.id) ?? false,
+          }
+        : {
+            ...node,
+            splitPreview: options.readSplitPreview?.(node.id) ?? null,
+            splitProgress: options.readStepProgress?.(node.id) ?? null,
+          },
+      aiRunning === node.id,
+    );
   };
 
   /** 媒体节点：文章式顶部信息 + 内表面预览 + 外轮廓页脚；保留音视频播放交互。 */
@@ -1110,6 +1260,7 @@ export function createNodeLayer(parent: NodeLayerParent, options: NodeLayerOptio
             clearDoc(node.id);
             clearSimple(node.id);
             clearAi(node.id);
+            clearStep(node.id);
             item.dataset.nodeType = 'media';
           }
           renderMedia(item, node);
@@ -1119,6 +1270,7 @@ export function createNodeLayer(parent: NodeLayerParent, options: NodeLayerOptio
             clearMedia(node.id);
             clearSimple(node.id);
             clearAi(node.id);
+            clearStep(node.id);
             item.dataset.nodeType = 'document';
           }
           renderDocument(item, node, transform, viewport);
@@ -1128,6 +1280,7 @@ export function createNodeLayer(parent: NodeLayerParent, options: NodeLayerOptio
             clearMedia(node.id);
             clearDoc(node.id);
             clearSimple(node.id);
+            clearStep(node.id);
             item.dataset.nodeType = 'ai';
             delete item.dataset.empty;
             delete item.dataset.mediaKind;
@@ -1141,6 +1294,7 @@ export function createNodeLayer(parent: NodeLayerParent, options: NodeLayerOptio
             clearMedia(node.id);
             clearDoc(node.id);
             clearAi(node.id);
+            clearStep(node.id);
             item.dataset.nodeType = 'prompt';
             delete item.dataset.empty;
             delete item.dataset.mediaKind;
@@ -1148,10 +1302,27 @@ export function createNodeLayer(parent: NodeLayerParent, options: NodeLayerOptio
             placeholderEls.delete(node.id);
           }
           renderSimpleCard(item, node);
+        } else if (node.kind === 'split' || node.kind === 'merge') {
+          const stepKind = node.kind;
+          if (item.dataset.nodeType !== stepKind) {
+            if (item.textContent !== '') item.textContent = '';
+            clearMedia(node.id);
+            clearDoc(node.id);
+            clearSimple(node.id);
+            clearAi(node.id);
+            clearStep(node.id);
+            item.dataset.nodeType = stepKind;
+            delete item.dataset.empty;
+            delete item.dataset.mediaKind;
+            placeholderEls.get(node.id)?.remove();
+            placeholderEls.delete(node.id);
+          }
+          renderStepCard(item, node, stepKind);
         } else {
           if (item.dataset.nodeType === 'media') clearMedia(node.id);
           if (item.dataset.nodeType === 'document') clearDoc(node.id);
           if (item.dataset.nodeType === 'ai') clearAi(node.id);
+          clearStep(node.id);
           delete item.dataset.nodeType;
           delete item.dataset.mediaKind;
           // CR-20261121-59：组节点保持纯标签渲染；自由文本走卡片结构（小标题+内容+渐隐）。
@@ -1220,6 +1391,7 @@ export function createNodeLayer(parent: NodeLayerParent, options: NodeLayerOptio
         clearDoc(id);
         clearSimple(id);
         clearAi(id);
+        clearStep(id);
         labelEls.get(id)?.remove();
         labelEls.delete(id);
         placeholderEls.get(id)?.remove();
@@ -1258,6 +1430,18 @@ export function createNodeLayer(parent: NodeLayerParent, options: NodeLayerOptio
         if (aiRunning === nodeId || item.dataset.aiRunning !== undefined) applyFlags(item, nodeId);
       }
       for (const [nodeId, card] of aiParts) card.setRunning(aiRunning === nodeId);
+      for (const [nodeId, card] of stepParts) card.setRunning(aiRunning === nodeId);
+      for (const [nodeId, parts] of simpleParts) {
+        if (!parts.isBlock) continue;
+        const locked =
+          aiRunning === nodeId ||
+          (parts.sourceNodeId !== undefined && aiRunning === parts.sourceNodeId);
+        for (const button of [parts.edit, parts.retry]) {
+          if (button === null || button === undefined) continue;
+          button.dataset.locked = locked ? 'true' : 'false';
+          button.setAttribute('aria-disabled', String(locked));
+        }
+      }
     },
     setAiFlash(flash): void {
       aiFlash = flash;
@@ -1277,7 +1461,7 @@ export function createNodeLayer(parent: NodeLayerParent, options: NodeLayerOptio
         if (item === undefined) continue;
         // AI / 提示词节点尺寸固定，无需测量自动高度。
         const parts = simpleParts.get(id);
-        if (aiParts.has(id) || (parts !== undefined && isFixedSizeNodeKind(parts.kind))) continue;
+        if (aiParts.has(id) || stepParts.has(id) || (parts !== undefined && isFixedSizeNodeKind(parts.kind))) continue;
         const h = getter ? getter(item) : item.offsetHeight;
         if (h > 0) cb(id, Math.round(h));
       }
@@ -1288,6 +1472,7 @@ export function createNodeLayer(parent: NodeLayerParent, options: NodeLayerOptio
       docParts.clear();
       simpleParts.clear();
       aiParts.clear();
+      stepParts.clear();
       labelEls.clear();
       placeholderEls.clear();
       elements.clear();

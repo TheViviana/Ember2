@@ -224,8 +224,9 @@ fn snapshot_original(root: &Path, item: &PreparedItem, permit: &WritePermit<'_>)
         return;
     };
     if let Err(error) = history::snapshot_with_permit(root, &doc_id, &item.original_text, permit) {
-        eprintln!(
-            "[history] 批量替换快照失败（不阻塞写入）：docId={doc_id} path={}：{} {}",
+        tracing::warn!(
+            target: "vault::history",
+            "批量替换快照失败（不阻塞写入）：docId={doc_id} path={}：{} {}",
             item.path,
             error.code(),
             error

@@ -56,7 +56,7 @@ fn log_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(dir)
 }
 
-/// 目录不可写时的兜底：日志写 stderr，行为与现有 `eprintln!` 一致。
+/// 目录不可写时的兜底：日志写 stderr。
 /// 注意：stderr 回退只对开发环境（终端启动）有效；打包后的 `.app` 通常
 /// 收不到 stderr，这条路径在用户机器上等于没有日志。
 fn init_stderr(error: String) -> LogGuard {

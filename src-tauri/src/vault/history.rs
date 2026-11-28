@@ -235,8 +235,9 @@ pub(crate) fn enforce_quota(root: &Path, doc_id: &str, keep: u32, budget: u64) -
         }
         let path = dir.join(format!("{}.md", entry.ulid));
         if let Err(error) = fs::remove_file(&path) {
-            eprintln!(
-                "[history] 配额淘汰失败（继续）：{}：{error}",
+            tracing::warn!(
+                target: "vault::history",
+                "配额淘汰失败（继续）：{}：{error}",
                 path.display()
             );
             continue;

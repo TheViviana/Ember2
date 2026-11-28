@@ -116,7 +116,7 @@ function makeHost(width: number, height: number): HTMLDivElement {
 }
 
 const STRUCTURE_DOC = JSON.stringify({
-  schemaVersion: 2,
+  schemaVersion: 3,
   lastOrigin: { x: 24, y: 48 },
   nodes: [
     { id: 'a', label: 'A', x: 124, y: 148 },
@@ -211,7 +211,7 @@ function alphaAt(canvas: HTMLCanvasElement, cssX: number, cssY: number): number 
 }
 
 const EDGE_DOC = JSON.stringify({
-  schemaVersion: 2,
+  schemaVersion: 3,
   nodes: [
     { id: 'a', label: 'A', x: 100, y: 200 },
     { id: 'b', label: 'B', x: 400, y: 200 },
@@ -256,7 +256,7 @@ async function checkEdgeLayers(): Promise<Record<string, unknown>> {
 }
 
 const INTERACTION_DOC = JSON.stringify({
-  schemaVersion: 2,
+  schemaVersion: 3,
   nodes: [
     { id: 'a', label: 'A', x: 100, y: 200 },
     { id: 'b', label: 'B', x: 400, y: 200 },
@@ -414,7 +414,7 @@ async function measure(
     host,
     store: createStore(
       JSON.stringify({
-        schemaVersion: 2,
+        schemaVersion: 3,
         nodes: makeNodes(count, dense ? 56 : 192, dense ? 48 : 120),
         edges: makeEdges(edgeCount, count),
       }),
@@ -524,7 +524,7 @@ async function measureDrag(): Promise<Record<string, number | boolean | string>>
   const engine = new CanvasEngine({
     host,
     store: createStore(JSON.stringify({
-      schemaVersion: 2,
+      schemaVersion: 3,
       nodes: makeNodes(500, 56, 48),
       edges: makeEdges(500, 500),
     })),

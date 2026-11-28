@@ -136,7 +136,7 @@ void test('buildScreenEdges：节点缺失时跳过该边，不抛错', () => {
 void test('extractEdges：坏边逐条跳过（缺 id / 缺端点 / 引用不存在 / 重复 id）', () => {
   const document = parseCanvasDocument(
     JSON.stringify({
-      schemaVersion: 2,
+      schemaVersion: 3,
       nodes: [
         { id: 'a', x: 0, y: 0 },
         { id: 'b', x: 200, y: 0 },

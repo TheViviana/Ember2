@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import {
   buildChatRequest,
   createChatRequestId,
+  LOCAL_CONTEXT_CHAR_BUDGET,
   type ChatRequestConfig,
 } from '../../../src/features/ai/ai-chat-request.ts';
 import type { AiChatTurn } from '../../../src/features/ai/ai-chat-reducer.ts';
@@ -101,6 +102,68 @@ void test('请求体不包含 Key 字段', () => {
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.equal('key' in result.request, false);
+});
+
+void test('中文模型别名原样进入请求体（Ember 不做 ASCII 限制）', () => {
+  const result = buildChatRequest({
+    requestId: 'rid-1',
+    config: {
+      ...CONFIG,
+      provider: 'openai-compatible-local',
+      baseUrl: 'http://127.0.0.1:8000/v1',
+      model: '主力：编程/写作/看图',
+    },
+    messages: TURNS,
+  });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.request.model, '主力：编程/写作/看图');
+});
+
+void test('本地 provider 超预算时丢弃最早轮次，保留最后一条用户消息', () => {
+  const chunk = 'x'.repeat(10_000);
+  const turns: readonly AiChatTurn[] = [
+    { id: 'u1', role: 'user', content: chunk, completed: true },
+    { id: 'a1', role: 'assistant', content: chunk, completed: true },
+    { id: 'u2', role: 'user', content: chunk, completed: true },
+  ];
+  const result = buildChatRequest({
+    requestId: 'rid-1',
+    config: { ...CONFIG, provider: 'openai-compatible-local' },
+    messages: turns,
+  });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.request.messages, [{ role: 'user', content: chunk }]);
+});
+
+void test('公网 provider 不裁剪历史（保持原有行为）', () => {
+  const chunk = 'x'.repeat(10_000);
+  const turns: readonly AiChatTurn[] = [
+    { id: 'u1', role: 'user', content: chunk, completed: true },
+    { id: 'a1', role: 'assistant', content: chunk, completed: true },
+    { id: 'u2', role: 'user', content: chunk, completed: true },
+  ];
+  const result = buildChatRequest({
+    requestId: 'rid-1',
+    config: { ...CONFIG, provider: 'openai-compatible', baseUrl: 'https://api.test/v1' },
+    messages: turns,
+  });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.request.messages.length, 3);
+});
+
+void test('最后一条用户消息本身超预算也原样保留', () => {
+  const huge = 'x'.repeat(LOCAL_CONTEXT_CHAR_BUDGET + 100);
+  const result = buildChatRequest({
+    requestId: 'rid-1',
+    config: { ...CONFIG, provider: 'openai-compatible-local' },
+    messages: [{ id: 'u1', role: 'user', content: huge, completed: true }],
+  });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.request.messages, [{ role: 'user', content: huge }]);
 });
 
 void test('createChatRequestId 生成合法 requestId', () => {

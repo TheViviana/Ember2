@@ -7,8 +7,6 @@ export interface AiNodeCardClassNames {
   readonly model: string;
   readonly prompt: string;
   readonly footer: string;
-  readonly actions: string;
-  readonly chip: string;
   readonly run: string;
   readonly runner: string;
   readonly runnerGlow: string;
@@ -31,11 +29,12 @@ interface AiNodeCardOptions {
   readonly createSvgElement?: (tag: 'svg' | 'path') => SVGElement;
   readonly onCommit: (id: string, text: string) => boolean;
   readonly onRun: (id: string) => void;
+  /** 运行中再次点击圆钮 → 取消当前执行。 */
+  readonly onCancel: () => void;
   /** 2026-11-24：单击右上角模型直接打开模型选择，不再要求双击节点。 */
   readonly onOpenModel?: (id: string) => void;
 }
 
-const PREPROCESS_ACTIONS = ['简化', '分割', '要点', '总结'] as const;
 const RUNNER_PATH =
   'M1 95V177Q1 189 13 189H407Q419 189 419 177V13Q419 1 407 1H13Q1 1 1 13V95Z';
 
@@ -58,7 +57,13 @@ export function createAiNodeCard(options: AiNodeCardOptions): AiNodeCard {
   // engine.onPointerDown 见到此标记即把按压让给控件，否则拖拽手势吞掉 click。
   model.setAttribute('data-node-control', 'true');
   model.setAttribute('role', 'button');
-  header.append(title, model);
+  const run = createElement('button') as HTMLButtonElement;
+  run.className = classes.run;
+  run.setAttribute('type', 'button');
+  run.setAttribute('data-node-control', 'true');
+  run.setAttribute('aria-label', '运行 AI 节点');
+  run.title = '运行';
+  header.append(title, model, run);
 
   const textarea = createElement('textarea') as HTMLTextAreaElement;
   textarea.className = classes.prompt;
@@ -71,25 +76,6 @@ export function createAiNodeCard(options: AiNodeCardOptions): AiNodeCard {
 
   const footer = createElement('div');
   footer.className = classes.footer;
-  const actions = createElement('div');
-  actions.className = classes.actions;
-  for (const label of PREPROCESS_ACTIONS) {
-    const chip = createElement('button');
-    chip.className = classes.chip;
-    chip.setAttribute('type', 'button');
-    chip.setAttribute('disabled', '');
-    chip.setAttribute('aria-disabled', 'true');
-    chip.setAttribute('title', `${label}（待上线）`);
-    chip.textContent = label;
-    actions.append(chip);
-  }
-  const run = createElement('button') as HTMLButtonElement;
-  run.className = classes.run;
-  run.setAttribute('type', 'button');
-  run.setAttribute('data-node-control', 'true');
-  run.setAttribute('aria-label', '执行 AI 节点');
-  run.textContent = 'Generate';
-  footer.append(actions, run);
 
   let runner: SVGElement | null = null;
   try {
@@ -159,7 +145,11 @@ export function createAiNodeCard(options: AiNodeCardOptions): AiNodeCard {
     });
     run.addEventListener('click', (event) => {
       event.stopPropagation();
-      if (!running && commit()) options.onRun(options.id);
+      if (running) {
+        options.onCancel();
+        return;
+      }
+      if (commit()) options.onRun(options.id);
     });
     run.addEventListener('dblclick', (event) => event.stopPropagation());
   }
@@ -178,9 +168,10 @@ export function createAiNodeCard(options: AiNodeCardOptions): AiNodeCard {
     },
     setRunning(value): void {
       running = value;
-      run.disabled = value;
-      run.setAttribute('aria-disabled', String(value));
-      run.textContent = value ? 'Running…' : 'Generate';
+      run.dataset.running = value ? 'true' : 'false';
+      const label = value ? '停止 AI 运行' : '运行 AI 节点';
+      run.setAttribute('aria-label', label);
+      run.title = value ? '停止' : '运行';
     },
   };
   card.setModel(options.model);

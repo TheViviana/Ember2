@@ -10,6 +10,13 @@ import type { CanvasNodeView } from '../../../src/app/canvas/node-layout.ts';
 import { createNodeLayer, type NodeLayerParent } from '../../../src/app/canvas/node-layer.ts';
 import { readFileSync } from 'node:fs';
 import { createViewportTransform } from '../../../src/app/canvas/viewport.ts';
+import type { SplitPreview } from '../../../src/app/canvas/split-preview.ts';
+import type { StepProgressView } from '../../../src/app/canvas/step-node-card.ts';
+import { CanvasInteractionController } from '../../../src/app/canvas/document-controller.ts';
+import { countMergeInputs } from '../../../src/app/canvas/split-node-execution.ts';
+import { createSplitNodeRunner, type SplitRunDeps } from '../../../src/app/canvas/split-node-run.ts';
+import { AI_CHAT_CONFIG_INITIAL } from '../../../src/features/ai/ai-chat-store.ts';
+import type { CanvasDocument } from '../../../src/app/canvas/format.ts';
 
 interface FakeElement {
   className: string;
@@ -71,6 +78,11 @@ function createLayer(
   extraOptions: {
     measureAutoHeight?: (id: string, h: number) => void;
     getOffsetHeightForTest?: (el: HTMLElement) => number;
+    readMergeInputCount?: (id: string) => number;
+    readMergeOutputIsDocument?: (id: string) => boolean;
+    readSplitPreview?: (id: string) => SplitPreview | null;
+    readStepProgress?: (id: string) => StepProgressView | null;
+    readStepFailed?: (id: string) => boolean;
   } = {},
 ) {
   const parent = world.getWorldElement() as unknown as NodeLayerParent;
@@ -404,7 +416,7 @@ void test('CR-20261121-59：提示词卡片结构 = 标题/内容/开始钮，�
   assert.equal(run?.textContent, '\u25B6\uFE0E');
 });
 
-void test('2026-11-24：AI 卡片 = 模型头 + 内联提示词 + 预留动作与 Generate', () => {
+void test('2026-11-28：AI 卡片 = 模型头 + 运行圆钮 + 内联提示词', () => {
   const world = fakeWorld();
   const layer = createLayer(world);
   layer.setNodes(
@@ -428,18 +440,71 @@ void test('2026-11-24：AI 卡片 = 模型头 + 内联提示词 + 预留动作�
   assert.equal(header?.children[0]?.textContent, 'AI 步骤');
   assert.deepEqual(header?.children[1]?.dataset, { aiModel: 'true' });
   assert.equal(header?.children[1]?.textContent, 'gpt-5');
+  const run = header?.children[2];
+  assert.equal(run?.className, 'ai-run');
+  assert.equal(run?.attributes['data-node-control'], 'true');
+  assert.equal(run?.attributes['aria-label'], '运行 AI 节点');
 
   const prompt = card?.children[1];
   assert.equal(prompt?.attributes['aria-label'], 'AI 提示词');
   assert.equal(prompt?.attributes['data-node-control'], 'true');
+  assert.equal(card?.children[2]?.children.length, 0, '底部状态区保留为空');
+});
 
-  const footer = card?.children[2];
-  const actions = footer?.children[0];
-  assert.deepEqual(actions?.children.map((action) => action.textContent), ['简化', '分割', '要点', '总结']);
-  assert.ok(actions?.children.every((action) => action.attributes.disabled === ''));
-  const run = footer?.children[1];
-  assert.equal(run?.textContent, 'Generate');
-  assert.equal(run?.attributes['data-node-control'], 'true');
+void test('汇总卡片：输出到 document 时显示撤销提示，非 document 时隐藏', () => {
+  const world = fakeWorld();
+  let outputsToDocument = true;
+  const layer = createLayer(world, {
+    readMergeOutputIsDocument: () => outputsToDocument,
+  });
+  layer.setNodes(
+    [{ type: 'merge', kind: 'merge', id: 'm1', label: '汇总', x: 0, y: 0 }],
+    createViewportTransform(),
+  );
+  const item = world.element.children[0]?.children[0];
+  const card = item?.children[0];
+  const body = card?.children[1];
+  const hint = body?.children[1];
+  assert.equal(hint?.dataset.mergeHint, 'true');
+  assert.equal(hint?.textContent, '文档写入不进入画布撤销');
+
+  outputsToDocument = false;
+  layer.setNodes(
+    [{ type: 'merge', kind: 'merge', id: 'm1', label: '汇总', x: 0, y: 0 }],
+    createViewportTransform(),
+  );
+  assert.equal(hint?.textContent, '', '输出非 document 时不显示提示');
+});
+
+void test('分块子块：编辑/重试按钮随所属分块运行锁定，结束后恢复', () => {
+  const world = fakeWorld();
+  const layer = createLayer(world);
+  layer.setNodes(
+    [
+      {
+        type: 'text',
+        id: 'b1',
+        label: '块内容',
+        x: 0,
+        y: 0,
+        chunkIndex: 0,
+        sourceNodeId: 's1',
+      },
+    ],
+    createViewportTransform(),
+  );
+  const item = world.element.children[0]?.children[0];
+  const footer = item?.children[2];
+  const edit = footer?.children[1];
+  const retry = footer?.children[2];
+  assert.equal(edit?.textContent, '编辑块内容');
+  assert.equal(retry?.textContent, '重试提炼');
+
+  layer.setAiRunning('s1');
+  assert.equal(edit?.dataset.locked, 'true', '分块运行期整批块只读');
+  assert.equal(retry?.dataset.locked, 'true');
+  layer.setAiRunning(null);
+  assert.equal(edit?.dataset.locked, 'false', '运行结束后恢复可编辑');
 });
 
 void test('CR-20261121-59：.nodeRunBtn 必须显式放开 pointer-events + engine 注入哈希类（回归钉）', () => {
@@ -451,8 +516,212 @@ void test('CR-20261121-59：.nodeRunBtn 必须显式放开 pointer-events + engi
   assert.match(rule, /pointer-events:\s*auto/, 'nodeLayer 为 none，交互子元素必须显式放开');
 
   const engine = readFileSync(
-    new URL('../../../src/app/canvas/engine.ts', import.meta.url),
+    new URL('../../../src/app/canvas/node-class-names.ts', import.meta.url),
     'utf8',
   );
-  assert.match(engine, /run:\s*classOf\('nodeRunBtn'\)/, 'engine 必须注入哈希后的开始钮类');
+  assert.match(engine, /run:\s*classOf\('nodeRunBtn'\)/, '类名映射必须注入哈希后的开始钮类');
+});
+
+function collectText(element: FakeElement | undefined): string {
+  if (element === undefined) return '';
+  return `${element.textContent}${element.children.map((child) => collectText(child)).join('')}`;
+}
+
+void test('M4：split 卡片块数预览三态与隐藏', () => {
+  const world = fakeWorld();
+  let preview: SplitPreview | null = { kind: 'count', count: 3 };
+  const layer = createLayer(world, { readSplitPreview: () => preview });
+  const split = { type: 'split' as const, kind: 'split' as const, id: 's1', label: '分块', x: 0, y: 0 };
+
+  layer.setNodes([split], createViewportTransform());
+  assert.match(collectText(world.element), /预计 3 块/);
+
+  preview = { kind: 'pending' };
+  layer.setNodes([split], createViewportTransform());
+  assert.match(collectText(world.element), /块数待计算/);
+
+  preview = { kind: 'too-long' };
+  layer.setNodes([split], createViewportTransform());
+  assert.match(collectText(world.element), /素材过长/);
+
+  preview = null;
+  layer.setNodes([split], createViewportTransform());
+  assert.doesNotMatch(collectText(world.element), /预计|待计算|素材过长/);
+});
+
+void test('S1：merge 卡片上游段数复用去重后的输入计数', () => {
+  const world = fakeWorld();
+  const nodes = [
+    { id: 'm1', type: 'merge' },
+    { id: 'b1', type: 'text', label: 'A' },
+    { id: 'b2', type: 'text', label: 'B' },
+    { id: 'd1', type: 'document', docPath: 'a.md', label: 'A' },
+  ];
+  const edges = [
+    { from: { nodeId: 'b1' }, to: { nodeId: 'm1' } },
+    { from: { nodeId: 'b2' }, to: { nodeId: 'm1' } },
+    { from: { nodeId: 'b1' }, to: { nodeId: 'm1' } },
+    { from: { nodeId: 'd1' }, to: { nodeId: 'm1' } },
+  ];
+  const layer = createLayer(world, {
+    readMergeInputCount: (id) => countMergeInputs(nodes, edges, id),
+  });
+  layer.setNodes([{ type: 'merge', kind: 'merge', id: 'm1', label: '汇总', x: 0, y: 0 }], createViewportTransform());
+
+  assert.match(collectText(world.element), /上游 2 段/, '去重后 2 个 text 上游');
+  assert.doesNotMatch(collectText(world.element), /上游 3 段|上游 4 段/);
+});
+
+void test('M2：split 运行态在 footer 显示 k/N，body 始终保留块数预览', () => {
+  const world = fakeWorld();
+  let progress: StepProgressView | null = null;
+  const layer = createLayer(world, {
+    readSplitPreview: () => ({ kind: 'count', count: 13 }),
+    readStepProgress: () => progress,
+  });
+  const split = { type: 'split' as const, kind: 'split' as const, id: 's1', label: '分块', x: 0, y: 0 };
+  const run = (): FakeElement | undefined =>
+    world.element.children[0]?.children[0]?.children[0]?.children[0]?.children[2];
+
+  layer.setNodes([split], createViewportTransform());
+  assert.match(collectText(world.element), /预计 13 块/);
+  assert.doesNotMatch(collectText(world.element), /\d+\/\d+/, '非运行态 footer 状态为空');
+  assert.equal(run()?.dataset.running, 'false');
+  assert.equal(run()?.attributes['aria-label'], '运行分块');
+
+  progress = { done: 3, total: 13 };
+  layer.setAiRunning('s1');
+  layer.setNodes([split], createViewportTransform());
+  const runningText = collectText(world.element);
+  assert.match(runningText, /3\/13/);
+  assert.match(runningText, /预计 13 块/, '运行中 body 仍保留块数预览');
+  assert.equal(run()?.dataset.running, 'true', '运行中圆钮切换停止图标');
+  assert.equal(run()?.attributes['aria-label'], '停止分块');
+
+  progress = { done: 7, total: 13 };
+  layer.setNodes([split], createViewportTransform());
+  assert.match(collectText(world.element), /7\/13/);
+
+  progress = null;
+  layer.setAiRunning(null);
+  layer.setNodes([split], createViewportTransform());
+  const idleText = collectText(world.element);
+  // 运行结束/失败/取消在 hook 侧统一落入 progress=null + 非运行态。
+  assert.match(idleText, /预计 13 块/);
+  assert.doesNotMatch(idleText, /3\/13|7\/13/);
+  assert.equal(run()?.dataset.running, 'false');
+});
+
+void test('A1：运行中取消 → 运行态清除、旧块可编辑、无新块、历史不增', async () => {
+  const before: CanvasDocument = {
+    schemaVersion: 3,
+    nodes: [
+      { id: 'd1', type: 'document', docPath: 'a.md', label: 'A', x: 0, y: 0 },
+      { id: 's1', type: 'split', mode: 'refine', x: 200, y: 0 },
+      { id: 'c1', type: 'text', label: '旧块', chunkIndex: 0, sourceNodeId: 's1', x: 400, y: 0 },
+    ],
+    edges: [
+      { id: 'e1', from: { nodeId: 'd1' }, to: { nodeId: 's1' } },
+      { id: 'e2', from: { nodeId: 's1' }, to: { nodeId: 'c1' } },
+    ],
+  };
+  const instance = new CanvasInteractionController({
+    canvasId: 'cancel',
+    document: before,
+    store: {
+      save: () => Promise.resolve({}),
+      open: () => Promise.resolve({ exists: true, text: null, sha256: 'sha', modifiedMs: null }),
+    },
+    applyPositions: () => undefined,
+    onConflict: () => undefined,
+    onCommandError: () => undefined,
+    schedule: () => 1,
+    cancelSchedule: () => undefined,
+  });
+  let finish: () => void = () => undefined;
+  let executeCalls = 0;
+  const runner = createSplitNodeRunner({
+    getDocument: () => instance.getDocument(),
+    liveText: () => null,
+    readSnapshot: () => Promise.resolve({ text: 'x'.repeat(20), sha256: 's' }),
+    aiConfig: { ...AI_CHAT_CONFIG_INITIAL, model: 'test-model' },
+    stream: () =>
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    cancel: () => undefined,
+    notice: () => undefined,
+    executeCommands: (commands) => {
+      executeCalls += 1;
+      return instance.execute(commands);
+    },
+    createNodeId: () => 'new1',
+    createEdgeId: () => 'newEdge1',
+    occupiedRects: () => [],
+    progress: () => undefined,
+    flash: () => undefined,
+  } satisfies SplitRunDeps);
+
+  const world = fakeWorld();
+  const layer = createLayer(world);
+  layer.setNodes(
+    [
+      {
+        type: 'text',
+        id: 'c1',
+        label: '旧块',
+        x: 0,
+        y: 0,
+        chunkIndex: 0,
+        sourceNodeId: 's1',
+      },
+    ],
+    createViewportTransform(),
+  );
+  const item = world.element.children[0]?.children[0];
+  const footer = item?.children[2];
+  const edit = footer?.children[1];
+
+  const started = runner.start('s1', { replace: true });
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  layer.setAiRunning('s1');
+  assert.equal(edit?.dataset.locked, 'true', '运行中旧块只读');
+
+  runner.cancel();
+  finish();
+  await started;
+
+  layer.setAiRunning(null);
+  assert.equal(edit?.dataset.locked, 'false', '取消后旧块恢复可编辑');
+  const after = instance.getDocument();
+  assert.equal(executeCalls, 0, '取消零命令');
+  assert.equal(after.nodes.some((node) => (node as { id: string }).id === 'c1'), true);
+  assert.equal(after.nodes.length, before.nodes.length, '无新块残留');
+  assert.equal(after.edges.length, before.edges.length, '无新连线残留');
+  assert.equal(instance.getHistory().past.length, 0, '历史不增');
+});
+
+void test('B1：失败块标记持续到重试，不随 setNodes 消失', () => {
+  const world = fakeWorld();
+  let failed = true;
+  const layer = createLayer(world, { readStepFailed: () => failed });
+  const block = {
+    type: 'text' as const,
+    id: 'b1',
+    label: '失败块',
+    x: 0,
+    y: 0,
+    chunkIndex: 0,
+    sourceNodeId: 's1',
+  };
+  layer.setNodes([block], createViewportTransform());
+  const item = world.element.children[0]?.children[0];
+  assert.equal(item?.dataset.stepFailed, 'true');
+
+  layer.setNodes([block], createViewportTransform());
+  assert.equal(item?.dataset.stepFailed, 'true', '重绘后标记仍在');
+
+  failed = false;
+  layer.setNodes([block], createViewportTransform());
+  assert.equal(item?.dataset.stepFailed, undefined, '重试后清除标记');
 });

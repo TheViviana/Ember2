@@ -12,7 +12,7 @@ import type { CanvasDocument } from '../../../src/app/canvas/format.ts';
 
 function documentWith(nodes: readonly string[], edges: readonly string[]): CanvasDocument {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     nodes: nodes.map((id, index) => ({ id, x: index * 160, y: 0 })),
     edges: edges.map((id, index) => ({
       id,
@@ -54,7 +54,7 @@ void test('pruneSelection 无变化时返回原引用，坏条目同样被剔除
   assert.equal(pruneSelection(selection, documentWith(['a'], [])), selection);
 
   const withBadEntry: CanvasDocument = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     nodes: [{ id: 'a', x: 0, y: 0 }, { id: 'no-coordinates' }],
     edges: [],
   };

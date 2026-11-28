@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { inspect, validate, type CanvasDocument } from '#canvas-format';
 
 function document(nodes: readonly unknown[], edges: readonly unknown[]): CanvasDocument {
-  return { schemaVersion: 2, nodes, edges };
+  return { schemaVersion: 3, nodes, edges };
 }
 
 function text(id: string): Readonly<Record<string, unknown>> {
@@ -118,4 +118,60 @@ void test('CR-20261121-53：prompt 节点与 ai.model 合法；跨类型携带�
   assert.ok(paths.includes('/nodes/1/text'), '非 ai/prompt 节点禁止携带 text');
   assert.ok(paths.includes('/nodes/2/model'), '非 ai 节点禁止携带 model');
   assert.ok(paths.includes('/nodes/3/type'), '未知 type 非法');
+});
+
+void test('v3：split/merge 字段合法；mode/chunkChars 跨类型与非正值被拒', () => {
+  const ok = document(
+    [
+      { id: 's', type: 'split', x: 0, y: 0, mode: 'refine', chunkChars: 8000, text: '提炼要点', model: 'm' },
+      { id: 's2', type: 'split', x: 1, y: 1 },
+      { id: 'm', type: 'merge', x: 2, y: 2, text: '汇总', model: 'm' },
+    ],
+    [],
+  );
+  assert.deepEqual(validate(ok), { valid: true, issues: [] });
+
+  const bad = document(
+    [
+      { id: 's', type: 'split', x: 0, y: 0, mode: 'bad' },
+      { id: 's2', type: 'split', x: 1, y: 1, chunkChars: 0 },
+      { id: 'm', type: 'merge', x: 2, y: 2, mode: 'refine' },
+      { id: 't', type: 'text', x: 3, y: 3, chunkChars: 10 },
+    ],
+    [],
+  );
+  const result = validate(bad);
+  assert.equal(result.valid, false);
+  const paths = result.issues.map((issue) => issue.path);
+  assert.ok(paths.includes('/nodes/0/mode'), 'split.mode 只接受 split/refine');
+  assert.ok(paths.includes('/nodes/1/chunkChars'), 'chunkChars 必须为正');
+  assert.ok(paths.includes('/nodes/2/mode'), 'merge 禁止携带 mode');
+  assert.ok(paths.includes('/nodes/3/chunkChars'), '非 split 节点禁止携带 chunkChars');
+});
+
+void test('分块子块元数据：text 成对合法；非 text、缺对与非法值被拒', () => {
+  const ok = document(
+    [
+      { id: 'b0', type: 'text', x: 0, y: 0, label: '块', chunkIndex: 0, sourceNodeId: 's' },
+      { id: 'b1', type: 'text', x: 1, y: 1, chunkIndex: 1, sourceNodeId: 's' },
+    ],
+    [],
+  );
+  assert.deepEqual(validate(ok), { valid: true, issues: [] });
+
+  const bad = document(
+    [
+      { id: 'only-index', type: 'text', x: 0, y: 0, chunkIndex: 0 },
+      { id: 'bad-index', type: 'text', x: 1, y: 1, chunkIndex: -1, sourceNodeId: 's' },
+      { id: 'bad-source', type: 'text', x: 2, y: 2, chunkIndex: 0, sourceNodeId: '' },
+      { id: 'split-meta', type: 'split', x: 3, y: 3, chunkIndex: 0, sourceNodeId: 's' },
+    ],
+    [],
+  );
+  const result = validate(bad);
+  const paths = result.issues.map((issue) => issue.path);
+  assert.ok(paths.includes('/nodes/0/chunkIndex'), 'chunkIndex/sourceNodeId 必须成对');
+  assert.ok(paths.includes('/nodes/1/chunkIndex'), 'chunkIndex 必须是非负整数');
+  assert.ok(paths.includes('/nodes/2/sourceNodeId'), 'sourceNodeId 必须非空');
+  assert.ok(paths.includes('/nodes/3/chunkIndex'), '非 text 节点禁止携带子块元数据');
 });

@@ -5,6 +5,7 @@ export type CanvasNoticeCode =
   | 'E_SAVE_FAILED'
   | 'E_COMMAND'
   | 'E_SCHEMA'
+  | 'E_UPGRADED'
   | 'E_RESIZE_FAILED';
 
 export interface CanvasNotice {

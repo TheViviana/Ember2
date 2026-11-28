@@ -10,6 +10,8 @@ import { documentTitleFromPath, makeNodeId } from './canvas-interactions.ts';
 export interface ConnectionNodeChoice {
   readonly chooseText: () => void;
   readonly chooseAi: () => void;
+  readonly chooseSplit: () => void;
+  readonly chooseMerge: () => void;
   readonly chooseDoc: (path: string) => void;
 }
 
@@ -33,6 +35,14 @@ export function useConnectionNodeChoice(
     choose((point) => ({ id: makeNodeId(), x: point.x, y: point.y, type: 'ai', label: 'AI 节点', text: '' }));
   }, [choose]);
 
+  const chooseSplit = useCallback((): void => {
+    choose((point) => ({ id: makeNodeId(), x: point.x, y: point.y, type: 'split', label: '分块节点' }));
+  }, [choose]);
+
+  const chooseMerge = useCallback((): void => {
+    choose((point) => ({ id: makeNodeId(), x: point.x, y: point.y, type: 'merge', label: '汇总节点' }));
+  }, [choose]);
+
   const chooseDoc = useCallback(
     (path: string): void => {
       choose((point) => ({
@@ -47,5 +57,5 @@ export function useConnectionNodeChoice(
     [choose],
   );
 
-  return { chooseText, chooseAi, chooseDoc };
+  return { chooseText, chooseAi, chooseSplit, chooseMerge, chooseDoc };
 }

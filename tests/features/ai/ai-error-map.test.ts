@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { mapAiErrorCode } from '../../../src/features/ai/ai-error-map.ts';
 
-// Rust src-tauri/src/ai/error.rs 定义的 14 个 E_AI_* 码
+// Rust src-tauri/src/ai/error.rs 定义的 15 个 E_AI_* 码
 const RUST_CODES = [
   'E_AI_NOT_CONFIGURED',
   'E_AI_INVALID_ENDPOINT',
@@ -14,13 +14,14 @@ const RUST_CODES = [
   'E_AI_CONNECT_TIMEOUT',
   'E_AI_NETWORK',
   'E_AI_MODEL_UNAVAILABLE',
+  'E_AI_BAD_REQUEST',
   'E_AI_UNSUPPORTED_PROVIDER',
   'E_AI_INVALID_RESPONSE',
   'E_AI_RESPONSE_TOO_LARGE',
   'E_AI_CANCELLED',
 ] as const;
 
-void test('14 个 E_AI_* 码全部有映射（无 undefined 返回）', () => {
+void test('15 个 E_AI_* 码全部有映射（无 undefined 返回）', () => {
   for (const code of RUST_CODES) {
     const result = mapAiErrorCode(code);
     assert.ok(result.text.length > 0, `${code} 映射文案不能为空`);
@@ -69,6 +70,7 @@ void test('tone 分配合理', () => {
     'E_AI_UNAUTHORIZED',
     'E_AI_CONNECT_TIMEOUT',
     'E_AI_NETWORK',
+    'E_AI_BAD_REQUEST',
     'E_AI_UNSUPPORTED_PROVIDER',
     'E_AI_INVALID_RESPONSE',
   ];
@@ -86,4 +88,11 @@ void test('关键码文案内容', () => {
 
   const r3 = mapAiErrorCode('E_AI_INVALID_ENDPOINT');
   assert.ok(r3.text.includes('不安全 HTTP'), 'InvalidEndpoint 应提到 allowInsecureHttp');
+
+  // 提供方返回的可读原因要原样透传，不能被泛化文案覆盖。
+  const r4 = mapAiErrorCode('E_AI_BAD_REQUEST', '提供方拒绝了请求：prefill memory guard rejected');
+  assert.ok(r4.text.includes('prefill memory guard'), 'BadRequest 应展示提供方原因');
+
+  const r5 = mapAiErrorCode('E_AI_MODEL_UNAVAILABLE', '模型不可用：projected memory 20.29GB');
+  assert.ok(r5.text.includes('projected memory'), 'ModelUnavailable 应展示提供方原因');
 });

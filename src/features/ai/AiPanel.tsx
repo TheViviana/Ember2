@@ -30,6 +30,7 @@ import {
   readAiPanelHeight,
   writeAiPanelHeight,
 } from './ai-panel-reducer.ts';
+import { requiresApiKey } from './ai-endpoint.ts';
 import styles from './ai-panel.module.css';
 
 // ─── Effects（AppShell 注入的 IPC 桥）──────────────────────────────
@@ -79,7 +80,7 @@ export function AiPanel({ open, onClose, onOpenSettings, effects, initialStatus 
   // 对话只需知道端点是否已配置；Ollama 无 Key，直接视为可用。
   useEffect(() => {
     if (!open) return;
-    if (config.provider === 'ollama') {
+    if (!requiresApiKey(config.provider)) {
       setConfigured(true);
       return;
     }
@@ -148,7 +149,13 @@ export function AiPanel({ open, onClose, onOpenSettings, effects, initialStatus 
 
   const model = (config.model ?? '').trim();
   const modelLabel =
-    model.length > 0 ? model : config.provider === 'ollama' ? 'OLLAMA · 本地' : 'OPENAI';
+    model.length > 0
+      ? model
+      : config.provider === 'ollama'
+        ? 'OLLAMA · 本地'
+        : config.provider === 'openai-compatible-local'
+          ? 'LOCAL · 本地'
+          : 'OPENAI';
 
   return (
     <div className={styles.backdrop} role="presentation" onClick={onClose}>

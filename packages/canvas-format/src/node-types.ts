@@ -1,4 +1,4 @@
-/** 画布节点 type 白名单（六种）；运行时清单唯一来源。 */
+/** 画布节点 type 白名单（八种）；运行时清单唯一来源。 */
 export const CANVAS_NODE_TYPES = Object.freeze([
   'document',
   'media',
@@ -6,6 +6,8 @@ export const CANVAS_NODE_TYPES = Object.freeze([
   'group',
   'ai',
   'prompt',
+  'split',
+  'merge',
 ] as const);
 
 export type CanvasNodeType = (typeof CANVAS_NODE_TYPES)[number];

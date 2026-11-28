@@ -11,10 +11,10 @@ void test('doc-model 桩可加载（node 直接跑 TS 验证编译链路）', ()
   assert.ok(DOC_MODEL_VERSION.length > 0);
 });
 
-void test('canvas-format schemaVersion 符合契约 v2（docs/canvas-format.md）', () => {
+void test('canvas-format schemaVersion 符合契约 v3（docs/canvas-format.md）', () => {
   assert.equal(typeof CANVAS_FORMAT_VERSION, 'string');
   assert.ok(CANVAS_FORMAT_VERSION.length > 0);
-  assert.equal(CANVAS_SCHEMA_VERSION, 2, '画布 schema 契约是 v2（端口连线），不等于 2 即实现漂移');
+  assert.equal(CANVAS_SCHEMA_VERSION, 3, '画布 schema 契约是 v3（端口连线 + 分块/汇总），不等于 3 即实现漂移');
 });
 
 function* walkCss(dir: string): Generator<string> {

@@ -21,6 +21,7 @@ import {
   isNodeContentMode,
   marqueeNodeIds,
   mergeAutoHeights,
+  mergeOutputsToDocument,
   NODE_HEIGHT,
   nodeLocalPosition,
   nodeOutsideLabelLayout,
@@ -216,7 +217,7 @@ void test('C4 框选：zoom 0.05/8 相交即选、不选边、支持反向矩形
 void test('裁决 2A：非 24 倍数 lastOrigin 原样接受，打开未编辑时存盘字节不变', () => {
   const text = `${JSON.stringify(
     {
-      schemaVersion: 2,
+      schemaVersion: 3,
       lastOrigin: { x: 17, y: -29 },
       nodes: [{ type: 'text', id: 'a', label: 'A', x: 101, y: 203 }],
       edges: [],
@@ -342,9 +343,28 @@ void test('CR-20261121-53：ai/prompt 节点透出 type/kind/aiModel/promptText�
   assert.deepEqual(views[4], { type: 'text', id: 't1', label: '正文', x: 4, y: 4 });
 });
 
-void test('CanvasNodeView.type：保留六种白名单类型，缺失类型沿用文本卡片兜底', () => {
-  const types = ['document', 'media', 'text', 'group', 'ai', 'prompt'] as const;
+void test('CanvasNodeView.type：保留八种白名单类型，缺失类型沿用文本卡片兜底', () => {
+  const types = ['document', 'media', 'text', 'group', 'ai', 'prompt', 'split', 'merge'] as const;
   const views = extractNodeViews(types.map((type, index) => ({ id: type, type, x: index, y: 0 })));
   assert.deepEqual(views.map((view) => view.type), types);
   assert.equal(extractNodeViews([{ id: 'legacy', x: 0, y: 0 }])[0]?.type, 'text');
+});
+
+void test('A4：merge 投影仅“唯一 document 输出”才显示撤销例外', () => {
+  const nodes = [
+    { id: 'm1', type: 'merge' },
+    { id: 'd1', type: 'document', docPath: 'a.md', label: 'A' },
+    { id: 't1', type: 'text', label: '输出' },
+  ];
+  const docEdge = { from: { nodeId: 'm1' }, to: { nodeId: 'd1' } };
+  const textEdge = { from: { nodeId: 'm1' }, to: { nodeId: 't1' } };
+
+  assert.equal(mergeOutputsToDocument(nodes, [docEdge], 'm1'), true, '唯一 document 输出');
+  assert.equal(
+    mergeOutputsToDocument(nodes, [docEdge, textEdge], 'm1'),
+    false,
+    '文本 + document 双输出时 runner 拒绝，投影不得误报',
+  );
+  assert.equal(mergeOutputsToDocument(nodes, [textEdge], 'm1'), false, '唯一文本输出');
+  assert.equal(mergeOutputsToDocument(nodes, [], 'm1'), false, '无输出');
 });

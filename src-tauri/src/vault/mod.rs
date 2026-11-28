@@ -225,11 +225,14 @@ pub fn spawn_trash_sweep(app: AppHandle) {
             std::time::SystemTime::now(),
         );
         trash::warn(&format!(
-            "清扫完成：扫描 {}，删除 {}，失败 {}，跳过 {:?}",
+            "清扫完成：扫描 {}，删除 {}，失败 {}，跳过 {}",
             report.scanned,
             report.removed.len(),
             report.errors.len(),
-            report.skipped
+            match &report.skipped {
+                Some(reason) => format!("{reason:?}"),
+                None => "无".to_string(),
+            }
         ));
         if let Err(error) = app.emit(trash::SWEEP_EVENT, SweepReportDto::from(report)) {
             trash::warn(&format!("清扫事件上报失败：{error}"));

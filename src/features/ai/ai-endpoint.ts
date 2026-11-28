@@ -7,14 +7,17 @@
 /**
  * 允许的 Provider 类型——与 src/types/ipc.ts AiProvider 严格对齐。
  *
- * UI 展示多档生产商（含「自定义」），但实际传给 Rust 的 AiProvider 只有 2 个值：
- * Ollama 走本地协议；其余生产商与自定义端点均为 OpenAI 兼容。
+ * - `ollama`：本地 Ollama 原生协议；
+ * - `openai-compatible`：公网 OpenAI 兼容端点，必须有 Key；
+ * - `openai-compatible-local`：本地/局域网 OpenAI 兼容端点（oMLX、LM Studio、
+ *   vLLM 等），只放行回环与私网，Key 可选。
  */
-export type AiProvider = 'ollama' | 'openai-compatible';
+export type AiProvider = 'ollama' | 'openai-compatible' | 'openai-compatible-local';
 
 /** UI 预设值；`custom` 表示 BASE URL 不匹配任何已知生产商，由用户手填。 */
 export type AiProviderPreset =
   | 'ollama'
+  | 'openai-compatible-local'
   | 'openai-official'
   | 'deepseek'
   | 'moonshot'
@@ -37,6 +40,9 @@ export interface AiEndpointPreset {
 /** Ollama 默认端点（唯一常量源，UI 各处初始值均引用此处）。 */
 export const DEFAULT_OLLAMA_BASE_URL = 'http://localhost:11434';
 
+/** 本地 OpenAI 兼容端点默认基址（oMLX 默认监听 8000）。路径必须含 `/v1`。 */
+export const DEFAULT_LOCAL_OPENAI_BASE_URL = 'http://127.0.0.1:8000/v1';
+
 /**
  * 常见生产商预设表。Provider 值必须与 AiProvider 严格对齐。
  * - Ollama：hideSaveDelete=true（不需要持久化 Key）；allowInsecureHttp 默认 true（回环 http）。
@@ -45,6 +51,7 @@ export const DEFAULT_OLLAMA_BASE_URL = 'http://localhost:11434';
  */
 export const AI_PROVIDER_PRESETS: readonly AiEndpointPreset[] = Object.freeze([
   Object.freeze({ id: 'ollama', label: 'Ollama（本地）', provider: 'ollama', defaultBaseUrl: DEFAULT_OLLAMA_BASE_URL, showKeyField: false, hideSaveDelete: true }),
+  Object.freeze({ id: 'openai-compatible-local', label: '本地模型（OpenAI 兼容）', provider: 'openai-compatible-local', defaultBaseUrl: DEFAULT_LOCAL_OPENAI_BASE_URL, showKeyField: true, hideSaveDelete: false }),
   Object.freeze({ id: 'openai-official', label: 'OpenAI', provider: 'openai-compatible', defaultBaseUrl: 'https://api.openai.com/v1', showKeyField: true, hideSaveDelete: false }),
   Object.freeze({ id: 'deepseek', label: 'DeepSeek', provider: 'openai-compatible', defaultBaseUrl: 'https://api.deepseek.com', showKeyField: true, hideSaveDelete: false }),
   Object.freeze({ id: 'moonshot', label: 'Kimi（月之暗面）', provider: 'openai-compatible', defaultBaseUrl: 'https://api.moonshot.cn/v1', showKeyField: true, hideSaveDelete: false }),
@@ -67,17 +74,30 @@ export function derivePresetId(baseUrl: string, provider: AiProvider): AiProvide
 }
 
 /**
- * 该 provider 是否需要 API Key（与 Rust `Provider::requires_key` 对齐）。
- * Ollama 本地端点不需要 Key；openai-compatible 必须有 Key。
+ * 该 provider 是否**必须**提供 API Key（与 Rust `Provider::requires_key` 对齐）。
+ * 只有公网 openai-compatible 强制要求；本地端点一律不强制。
  */
 export function requiresApiKey(provider: AiProvider): boolean {
   return provider === 'openai-compatible';
 }
 
 /**
+ * 该 provider 是否接受可选 Key（与 Rust `Provider::key_optional` 对齐）：
+ * 本地 OpenAI 兼容端点有 Key 就带、没有也能用。
+ */
+export function isKeyOptional(provider: AiProvider): boolean {
+  return provider === 'openai-compatible-local';
+}
+
+/** 是否本地运行时（Ollama / 本地 OpenAI 兼容）：共享 Local 网段策略与上下文预算。 */
+export function isLocalProvider(provider: AiProvider): boolean {
+  return provider === 'ollama' || provider === 'openai-compatible-local';
+}
+
+/**
  * 模型列表 / 测试连接是否可发起：
- * - Ollama：本地端点无需 Key，未配置也可查；
- * - openai-compatible：必须先保存 Key（configured=true）。
+ * - Ollama / 本地 OpenAI 兼容：不强制 Key，未配置也可查；
+ * - 公网 openai-compatible：必须先保存 Key（configured=true）。
  */
 export function canQueryModels(provider: AiProvider, configured: boolean): boolean {
   return !requiresApiKey(provider) || configured;

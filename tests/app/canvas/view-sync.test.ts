@@ -14,7 +14,7 @@ import {
 
 function documentWithOrigin(): CanvasDocument {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     lastOrigin: { x: 24, y: -48 },
     nodes: [
       { id: 'a', label: 'A', x: 1, y: 2 },

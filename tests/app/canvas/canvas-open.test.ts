@@ -37,7 +37,7 @@ void test('打开三分支：missing / 合法无 issues / 合法含 issues（只
   assert.deepEqual(ready.document.nodes, []);
 
   const withIssues = classifyCanvasOpen(
-    opened(JSON.stringify({ schemaVersion: 2, nodes: [{ id: 'a' }], edges: [] }, null, 2)),
+    opened(JSON.stringify({ schemaVersion: 3, nodes: [{ id: 'a' }], edges: [] }, null, 2)),
   );
   assert.equal(withIssues.kind, 'ready');
   if (withIssues.kind !== 'ready') return;

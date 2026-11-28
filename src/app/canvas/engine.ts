@@ -55,7 +55,7 @@ import {
   isFixedSizeNodeKind,
   isNodeContentMode,
   marqueeNodeIds,
-  mergeAutoHeights,
+  mergeAutoHeights, mergeOutputsToDocument,
   nodeScreenRect,
   nodeSizeOf,
   nodeWorldRects,
@@ -71,9 +71,14 @@ import {
   type CanvasNoticeCode,
 } from './notice.ts';
 import { createNodeLayer, type DocLinkCounts, type NodeLayer } from './node-layer.ts';
+import { createCanvasNodeClassNames } from './node-class-names.ts';
 import { createDocPreviewRenderer } from './preview-dom.ts';
+import type { SplitPreview } from './split-preview.ts';
+import { countMergeInputs } from './split-node-execution.ts';
+import { createCanvasTransientStore, type StepProgressView } from './canvas-transient-store.ts';
 import {
   createEmptyCanvasDocument,
+  isLegacyCanvasText,
   parseCanvasDocument,
   serializeCanvasDocument,
   type CanvasDocument,
@@ -138,6 +143,17 @@ export interface CanvasEngineOptions {
   readonly onRunPrompt?: (id: string) => void;
   readonly onUpdateAiText?: (id: string, text: string) => boolean;
   readonly onRunAi?: (id: string) => void;
+  /** 分块/汇总节点：执行切分、逐块提炼或合并。 */
+  readonly onRunSplit?: (id: string) => void;
+  readonly onRunMerge?: (id: string) => void;
+  readonly onCancelRun?: (kind: 'ai' | 'step') => void;
+  /** 分块节点内联配置：mode 切换与块大小循环（chunkChars=null 删除字段）。 */
+  readonly onUpdateSplitConfig?: (
+    id: string,
+    patch: { readonly mode?: 'split' | 'refine'; readonly chunkChars?: number | null },
+  ) => void;
+  /** 分块子块：单块重试提炼。 */
+  readonly onRetryBlock?: (id: string) => void;
   /** CR-20261121-45 项3/项2：文档节点「展开」→ 打开阅读浮窗（AppShell 层）。 */
   readonly onOpenReadMode?: (payload: {
     readonly docPath: string;
@@ -252,6 +268,9 @@ export class CanvasEngine {
   private screenEdges: readonly ScreenEdge[] = [];
   private readonly screenEdgeCache = createScreenEdgeCache();
   private readonly dirtyNodeIds = new Set<string>();
+  /** M4：split 卡片块数预览的瞬态结果；不写文档、不入历史。 */
+  private readonly transient = createCanvasTransientStore();
+  private readonly documentChangeListeners = new Set<() => void>();
   /** CR-20261119-12：autoH 测量结果暂存；与 view.autoH 同步。 */
   private readonly autoHeights = new Map<string, number>();
   /** CR-20261119-12：待测量的 id 集合；scheduleMeasure 加，draw 内 measure 后清。 */
@@ -325,46 +344,29 @@ export class CanvasEngine {
     this.world.element.dataset.layer = 'world';
     this.edges = createEdgeLayer({ className: classOf('edges'), layerName: 'edges' });
     this.highlight = createEdgeLayer({ className: classOf('highlight'), layerName: 'highlight' });
+    const classNames = createCanvasNodeClassNames(classOf);
     this.nodes = createNodeLayer(this.world.getWorldElement(), {
       className: classOf('nodeLayer'),
       glowClassName: classOf('ambientGlow'),
       nodeClassName: classOf('node'),
       selectedClassName: classOf('selected'),
-      mediaClassNames: {
-        image: classOf('mediaImage'), label: classOf('mediaLabel'), placeholder: classOf('mediaPlaceholder'),
-        kicker: classOf('mediaKicker'), kickerBadge: classOf('mediaKickerBadge'),
-        surface: classOf('mediaSurface'), footer: classOf('mediaFooter'), document: classOf('mediaDocument'),
-        player: classOf('media-player'), audioEl: classOf('mediaAudioEl'),
-        audioPlayer: classOf('mediaAudioPlayer'), audioPlay: classOf('mediaAudioPlay'),
-        audioTrack: classOf('mediaAudioTrack'), audioFill: classOf('mediaAudioFill'), audioTime: classOf('mediaAudioTime'),
-      },
-      docClassNames: {
-        body: classOf('docBody'), summary: classOf('docSummary'),
-        kicker: classOf('docKicker'), kickerBadge: classOf('docKickerBadge'),
-        footer: classOf('docFooter'),
-        tags: classOf('docTags'), tag: classOf('docTag'), meta: classOf('docMeta'),
-        links: classOf('docLinks'), linkOut: classOf('docLinkOut'), linkBack: classOf('docLinkBack'),
-        content: classOf('docContent'), clip: classOf('docClip'), text: classOf('docText'),
-        hint: classOf('docHint'), expand: classOf('docExpand'),
-      },
+      mediaClassNames: classNames.media,
+      docClassNames: classNames.doc,
       readDocMeta: (path) => this.docPreview?.getMeta(path) ?? null,
       readDocText: (path) => this.docPreview?.getText(path) ?? null,
+      readSplitPreview: (id) => this.readSplitPreview(id),
+      readStepProgress: (id) => this.readStepProgress(id),
+      readStepFailed: (id) => this.readStepFailed(id),
       readDocLinkCounts: options.readDocLinkCounts,
       // CR-20261121-59：提示词右下角「开始」钮 → 所连 AI 节点执行。
       onRunPrompt: options.onRunPrompt,
       onUpdateAiText: options.onUpdateAiText, onRunAi: options.onRunAi,
+      onRunSplit: options.onRunSplit, onRunMerge: options.onRunMerge, onCancelRun: options.onCancelRun,
+      onUpdateSplitConfig: options.onUpdateSplitConfig,
       onOpenAiModel: (id) => this.emitEngineEvent({ kind: 'doubleClickNode', nodeId: id }),
-      simpleClassNames: {
-        title: classOf('nodeCardTitle'), icon: classOf('nodeCardIcon'),
-        content: classOf('nodeCardContent'), run: classOf('nodeRunBtn'), empty: classOf('nodeCardEmpty'),
-        footer: classOf('nodeCardFooter'),
-      },
-      aiClassNames: {
-        root: classOf('aiCard'), header: classOf('aiHeader'), title: classOf('aiTitle'),
-        model: classOf('aiModel'), prompt: classOf('aiPrompt'), footer: classOf('aiFooter'),
-        actions: classOf('aiActions'), chip: classOf('aiChip'), run: classOf('aiRun'),
-        runner: classOf('aiRunner'), runnerGlow: classOf('aiRunnerGlow'), runnerCore: classOf('aiRunnerCore'),
-      },
+      simpleClassNames: classNames.simple, aiClassNames: classNames.ai, stepClassNames: classNames.step,
+      onEditBlock: (id) => this.emitEngineEvent({ kind: 'doubleClickNode', nodeId: id }), onRetryBlock: options.onRetryBlock,
+      readMergeInputCount: (id) => countMergeInputs(this.getDocument().nodes, this.getDocument().edges, id), readMergeOutputIsDocument: (id) => mergeOutputsToDocument(this.getDocument().nodes, this.getDocument().edges, id),
       // CR-20261120-34：内容模式渲染为只读 Markdown 预览（安全 DOM，无 raw HTML）。
       renderDocPreview: createDocPreviewRenderer(),
       // CR-20261121-45 外标题/占位类名
@@ -407,6 +409,13 @@ export class CanvasEngine {
       if (!this.mounted || !this.mountGuard.isCurrent(generation)) return;
       const document =
         opened.text === null ? createEmptyCanvasDocument() : parseCanvasDocument(opened.text);
+      if (opened.text !== null && isLegacyCanvasText(opened.text)) {
+        this.emitNotice({
+          code: 'E_UPGRADED',
+          message: '此画布为 v2 格式：保存后将升级为 v3，旧版 Ember 将无法再打开。',
+          persistent: false,
+        });
+      }
       const schema = inspectCanvasDocument(document);
       this.issues = schema.issues;
       this.controller = new CanvasInteractionController({
@@ -690,6 +699,7 @@ export class CanvasEngine {
     this.autoHeightPruneAndSchedule();
     // CR-20261119-09：外部版本替换后视图已重建，必须触发 setNodes。
     this.nodeLayerDirty = true;
+    this.notifyDocumentChanges();
     this.scheduleFrame();
   }
 
@@ -839,6 +849,8 @@ export class CanvasEngine {
     this.world.dispose();
     this.canvas.remove();
     this.docPreview?.dispose();
+    this.documentChangeListeners.clear();
+    this.transient.clear();
   }
 
   private localPoint(event: PointerEvent | WheelEvent): Point {
@@ -1649,7 +1661,7 @@ export class CanvasEngine {
   getDocument(): CanvasDocument {
     const doc = this.controller?.getDocument();
     if (doc !== undefined) return doc;
-    return { schemaVersion: 2, nodes: [], edges: [] };
+    return { schemaVersion: 3, nodes: [], edges: [] };
   }
 
   /** C0-D：暴露当前视口变换（只读）供 CanvasView 定位编辑层。 */
@@ -1679,6 +1691,56 @@ export class CanvasEngine {
 
   setAiFlash(flash: { readonly id: string; readonly kind: 'ok' | 'error' } | null): void {
     this.nodes.setAiFlash(flash);
+  }
+
+  /** M4：split 块数预览的瞬态结果；只触发对应节点重绘，不写文档。 */
+  setSplitPreviews(previews: ReadonlyMap<string, SplitPreview>): void {
+    const changed = this.transient.setSplitPreviews(previews);
+    if (!this.mounted || changed.length === 0) return;
+    for (const id of changed) this.dirtyNodeIds.add(id);
+    this.scheduleFrame();
+  }
+
+  readSplitPreview(id: string): SplitPreview | null {
+    return this.transient.readSplitPreview(id);
+  }
+
+  /** M2：split 运行态 k/N；只重绘新旧节点，不写文档、不入历史。 */
+  setStepProgress(
+    progress: { readonly nodeId: string; readonly done: number; readonly total: number } | null,
+  ): void {
+    const changed = this.transient.setStepProgress(progress);
+    if (!this.mounted || changed.length === 0) return;
+    for (const id of changed) this.dirtyNodeIds.add(id);
+    this.scheduleFrame();
+  }
+
+  readStepProgress(id: string): StepProgressView | null {
+    return this.transient.readStepProgress(id);
+  }
+
+  /** B1：失败块持久标记（瞬态）；只重绘对应节点。 */
+  setStepFailed(id: string, failed: boolean): void {
+    if (!this.transient.setStepFailed(id, failed)) return;
+    if (!this.mounted) return;
+    this.dirtyNodeIds.add(id);
+    this.scheduleFrame();
+  }
+
+  readStepFailed(id: string): boolean {
+    return this.transient.readStepFailed(id);
+  }
+
+  /** M4：文档真值变化（命令提交、撤销/重做、外部替换）→ 预览投影失效。 */
+  subscribeDocumentChanges(listener: () => void): () => void {
+    this.documentChangeListeners.add(listener);
+    return () => {
+      this.documentChangeListeners.delete(listener);
+    };
+  }
+
+  private notifyDocumentChanges(): void {
+    for (const listener of this.documentChangeListeners) listener();
   }
 
   /** CR-20261122-62：AI 写入文档后使旧卡片快照失效。 */
@@ -1794,6 +1856,7 @@ export class CanvasEngine {
     const controller = this.controller;
     if (controller === null) return;
     this.syncViewsFromDocument();
+    this.notifyDocumentChanges();
     const nodes = extractNodes(controller.getDocument());
     const maxAbs = nodes.reduce(
       (maximum, node) => Math.max(maximum, Math.abs(node.x), Math.abs(node.y)),
@@ -1832,6 +1895,8 @@ export class CanvasEngine {
     this.issues = schema.issues;
     this.nodeViews = extractNodeViews(schema.projection.nodes);
     this.edgeViews = extractEdgeViews(schema.projection.edges, this.nodeViews);
+    // 瞬态失败标记只保留仍存在的节点，手动删除块后不残留 stale id。
+    this.transient.pruneFailedBlocks(new Set(this.nodeViews.map((view) => view.id)));
     // CR-20261119-12：合并 autoH + prune Map + 兜底补测
     this.autoHeightPruneAndSchedule();
     // S1：删除/撤销/重做/外部变更后同步选中集，避免残留死 id 令后续删除整批被拒。

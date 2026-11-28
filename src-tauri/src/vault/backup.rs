@@ -360,7 +360,7 @@ fn fsync_dir(dir: &Path) -> io::Result<()> {
 }
 
 fn warn(detail: &str) {
-    eprintln!("[vault/backup] {detail}");
+    tracing::warn!(target: "vault::backup", "{}", detail);
 }
 
 #[cfg(test)]

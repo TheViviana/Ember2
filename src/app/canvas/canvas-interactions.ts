@@ -105,6 +105,34 @@ export function createAddPromptNodeCommand(
   return { kind: 'addNode', node };
 }
 
+/** 分块节点：把文章切成块，可选逐块提炼；配置内联在卡片上。 */
+export function createAddSplitNodeCommand(
+  x: number,
+  y: number,
+  label = '分块节点',
+): CanvasCommand {
+  const node: CanvasNodeInput = { id: makeNodeId(), x, y, type: 'split', label };
+  return { kind: 'addNode', node };
+}
+
+/** 汇总节点：把上游块合并为一份结果。 */
+export function createAddMergeNodeCommand(
+  x: number,
+  y: number,
+  label = '汇总节点',
+): CanvasCommand {
+  const node: CanvasNodeInput = { id: makeNodeId(), x, y, type: 'merge', label };
+  return { kind: 'addNode', node };
+}
+
+/** 分块节点内联配置；chunkChars=null 删除字段（按 provider 预算自动）。 */
+export function createUpdateSplitConfigCommand(
+  id: string,
+  patch: { readonly mode?: 'split' | 'refine'; readonly chunkChars?: number | null },
+): CanvasCommand {
+  return { kind: 'updateNode', id, changes: patch };
+}
+
 /** CR-20261121-53：提示词正文更新（空串=清空，卡片显示占位）。 */
 export function createUpdatePromptTextCommand(id: string, text: string): CanvasCommand {
   return { kind: 'updateNode', id, changes: { text } };

@@ -6,7 +6,7 @@
  */
 import type { AiChatRequest, ChatMessage } from '../../types/ipc.ts';
 import type { AiChatTurn } from './ai-chat-reducer.ts';
-import { validateBaseUrl, type AiProvider } from './ai-endpoint.ts';
+import { isLocalProvider, validateBaseUrl, type AiProvider } from './ai-endpoint.ts';
 
 export interface ChatRequestConfig {
   readonly provider: AiProvider;
@@ -26,6 +26,15 @@ export type BuildChatRequestResult =
   | { readonly ok: false; readonly reason: ChatRequestFailure };
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
+
+/**
+ * 本地运行时（Ollama / 本地 OpenAI 兼容）的上下文预算（字符）。
+ *
+ * 本地模型没有云端那样的上下文计费，但显存/内存有限：把整段历史反复送给
+ * oMLX 这类服务会触发 prefill_memory_exceeded。超出预算时从最早轮次开始丢弃，
+ * 最后一条用户消息始终保留；公网 provider 不受此限制（保持原有行为）。
+ */
+export const LOCAL_CONTEXT_CHAR_BUDGET = 16_000;
 
 /** 生产用 requestId；满足契约的非空、≤128 字节、`[A-Za-z0-9_-]`。 */
 export function createChatRequestId(): string {
@@ -48,6 +57,27 @@ function toMessages(turns: readonly AiChatTurn[]): ChatMessage[] {
   return messages;
 }
 
+/**
+ * 按字符预算保留最近的消息：从最早一条开始丢弃，直到总量进入预算。
+ * 不丢弃最后一条；裁剪后若以 assistant 开头，再跳过它，保证对话从 user 开始。
+ */
+function fitMessagesToBudget(messages: readonly ChatMessage[], budget: number): ChatMessage[] {
+  let total = 0;
+  for (const message of messages) total += message.content.length;
+  if (total <= budget) return [...messages];
+  let start = 0;
+  while (start < messages.length - 1 && total > budget) {
+    const dropped = messages[start];
+    if (dropped === undefined) break;
+    total -= dropped.content.length;
+    start += 1;
+  }
+  while (start < messages.length - 1 && messages[start]?.role === 'assistant') {
+    start += 1;
+  }
+  return messages.slice(start);
+}
+
 export function buildChatRequest(args: {
   readonly requestId: string;
   readonly config: ChatRequestConfig;
@@ -67,6 +97,9 @@ export function buildChatRequest(args: {
   if (messages.length === 0) {
     return { ok: false, reason: 'empty_messages' };
   }
+  const fitted = isLocalProvider(args.config.provider)
+    ? fitMessagesToBudget(messages, LOCAL_CONTEXT_CHAR_BUDGET)
+    : messages;
   return {
     ok: true,
     request: Object.freeze({
@@ -75,7 +108,7 @@ export function buildChatRequest(args: {
       baseUrl: args.config.baseUrl,
       allowInsecureHttp: args.config.allowInsecureHttp,
       model,
-      messages,
+      messages: fitted,
     }),
   };
 }

@@ -47,7 +47,7 @@ IPC 失败统一返回 `ErrorPayload { code, message }`：`code` 是稳定枚举
 | `E_PERM` | 画布**写**路径上目标 / 画布目录为 symlink 或非普通文件，或剩余权限拒绝（`EPERM` 等；`EACCES` / `EROFS` 已先映射为 `E_READONLY`） | 画布文件不可写 |
 | `E_BACKUP_FAILED` | `backupV1: true` 时写 `.v1.bak` 失败；附 `cause`（`EACCES` / `ENOSPC` / `E_IO`） | 画布备份失败 |
 | `E_AI_NOT_CONFIGURED` | 尚未选择提供方/端点（保留码；当前 AI 配置由前端每次调用随请求传入，暂不抛出） | 尚未配置 AI 提供方 |
-| `E_AI_INVALID_ENDPOINT` | 端点 URL 非法、协议不支持，或明文 HTTP 指向非回环/非私网地址 | AI 端点非法：`<详情>` |
+| `E_AI_INVALID_ENDPOINT` | 端点 URL 非法、协议不支持、主机解析到策略禁止的网段（公网 provider 拒绝回环/私网，本地 provider 额外放行回环/RFC1918），或明文 HTTP 指向非回环/非私网地址 | AI 端点非法：`<详情>` |
 | `E_AI_KEY_MISSING` | 需要密钥的提供方没有可用密钥 | 缺少 API Key |
 | `E_AI_KEYCHAIN_DENIED` | 本地文件持久化不可用或操作失败：保存时降级到进程内存（随 `ai_key_save.warningCode` 返回，不是命令失败），删除时作为命令失败上报；未持久化的 Key 重启需重填 | 写入本地失败，已降级到内存，重启后需重填 |
 | `E_AI_UNAUTHORIZED` | 提供方返回 401 / 403 | 提供方拒绝了凭据 |
@@ -55,8 +55,9 @@ IPC 失败统一返回 `ErrorPayload { code, message }`：`code` 是稳定枚举
 | `E_AI_TIMEOUT` | 等待响应头或读取数据块超时 | 请求超时 |
 | `E_AI_CONNECT_TIMEOUT` | 建立连接超时 | 连接服务超时 |
 | `E_AI_NETWORK` | 其他传输失败、5xx（503 除外）、响应体截断 | 网络请求失败 |
-| `E_AI_MODEL_UNAVAILABLE` | 提供方返回 503（模型未下载/名称不对） | 模型不可用：可能未下载或名称不对 |
-| `E_AI_UNSUPPORTED_PROVIDER` | `provider` 不是 `ollama` / `openai-compatible` | 该提供方不支持获取模型列表 |
+| `E_AI_MODEL_UNAVAILABLE` | 提供方返回 503 / 507（模型未下载、名称不对，或内存不足无法加载）；507 的加载失败原因会随 `message` 透传 | 模型不可用：`<提供方原因>` |
+| `E_AI_BAD_REQUEST` | 提供方返回其他 4xx（400 / 404 / 422 等）；响应正文中的 `error.message` / `detail` / `message` 提取后随 `message` 透传（上限 480 字符） | 提供方拒绝了请求：`<原因>` |
+| `E_AI_UNSUPPORTED_PROVIDER` | `provider` 不是 `ollama` / `openai-compatible` / `openai-compatible-local` | 该提供方不支持获取模型列表 |
 | `E_AI_INVALID_RESPONSE` | 响应不是预期 JSON/事件格式，或非 2xx 且不在上述映射内 | 提供方响应格式非法 |
 | `E_AI_RESPONSE_TOO_LARGE` | 单次响应累计超过 64 MiB | 响应超出大小上限 |
 | `E_AI_CANCELLED` | 用户主动取消，或流式通道已断开 | 请求已取消 |
@@ -69,6 +70,7 @@ IPC 失败统一返回 `ErrorPayload { code, message }`：`code` 是稳定枚举
 
 映射规则：
 
+- AI 非 2xx 响应：最多读取 8 KiB 正文并提取提供方可读原因（`error.message` → `error` → `detail` → `message`，纯文本则截断），避免把「本地模型内存不足」这类真实原因显示成「响应格式非法」。
 - errno：`EACCES(13)` / `EROFS(30)` 在写路径映射为 `E_READONLY`，同时点亮进程内 `FilesystemReadonly` 闩锁（`vaultIdentity.readonlyReason` 变为 `filesystemReadonly`，进程内不解除、重启复位）；读路径仍按 `E_IO` 上报。
 - `ENOSPC(28)` → `E_DISK_FULL`（可恢复，前端提示清理空间）；其余 errno → `E_IO`。
 - macOS TCC / 权限拒绝以底层 errno 呈现：命中上述 EACCES/EROFS 的走只读映射，其余按 `E_IO` 上报，不伪造错误码。
@@ -207,7 +209,9 @@ AI 配置（provider / baseUrl / allowInsecureHttp）不落盘，由前端每次
 | `ai_chat_stream` | `{ request: { requestId, provider, baseUrl, allowInsecureHttp, model, messages: [{ role, content }] }, onEvent: Channel<AiChatEvent> }` | 无（流式，见 §III.1） | 首个 delta 前：`E_AI_*` `E_INVALID_ARG`；首个 delta 后：以 `error` 事件收尾 |
 | `ai_chat_cancel` | `{ requestId }` | `{ cancelled: boolean }` | 无（未知 requestId 返回 `false`） |
 
-- `provider` 只接受 `"ollama"` / `"openai-compatible"`；其余一律 `E_AI_UNSUPPORTED_PROVIDER`。
+- `provider` 只接受 `"ollama"` / `"openai-compatible"` / `"openai-compatible-local"`；其余一律 `E_AI_UNSUPPORTED_PROVIDER`。
+- `openai-compatible-local` 面向本机/局域网 OpenAI 兼容运行时（oMLX、LM Studio、vLLM 等）：网段策略为 Local（放行回环与 RFC1918，仍拒绝 link-local / CGNAT / 保留段），Key 可选——有 Key 则携带 `Authorization`，没有也允许请求。公网 `openai-compatible` 的安全策略不变。
+- 本地运行时（`ollama` / `openai-compatible-local`）的前端请求会在发送前按字符预算保留最近上下文（约 16000 字符，超出从最早轮次丢弃，最后一条用户消息始终保留），避免本地模型 prefill 超限；公网 provider 不裁剪。
 - `ai_key_save.storage` 取值 `"file"`（持久，重启仍在）或 `"memory"`（落盘失败降级，仅本次运行）；降级时 `warningCode` 为 `E_AI_KEYCHAIN_DENIED`。
 - `ai_key_status.keychainAvailable` 字段名保留（避免破坏契约形状），语义为「持久化存储（本地文件）可用」：文件模式为 `true`，纯内存降级为 `false`。
 - `ai_key_delete`：内存项必删；持久化删除失败时返回 `E_AI_KEYCHAIN_DENIED`（不假装成功），删除不存在项幂等成功。

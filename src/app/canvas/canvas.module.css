@@ -1044,8 +1044,7 @@
 }
 
 .aiHeader,
-.aiFooter,
-.aiActions {
+.aiFooter {
   display: flex;
   align-items: center;
 }
@@ -1154,48 +1153,6 @@
   gap: var(--space-sm);
 }
 
-.aiActions {
-  gap: var(--space-xs);
-  min-width: 0;
-}
-
-.aiChip,
-.aiRun {
-  padding: 5px 10px;
-  border-radius: var(--radius-full);
-  font-family: var(--font-body);
-  font-size: var(--text-xs);
-  line-height: 1;
-  pointer-events: auto;
-}
-
-.aiChip {
-  border: 1px solid transparent;
-  background: var(--ember-field-bg);
-  color: var(--ember-text-muted);
-  cursor: not-allowed;
-  opacity: 0.8;
-}
-
-.aiRun {
-  flex: 0 0 auto;
-  padding: 7px 14px;
-  border: 1px solid var(--ember-primary);
-  background: var(--ember-primary);
-  color: var(--ember-text-on-accent);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-}
-
-.aiRun:hover {
-  background: var(--ember-primary-hover);
-}
-
-.aiRun:disabled {
-  cursor: wait;
-}
-
 .aiRunner {
   position: absolute;
   inset: 0;
@@ -1240,6 +1197,319 @@
       stroke-dashoffset: -100;
     }
   }
+}
+
+/* 2026-11-28：分块 / 汇总节点——固定尺寸卡片，模式与块大小内联切换。 */
+.node[data-node-type='split'],
+.node[data-node-type='merge'] {
+  display: block;
+  padding: 0;
+  overflow: visible;
+  background-color: var(--ember-node-bg);
+  background-image: none;
+  -webkit-line-clamp: unset;
+  white-space: normal;
+}
+
+.node[data-node-type='split'] {
+  width: 320px;
+  height: 180px;
+}
+
+.node[data-node-type='merge'] {
+  width: 320px;
+  height: 160px;
+}
+
+/* 主题 §3.4：运行/失败只改 1px 边框语义，不做 2px 外描边或整块发光。 */
+.node[data-node-type='split'][data-ai-running='true'],
+.node[data-node-type='merge'][data-ai-running='true'] {
+  border-color: var(--ember-ai-border);
+}
+
+.node[data-node-type='split'][data-ai-flash],
+.node[data-node-type='merge'][data-ai-flash] {
+  border-color: var(--ember-ai);
+}
+
+.node[data-node-type='split'][data-ai-flash='error'],
+.node[data-node-type='merge'][data-ai-flash='error'] {
+  border-color: var(--ember-danger);
+}
+
+/* B1：失败块持续标记，直到该块重试或整批重跑。 */
+.node[data-step-failed='true'] {
+  border-color: var(--ember-danger);
+}
+
+.stepCard {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: var(--space-sm);
+  width: 100%;
+  height: 100%;
+  padding: 14px 14px 12px;
+  border-radius: inherit;
+}
+
+.stepHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.stepTitle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  color: var(--ember-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.stepTitle::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-full);
+  background: var(--ember-ai);
+}
+
+.stepModel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 58%;
+  margin-left: auto;
+  padding: 3px 9px;
+  overflow: hidden;
+  border: 1px solid var(--ember-border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--ember-field-bg);
+  color: var(--ember-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.stepModel:hover {
+  border-color: var(--ember-border-strong);
+  background: var(--ember-field-bg-hover);
+  color: var(--ember-text-primary);
+}
+
+.stepModel::after {
+  content: '▾';
+  flex: 0 0 auto;
+  font-size: 9px;
+  opacity: 0.7;
+}
+
+.stepBody {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: var(--space-xs);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.stepMeta {
+  flex: 1 0 100%;
+  color: var(--ember-text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+/* M4：split 卡片运行前块数预览；三态文案由 step-node-card 写入。 */
+.stepPreview {
+  flex: 1 0 100%;
+  color: var(--ember-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+}
+
+.stepPreview[data-empty='true'] {
+  display: none;
+}
+
+.stepPreview[data-kind='pending'] {
+  color: var(--ember-text-muted);
+}
+
+.stepPreview[data-kind='too-long'] {
+  color: var(--ember-warning);
+}
+
+/* 2026-11-28：merge 输出到文档时，常驻提示该写入不进入画布撤销。 */
+.stepBody [data-merge-hint='true'] {
+  flex: 1 0 100%;
+  padding: 4px 8px;
+  border-left: 2px solid var(--ember-warning);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--ember-warning-tint);
+  color: var(--ember-text-secondary);
+  font-size: var(--text-2xs);
+  line-height: 1.4;
+}
+
+.stepBody [data-merge-hint='true']:empty {
+  display: none;
+}
+
+.stepChip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 10px;
+  border: 1px solid var(--ember-border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--ember-field-bg);
+  color: var(--ember-text-muted);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  line-height: 1;
+  pointer-events: auto;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.stepChip:hover {
+  border-color: var(--ember-border-strong);
+  background: var(--ember-field-bg-hover);
+  color: var(--ember-text-primary);
+}
+
+.stepChip[data-active='true'] {
+  border-color: var(--ember-ai-border);
+  background: var(--ember-ai-tint);
+  color: var(--ember-ai-bright);
+}
+
+.stepChip:focus-visible,
+.aiRun:focus-visible,
+.stepRun:focus-visible {
+  outline: 2px solid var(--ember-border-focus);
+  outline-offset: 2px;
+}
+
+/* 主题 §3.5：footer 左侧状态（运行 k/N），右侧运行钮。 */
+.stepFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.stepStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--ember-ai-bright);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+}
+
+.stepStatus::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 4px;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: currentColor;
+}
+
+.stepStatus[data-empty='true'] {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .stepStatus:not([data-empty='true'])::before {
+    animation: step-status-pulse 1.6s ease-in-out infinite;
+  }
+
+  @keyframes step-status-pulse {
+    50% {
+      opacity: 0.3;
+    }
+  }
+}
+
+/* 2026-11-28：三个节点的动作圆钮统一在 header 右侧；空闲三角、运行中三角+竖线。 */
+.aiRun,
+.stepRun {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--ember-primary);
+  border-radius: var(--radius-full);
+  background: var(--ember-primary);
+  color: var(--ember-text-on-accent);
+  pointer-events: auto;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    opacity 120ms ease;
+}
+
+.aiRun::before,
+.stepRun::before {
+  content: '';
+  width: 7px;
+  height: 8px;
+  background: currentColor;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+  transform: translateX(1px);
+}
+
+.aiRun[data-running='true']::before,
+.stepRun[data-running='true']::before {
+  transform: none;
+}
+
+.aiRun[data-running='true']::after,
+.stepRun[data-running='true']::after {
+  content: '';
+  width: 2px;
+  height: 8px;
+  margin-left: 2px;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+.aiRun:hover,
+.stepRun:hover {
+  background: var(--ember-primary-hover);
+  border-color: var(--ember-primary-hover);
 }
 
 .node[data-node-type='prompt'] {
@@ -1357,6 +1627,112 @@
   content: 'EMBER';
   letter-spacing: 0.14em;
   opacity: 0.75;
+}
+
+/* 2026-11-28：分块子块的编辑入口；与页脚字数同排。 */
+.nodeEditBtn {
+  pointer-events: auto;
+  padding: 2px 7px;
+  border: 1px solid var(--ember-border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--ember-field-bg);
+  color: var(--ember-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-2xs);
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.nodeEditBtn:hover {
+  border-color: var(--ember-border-strong);
+  color: var(--ember-text-primary);
+}
+
+.nodeEditBtn[data-locked='true'] {
+  opacity: 0.5;
+  pointer-events: none;
+  cursor: wait;
+}
+
+/* 2026-11-28：重跑分块二次确认；遮罩拦住画布交互，取消零变化。 */
+.confirmBackdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--ember-bg-base) 55%, transparent);
+}
+
+.confirmDialog {
+  width: min(420px, 100%);
+  padding: 18px 20px 16px;
+  border: 1px solid var(--ember-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--ember-bg-elevated);
+  box-shadow: var(--shadow-lg);
+}
+
+.confirmTitle {
+  color: var(--ember-text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.confirmText {
+  margin: 10px 0 16px;
+  color: var(--ember-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+.confirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.confirmCancel,
+.confirmOk {
+  padding: 6px 14px;
+  border: 1px solid var(--ember-border-subtle);
+  border-radius: var(--radius-full);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.confirmCancel:focus-visible,
+.confirmOk:focus-visible {
+  outline: 2px solid var(--ember-border-focus);
+  outline-offset: 2px;
+}
+
+.confirmCancel {
+  background: transparent;
+  color: var(--ember-text-secondary);
+}
+
+.confirmCancel:hover {
+  border-color: var(--ember-border-strong);
+  color: var(--ember-text-primary);
+}
+
+.confirmOk {
+  border-color: var(--ember-primary);
+  background: var(--ember-primary);
+  color: var(--ember-text-on-accent);
+}
+
+.confirmOk:hover {
+  filter: brightness(1.05);
 }
 
 /* 卡片小标题：12px 次级灰 + 12px 细线图标（8px 间距） */

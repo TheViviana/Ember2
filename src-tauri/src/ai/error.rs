@@ -13,6 +13,7 @@ pub const E_AI_TIMEOUT: &str = "E_AI_TIMEOUT";
 pub const E_AI_CONNECT_TIMEOUT: &str = "E_AI_CONNECT_TIMEOUT";
 pub const E_AI_NETWORK: &str = "E_AI_NETWORK";
 pub const E_AI_MODEL_UNAVAILABLE: &str = "E_AI_MODEL_UNAVAILABLE";
+pub const E_AI_BAD_REQUEST: &str = "E_AI_BAD_REQUEST";
 pub const E_AI_UNSUPPORTED_PROVIDER: &str = "E_AI_UNSUPPORTED_PROVIDER";
 pub const E_AI_INVALID_RESPONSE: &str = "E_AI_INVALID_RESPONSE";
 pub const E_AI_RESPONSE_TOO_LARGE: &str = "E_AI_RESPONSE_TOO_LARGE";
@@ -39,8 +40,12 @@ pub enum AiError {
     ConnectTimeout,
     #[error("网络请求失败")]
     Network,
-    #[error("模型不可用：可能未下载或名称不对")]
-    ModelUnavailable,
+    /// 模型不可用：`detail` 来自提供方（如未下载、内存不足、上限过低）。
+    #[error("模型不可用：{0}")]
+    ModelUnavailable(String),
+    /// 提供方拒绝了请求（其余 4xx）：`detail` 为提供方返回的可读原因。
+    #[error("提供方拒绝了请求：{0}")]
+    BadRequest(String),
     #[error("该提供方不支持获取模型列表")]
     UnsupportedProvider,
     #[error("提供方响应格式非法")]
@@ -64,7 +69,8 @@ impl AiError {
             Self::Timeout => E_AI_TIMEOUT,
             Self::ConnectTimeout => E_AI_CONNECT_TIMEOUT,
             Self::Network => E_AI_NETWORK,
-            Self::ModelUnavailable => E_AI_MODEL_UNAVAILABLE,
+            Self::ModelUnavailable(_) => E_AI_MODEL_UNAVAILABLE,
+            Self::BadRequest(_) => E_AI_BAD_REQUEST,
             Self::UnsupportedProvider => E_AI_UNSUPPORTED_PROVIDER,
             Self::InvalidResponse => E_AI_INVALID_RESPONSE,
             Self::ResponseTooLarge => E_AI_RESPONSE_TOO_LARGE,
@@ -95,7 +101,11 @@ mod tests {
             (AiError::Timeout, E_AI_TIMEOUT),
             (AiError::ConnectTimeout, E_AI_CONNECT_TIMEOUT),
             (AiError::Network, E_AI_NETWORK),
-            (AiError::ModelUnavailable, E_AI_MODEL_UNAVAILABLE),
+            (
+                AiError::ModelUnavailable("内存不足".into()),
+                E_AI_MODEL_UNAVAILABLE,
+            ),
+            (AiError::BadRequest("prefill 超限".into()), E_AI_BAD_REQUEST),
             (AiError::UnsupportedProvider, E_AI_UNSUPPORTED_PROVIDER),
             (AiError::InvalidResponse, E_AI_INVALID_RESPONSE),
             (AiError::ResponseTooLarge, E_AI_RESPONSE_TOO_LARGE),

@@ -18,7 +18,7 @@ import {
 type MutateSuccess = Extract<CanvasMutateResult, { readonly ok: true }>;
 
 function document(nodes: readonly unknown[]): CanvasDocument {
-  return { schemaVersion: 2, nodes, edges: [] };
+  return { schemaVersion: 3, nodes, edges: [] };
 }
 
 function succeed(result: CanvasMutateResult): MutateSuccess {
@@ -157,7 +157,7 @@ void test('updateNode 拒绝非法 w/h 与白名单外键，文档保持不变',
 
 void test('旧文档无 w/h 往返字节不变；带 w/h 只保留显式字段；addNode 不补 w/h', () => {
   const legacy = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     nodes: [
       { id: 'a', x: 0, y: 0 },
       { id: 'b', x: 10, y: 20, w: 160 },

@@ -121,7 +121,7 @@ void test('resize Esc：还原 origin 且不产生提交', () => {
 
 void test('resizeCommit 走 controller：单条 updateNode 历史，⌘Z 一次还原尺寸', () => {
   const document: CanvasDocument = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     nodes: [{ id: 'a', type: 'text', x: 0, y: 0 }],
     edges: [],
   };

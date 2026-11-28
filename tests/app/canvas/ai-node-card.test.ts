@@ -72,7 +72,7 @@ function fire(element: FakeElement, type: string, init: FakeEventInit = {}): voi
 
 const classNames = {
   root: 'root', header: 'header', title: 'title', model: 'model', prompt: 'prompt',
-  footer: 'footer', actions: 'actions', chip: 'chip', run: 'run', runner: 'runner',
+  footer: 'footer', run: 'run', runner: 'runner',
   runnerGlow: 'runner-glow', runnerCore: 'runner-core',
 } as const;
 
@@ -80,6 +80,7 @@ function fixture(overrides: {
   readonly text?: string;
   readonly onCommit?: (id: string, text: string) => boolean;
   readonly onRun?: (id: string) => void;
+  readonly onCancel?: () => void;
   readonly onOpenModel?: (id: string) => void;
 } = {}) {
   const rootElements: FakeElement[] = [];
@@ -96,12 +97,13 @@ function fixture(overrides: {
     createSvgElement: (tag) => fakeElement(tag) as unknown as SVGElement,
     onCommit: overrides.onCommit ?? (() => true),
     onRun: overrides.onRun ?? (() => undefined),
+    onCancel: overrides.onCancel ?? (() => undefined),
     onOpenModel: overrides.onOpenModel,
   });
   const root = card.root as unknown as FakeElement;
   const all = descendants(root);
   const textarea = all.find((element) => element.tag === 'textarea');
-  const run = all.find((element) => element.tag === 'button' && element.textContent === 'Generate');
+  const run = all.find((element) => element.tag === 'button' && element.className === 'run');
   assert.ok(textarea !== undefined && run !== undefined);
   return { card, root, all, textarea, run, rootElements };
 }
@@ -118,11 +120,10 @@ void test('2026-11-24：单击右上角模型字段直接打开模型选择（�
   assert.deepEqual(calls, ['ai1', 'ai1'], '单击与回车都应打开模型选择');
 });
 
-void test('AI 卡片保留四个禁用预留位、执行钮和左中点向下的逆时针路径', () => {
+void test('AI 卡片只保留执行钮与左中点向下的逆时针路径；旧的四个占位 chip 已移除', () => {
   const { all } = fixture();
   const chips = all.filter((element) => element.tag === 'button' && element.attributes.title?.includes('待上线'));
-  assert.deepEqual(chips.map((chip) => chip.textContent), ['简化', '分割', '要点', '总结']);
-  assert.ok(chips.every((chip) => chip.disabled));
+  assert.deepEqual(chips, [], '简化/分割/要点/总结 已由显式分块/汇总节点取代');
   const svg = all.find((element) => element.tag === 'svg');
   assert.ok(svg !== undefined);
   assert.equal(svg.attributes['aria-hidden'], 'true');
@@ -147,23 +148,25 @@ void test('input 只改草稿，blur 规范化换行并提交一次；外部更�
   assert.equal(textarea.value, '外部撤销值');
 });
 
-void test('Generate 先提交最新草稿再执行，运行中防止重复启动', () => {
+void test('运行钮：空闲提交并执行，运行中再次点击取消', () => {
   const calls: string[] = [];
   const { card, textarea, run } = fixture({
     onCommit: (_id, text) => { calls.push(`commit:${text}`); return true; },
     onRun: (id) => { calls.push(`run:${id}`); },
+    onCancel: () => { calls.push('cancel'); },
   });
   textarea.value = '最新提示词';
   fire(textarea, 'input');
   fire(run, 'click');
   assert.deepEqual(calls, ['commit:最新提示词', 'run:ai1']);
   card.setRunning(true);
-  assert.equal(run.disabled, true);
-  assert.equal(run.textContent, 'Running…');
+  assert.equal(run.dataset.running, 'true');
+  assert.equal(run.attributes['aria-label'], '停止 AI 运行');
   fire(run, 'click');
-  assert.equal(calls.length, 2);
+  assert.deepEqual(calls, ['commit:最新提示词', 'run:ai1', 'cancel'], '运行中点击只取消，不重复提交或执行');
   card.setRunning(false);
-  assert.equal(run.textContent, 'Generate');
+  assert.equal(run.dataset.running, 'false');
+  assert.equal(run.attributes['aria-label'], '运行 AI 节点');
 });
 
 void test('Escape 恢复已保存值，Cmd/Ctrl+Enter 提交，IME 快捷键不抢先提交', () => {

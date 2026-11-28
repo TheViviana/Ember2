@@ -6,7 +6,7 @@ import type { CanvasDocument } from '../../../src/app/canvas/format.ts';
 
 function sourceDocument(): CanvasDocument {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     nodes: [
       { id: 'a', label: 'A', x: 0, y: 0 },
       { id: 'b', label: 'B', x: 160, y: 0 },

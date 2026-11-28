@@ -42,7 +42,9 @@ function defaultStorage(): Storage | null {
 }
 
 function asProvider(value: unknown): AiProvider | null {
-  return value === 'ollama' || value === 'openai-compatible' ? value : null;
+  return value === 'ollama' || value === 'openai-compatible' || value === 'openai-compatible-local'
+    ? value
+    : null;
 }
 
 function asPreset(value: unknown): AiProviderPreset | null {

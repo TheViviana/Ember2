@@ -5,7 +5,7 @@ import type { CanvasDocument } from '../../../src/app/canvas/format.ts';
 
 void test('⌘/Ctrl+A 全选映射包含全部有效节点与连线', () => {
   const document: CanvasDocument = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     nodes: [
       { id: 'a', x: 0, y: 0 },
       { id: 'b', x: 160, y: 0 },
@@ -23,7 +23,7 @@ void test('⌘/Ctrl+A 全选映射包含全部有效节点与连线', () => {
 });
 
 void test('全选映射不写入文档，空画布返回两个空集合', () => {
-  const document: CanvasDocument = { schemaVersion: 2, nodes: [], edges: [] };
+  const document: CanvasDocument = { schemaVersion: 3, nodes: [], edges: [] };
   const before = structuredClone(document);
   const selection = createCanvasSelectAllSelection(document);
 
@@ -34,7 +34,7 @@ void test('全选映射不写入文档，空画布返回两个空集合', () => 
 
 void test('全选映射排除无法进入渲染投影的坏条目', () => {
   const document: CanvasDocument = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     nodes: [{ id: 'valid', x: 0, y: 0 }, { id: 'missing-coordinates' }],
     edges: [
       { id: 'valid-edge', from: { nodeId: 'valid' }, to: { nodeId: 'valid' } },

@@ -7,12 +7,14 @@ import {
   CanvasInteractionController,
   CANVAS_HISTORY_LIMIT,
 } from '../../../src/app/canvas/document-controller.ts';
+import { createSplitNodeRunner, type SplitRunDeps } from '../../../src/app/canvas/split-node-run.ts';
+import { AI_CHAT_CONFIG_INITIAL } from '../../../src/features/ai/ai-chat-store.ts';
 import type { CanvasDocument } from '../../../src/app/canvas/format.ts';
 import type { CanvasSchemaIssue } from '#canvas-format';
 
 function document(): CanvasDocument {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     nodes: [
       { id: 'a', label: 'A', x: 0, y: 0 },
       { id: 'b', label: 'B', x: 100, y: 0 },
@@ -93,7 +95,7 @@ void test('updateNode 区分字段原缺失与原空串，undo 精确还原', ()
 
   // label 原缺失：undo 必须删除字段而不是写回空串/null。
   const missingLabel: CanvasDocument = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     nodes: [{ id: 'a', x: 0, y: 0 }],
     edges: [],
   };
@@ -219,4 +221,57 @@ void test(`历史上限 ${CANVAS_HISTORY_LIMIT}：超出丢最旧`, () => {
   const past = instance.getHistory().past;
   assert.equal(past.length, CANVAS_HISTORY_LIMIT);
   assert.equal(past.at(-1)?.kind, 'addNode');
+});
+
+void test('A3：split 整批一次 undo，旧块与边一并恢复', async () => {
+  const before: CanvasDocument = {
+    schemaVersion: 3,
+    nodes: [
+      { id: 'd1', type: 'document', docPath: 'a.md', label: 'A', x: 0, y: 0 },
+      { id: 's1', type: 'split', x: 200, y: 0 },
+      { id: 'c1', type: 'text', label: '旧块', chunkIndex: 0, sourceNodeId: 's1', x: 400, y: 0 },
+    ],
+    edges: [
+      { id: 'e1', from: { nodeId: 'd1' }, to: { nodeId: 's1' } },
+      { id: 'e2', from: { nodeId: 's1' }, to: { nodeId: 'c1' } },
+    ],
+  };
+  const { controller: instance } = controller({ document: before });
+  let sequence = 0;
+  const runner = createSplitNodeRunner({
+    getDocument: () => instance.getDocument(),
+    liveText: () => null,
+    readSnapshot: () => Promise.resolve({ text: 'x'.repeat(20), sha256: 's' }),
+    aiConfig: { ...AI_CHAT_CONFIG_INITIAL, model: 'test-model' },
+    stream: () => Promise.resolve(),
+    cancel: () => undefined,
+    notice: () => undefined,
+    executeCommands: (commands) => instance.execute(commands),
+    createNodeId: () => `new${++sequence}`,
+    createEdgeId: () => `newEdge${++sequence}`,
+    occupiedRects: () => [],
+    progress: () => undefined,
+    flash: () => undefined,
+  } satisfies SplitRunDeps);
+
+  await runner.start('s1', { replace: true });
+  assert.equal(instance.getHistory().past.length, 1, '整批只占一条历史');
+  const replaced = instance.getDocument();
+  assert.equal(replaced.nodes.some((node) => (node as { id: string }).id === 'c1'), false);
+  assert.ok(replaced.nodes.some((node) => (node as { id: string }).id.startsWith('new')));
+
+  assert.equal(instance.undo(), true);
+  const restored = instance.getDocument();
+  assert.equal(restored.nodes.some((node) => (node as { id: string }).id === 'c1'), true, '旧块恢复');
+  assert.equal(restored.nodes.some((node) => (node as { id: string }).id.startsWith('new')), false);
+  assert.equal(
+    restored.edges.some(
+      (edge) =>
+        (edge as { id?: string }).id === 'e2' ||
+        ((edge as { to?: { nodeId?: string } }).to?.nodeId === 'c1'),
+    ),
+    true,
+    '旧块连线一并恢复',
+  );
+  assert.equal(instance.getHistory().past.length, 0);
 });

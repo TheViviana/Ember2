@@ -233,22 +233,100 @@ function inspectNode(value: unknown, index: number, issues: CanvasSchemaIssue[])
   if (type === 'media' && raw.kind !== 'image' && raw.kind !== 'audio' && raw.kind !== 'video' && raw.kind !== 'doc') {
     issues.push(makeIssue('E_SCHEMA_FIELD', `/nodes/${index}/kind`, 'media 节点 kind 非法', { node: state }));
   }
-  // ai.model / ai.text / prompt.text 类型字段——形状校验 + 禁止跨类型携带。
-  if (type === 'ai' && hasOwn(raw, 'model') && typeof raw.model !== 'string') {
+  // ai/split/merge 的 model、ai/prompt/split/merge 的 text——形状校验 + 禁止跨类型携带。
+  const carriesModel = type === 'ai' || type === 'split' || type === 'merge';
+  const carriesText = type === 'ai' || type === 'prompt' || type === 'split' || type === 'merge';
+  if (carriesModel && hasOwn(raw, 'model') && typeof raw.model !== 'string') {
     issues.push(
-      makeIssue('E_SCHEMA_FIELD', `/nodes/${index}/model`, 'ai 节点 model 若存在必须是字符串', { node: state }),
+      makeIssue('E_SCHEMA_FIELD', `/nodes/${index}/model`, 'ai/split/merge 节点 model 若存在必须是字符串', {
+        node: state,
+      }),
     );
   }
-  if (type !== 'ai' && hasOwn(raw, 'model')) {
-    issues.push(makeIssue('E_SCHEMA_FIELD', `/nodes/${index}/model`, '非 ai 节点禁止携带 model', { node: state }));
-  }
-  if ((type === 'ai' || type === 'prompt') && hasOwn(raw, 'text') && typeof raw.text !== 'string') {
+  if (!carriesModel && hasOwn(raw, 'model')) {
     issues.push(
-      makeIssue('E_SCHEMA_FIELD', `/nodes/${index}/text`, 'ai/prompt 节点 text 若存在必须是字符串', { node: state }),
+      makeIssue('E_SCHEMA_FIELD', `/nodes/${index}/model`, '非 ai/split/merge 节点禁止携带 model', {
+        node: state,
+      }),
     );
   }
-  if (type !== 'ai' && type !== 'prompt' && hasOwn(raw, 'text')) {
-    issues.push(makeIssue('E_SCHEMA_FIELD', `/nodes/${index}/text`, '非 ai/prompt 节点禁止携带 text', { node: state }));
+  if (carriesText && hasOwn(raw, 'text') && typeof raw.text !== 'string') {
+    issues.push(
+      makeIssue('E_SCHEMA_FIELD', `/nodes/${index}/text`, 'ai/prompt/split/merge 节点 text 若存在必须是字符串', {
+        node: state,
+      }),
+    );
+  }
+  if (!carriesText && hasOwn(raw, 'text')) {
+    issues.push(
+      makeIssue('E_SCHEMA_FIELD', `/nodes/${index}/text`, '非 ai/prompt/split/merge 节点禁止携带 text', {
+        node: state,
+      }),
+    );
+  }
+  if (type === 'split' && hasOwn(raw, 'mode') && raw.mode !== 'split' && raw.mode !== 'refine') {
+    issues.push(
+      makeIssue('E_SCHEMA_FIELD', `/nodes/${index}/mode`, "split 节点 mode 必须是 'split' 或 'refine'", {
+        node: state,
+      }),
+    );
+  }
+  if (type !== 'split' && hasOwn(raw, 'mode')) {
+    issues.push(
+      makeIssue('E_SCHEMA_FIELD', `/nodes/${index}/mode`, '非 split 节点禁止携带 mode', { node: state }),
+    );
+  }
+  if (type === 'split' && hasOwn(raw, 'chunkChars')) {
+    const chunkChars = finiteNumber(raw.chunkChars);
+    if (chunkChars === null || chunkChars <= 0) {
+      issues.push(
+        makeIssue('E_SCHEMA_FIELD', `/nodes/${index}/chunkChars`, 'split 节点 chunkChars 必须是正的有限数', {
+          node: state,
+        }),
+      );
+    }
+  }
+  if (type !== 'split' && hasOwn(raw, 'chunkChars')) {
+    issues.push(
+      makeIssue('E_SCHEMA_FIELD', `/nodes/${index}/chunkChars`, '非 split 节点禁止携带 chunkChars', {
+        node: state,
+      }),
+    );
+  }
+  // 分块子块元数据：仅 text 节点可携带，chunkIndex/sourceNodeId 成对出现。
+  const carriesChunkMeta = type === 'text';
+  const hasChunkIndex = hasOwn(raw, 'chunkIndex');
+  const hasSourceNodeId = hasOwn(raw, 'sourceNodeId');
+  if (!carriesChunkMeta && (hasChunkIndex || hasSourceNodeId)) {
+    issues.push(
+      makeIssue('E_SCHEMA_FIELD', `/nodes/${index}/chunkIndex`, '非 text 节点禁止携带分块子块元数据', {
+        node: state,
+      }),
+    );
+  }
+  if (carriesChunkMeta && hasChunkIndex !== hasSourceNodeId) {
+    issues.push(
+      makeIssue('E_SCHEMA_FIELD', `/nodes/${index}/chunkIndex`, 'chunkIndex 与 sourceNodeId 必须成对出现', {
+        node: state,
+      }),
+    );
+  }
+  if (carriesChunkMeta && hasChunkIndex) {
+    const chunkIndex = finiteNumber(raw.chunkIndex);
+    if (chunkIndex === null || !Number.isInteger(chunkIndex) || chunkIndex < 0) {
+      issues.push(
+        makeIssue('E_SCHEMA_FIELD', `/nodes/${index}/chunkIndex`, 'chunkIndex 必须是非负整数', {
+          node: state,
+        }),
+      );
+    }
+  }
+  if (carriesChunkMeta && hasSourceNodeId && nonEmptyString(raw.sourceNodeId) === null) {
+    issues.push(
+      makeIssue('E_SCHEMA_FIELD', `/nodes/${index}/sourceNodeId`, 'sourceNodeId 必须是非空字符串', {
+        node: state,
+      }),
+    );
   }
   if (type === 'group' && hasOwn(raw, 'parentId')) {
     issues.push(makeIssue('E_SCHEMA_GROUP', `/nodes/${index}/parentId`, '组不得嵌套', { node: state }));

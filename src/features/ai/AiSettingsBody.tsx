@@ -10,6 +10,7 @@ import {
   canQueryModels,
   derivePresetId,
   inferAllowInsecureHttp,
+  isKeyOptional,
   requiresApiKey,
   validateBaseUrl,
   type AiProviderPreset,
@@ -149,13 +150,15 @@ export function AiSettingsBody({ effects, initialStatus }: AiSettingsBodyProps) 
   }, []);
 
   const handleSave = useCallback(async () => {
-    if (!requiresApiKey(state.provider)) return;
+    const keyRequired = requiresApiKey(state.provider);
+    if (!keyRequired && !isKeyOptional(state.provider)) return;
     const urlErr = validateBaseUrl(state.baseUrl);
     if (urlErr) {
       dispatch({ type: 'SAVE_FAIL', error: { code: undefined, message: urlErr } });
       return;
     }
-    if (state.provider === 'openai-compatible' && state.key.trim().length === 0) {
+    const key = state.key.trim();
+    if (keyRequired && key.length === 0) {
       dispatch({
         type: 'SAVE_FAIL',
         error: { code: 'E_AI_KEY_MISSING', message: 'API Key 不能为空' },
@@ -167,15 +170,18 @@ export function AiSettingsBody({ effects, initialStatus }: AiSettingsBodyProps) 
     dispatch({ type: 'SAVE_START' });
     try {
       const endpoint = toEndpointRequest(state);
-      const dto = await effects.saveKey({ ...endpoint, key: state.key });
-      const status = await effects.keyStatus(endpoint);
-      dispatch({
-        type: 'SAVE_OK',
-        storage: dto.storage,
-        warningCode: dto.warningCode ?? null,
-        configured: status.configured,
-        keychainAvailable: status.keychainAvailable,
-      });
+      // 本地端点 Key 可选：留空时不写密钥，直接拉模型验证端点可达。
+      if (key.length > 0) {
+        const dto = await effects.saveKey({ ...endpoint, key });
+        const status = await effects.keyStatus(endpoint);
+        dispatch({
+          type: 'SAVE_OK',
+          storage: dto.storage,
+          warningCode: dto.warningCode ?? null,
+          configured: status.configured,
+          keychainAvailable: status.keychainAvailable,
+        });
+      }
       dispatch({ type: 'MODELS_START' });
       try {
         const models = await effects.listModels(endpoint);
@@ -242,10 +248,12 @@ export function AiSettingsBody({ effects, initialStatus }: AiSettingsBodyProps) 
     if (mountedRef.current) return;
     mountedRef.current = true;
     if (state.status === 'loading_models' || state.models.length > 0) return;
-    if (state.provider === 'ollama' || state.configured) void handleListModels();
+    if (!requiresApiKey(state.provider) || state.configured) void handleListModels();
   }, [handleListModels, state.configured, state.models.length, state.provider, state.status]);
 
   const needsKey = requiresApiKey(state.provider);
+  const keyOptional = isKeyOptional(state.provider);
+  const showKeyField = needsKey || keyOptional;
   const modelsAvailable = canQueryModels(state.provider, state.configured);
   const activePresetId = derivePresetId(state.baseUrl, state.provider);
   const errorMsg = mapError(state.error);
@@ -285,9 +293,11 @@ export function AiSettingsBody({ effects, initialStatus }: AiSettingsBodyProps) 
         />
       </section>
 
-      {needsKey ? (
+      {showKeyField ? (
         <section className={styles.section}>
-          <label className={styles.sectionLabel} htmlFor="ai-key">API Key</label>
+          <label className={styles.sectionLabel} htmlFor="ai-key">
+            API Key{keyOptional ? '（可选）' : ''}
+          </label>
           <input
             id="ai-key"
             type="password"
@@ -319,8 +329,12 @@ export function AiSettingsBody({ effects, initialStatus }: AiSettingsBodyProps) 
         state.saveWarningCode !== null ||
         state.configured) ? (
         <section className={styles.section} aria-live="polite">
-          {!needsKey ? (
+          {state.provider === 'ollama' ? (
             <p className={styles.infoBox}>Ollama 本地端点无需 API Key，可直接测试连接或拉取模型。</p>
+          ) : keyOptional ? (
+            <p className={styles.infoBox}>
+              本地端点 API Key 可选：留空即可直接访问；服务端要求鉴权时再填写。
+            </p>
           ) : null}
           {state.saveStorage ? (
             <p className={styles.successBox}>
@@ -362,7 +376,7 @@ export function AiSettingsBody({ effects, initialStatus }: AiSettingsBodyProps) 
         >
           <option value="">
             {state.models.length === 0
-              ? (needsKey ? '（未拉取，先保存 Key）' : '（点「重新拉取」获取本地模型）')
+              ? (modelsAvailable ? '（点「重新拉取」获取模型）' : '（未拉取，先保存 Key）')
               : '请选择…'}
           </option>
           {state.models.map((m) => (
@@ -390,7 +404,7 @@ export function AiSettingsBody({ effects, initialStatus }: AiSettingsBodyProps) 
       </section>
 
       <footer className={styles.actions}>
-        {needsKey && state.configured ? (
+        {showKeyField && state.configured ? (
           <button
             type="button"
             className={styles.dangerBtn}
@@ -409,14 +423,16 @@ export function AiSettingsBody({ effects, initialStatus }: AiSettingsBodyProps) 
         >
           {state.status === 'testing' ? '测试中…' : '测试连接'}
         </button>
-        {needsKey ? (
+        {showKeyField ? (
           <button
             type="button"
             className={styles.primaryBtn}
             onClick={() => { void handleSave(); }}
             disabled={blocking}
           >
-            {state.status === 'saving' ? '保存中…' : '保存 Key'}
+            {state.status === 'saving'
+              ? '保存中…'
+              : needsKey ? '保存 Key' : '保存 Key（可选）'}
           </button>
         ) : null}
       </footer>

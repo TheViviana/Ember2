@@ -12,7 +12,7 @@ import {
 
 function validDocument(): CanvasDocument {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     nodes: [
       { id: 'a', label: 'A', x: 0, y: 0 },
       { id: 'b', label: 'B', x: 100, y: 0 },
@@ -41,7 +41,7 @@ void test('合法文档：无 issues、不锁写，投影补默认 type/ports/po
 
 void test('非法条目：issues 与 readOnly 同源，投影隔离但原文不变', () => {
   const document: CanvasDocument = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     nodes: [
       { id: 'a', label: 'A', x: 0, y: 0 },
       { id: 'bad', label: 'Bad', x: 'nope', y: 0 },
@@ -81,7 +81,7 @@ void test('mutate 委托：addNode 只落显式形状，inverse 为 removeNode',
 
 void test('mutate 在既有 issues 文档上整批拒绝（R8）', () => {
   const document: CanvasDocument = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     nodes: [{ id: 'a', x: 0, y: 0, docPath: '/note.md' }],
     edges: [],
   };

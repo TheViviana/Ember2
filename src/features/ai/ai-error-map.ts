@@ -1,7 +1,7 @@
 /**
  * T1-AI-A：AI 端点与错误码（Rust E_AI_*）到前端中文文案的映射。
  *
- * 与 src-tauri/src/ai/error.rs 严格对齐（14 个码）。
+ * 与 src-tauri/src/ai/error.rs 严格对齐（15 个码）。
  */
 
 export interface AiErrorMessage {
@@ -17,7 +17,7 @@ export interface AiErrorMessage {
  *   E_AI_NOT_CONFIGURED / E_AI_INVALID_ENDPOINT / E_AI_KEY_MISSING /
  *   E_AI_KEYCHAIN_DENIED / E_AI_UNAUTHORIZED / E_AI_RATE_LIMITED /
  *   E_AI_TIMEOUT / E_AI_CONNECT_TIMEOUT / E_AI_NETWORK /
- *   E_AI_MODEL_UNAVAILABLE / E_AI_UNSUPPORTED_PROVIDER /
+ *   E_AI_MODEL_UNAVAILABLE / E_AI_BAD_REQUEST / E_AI_UNSUPPORTED_PROVIDER /
  *   E_AI_INVALID_RESPONSE / E_AI_RESPONSE_TOO_LARGE / E_AI_CANCELLED
  */
 export function mapAiErrorCode(code: string | undefined, rawMessage?: string): AiErrorMessage {
@@ -29,7 +29,10 @@ export function mapAiErrorCode(code: string | undefined, rawMessage?: string): A
     case 'E_AI_NOT_CONFIGURED':
       return { text: '尚未配置 AI 端点，请填写 Provider / Base URL / Key', tone: 'warning' };
     case 'E_AI_INVALID_ENDPOINT':
-      return { text: '端点地址无效，请检查 Base URL 格式（非回环 http 需勾选「允许不安全 HTTP」）', tone: 'error' };
+      return {
+        text: '端点地址无效：公网提供方不能访问本机/局域网；本地模型请选「本地模型（OpenAI 兼容）」并填写 http://127.0.0.1:8000/v1 这类地址（非回环 http 需勾选「允许不安全 HTTP」）',
+        tone: 'error',
+      };
     case 'E_AI_KEY_MISSING':
       return { text: '缺少 API Key，请填写后保存', tone: 'error' };
     case 'E_AI_KEYCHAIN_DENIED':
@@ -45,7 +48,20 @@ export function mapAiErrorCode(code: string | undefined, rawMessage?: string): A
     case 'E_AI_NETWORK':
       return { text: '网络连接失败，请检查网络或 Base URL', tone: 'error' };
     case 'E_AI_MODEL_UNAVAILABLE':
-      return { text: '模型不可用，请在聊天时选择其他模型', tone: 'warning' };
+      // Rust 文案已带「模型不可用：<提供方原因>」；有原因就直接展示。
+      return {
+        text: rawMessage !== undefined && rawMessage.length > 0
+          ? rawMessage
+          : '模型不可用：可能未下载、名称不对或内存不足',
+        tone: 'warning',
+      };
+    case 'E_AI_BAD_REQUEST':
+      return {
+        text: rawMessage !== undefined && rawMessage.length > 0
+          ? rawMessage
+          : '提供方拒绝了请求，请检查 Base URL、模型与参数',
+        tone: 'error',
+      };
     case 'E_AI_UNSUPPORTED_PROVIDER':
       return { text: '不支持的 Provider 类型（应用内部错误）', tone: 'error' };
     case 'E_AI_INVALID_RESPONSE':

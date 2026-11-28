@@ -15,6 +15,7 @@
  */
 import { isCanvasNodeType, MAX_NODE_DIMENSION, type CanvasNodeType } from '#canvas-format';
 import type { CanvasDocument } from './format.ts';
+import { mergeOutputKind } from './split-node-execution.ts';
 import type { Point, Rect, ViewportTransform } from './viewport.ts';
 
 /**
@@ -28,7 +29,7 @@ export const NODE_WIDTH = 160;
 export const NODE_HEIGHT = 96;
 
 /**
- * 特殊节点（AI / 提示词）固定盒尺寸：用户 2026-11-23 要求尺寸固定、不可拖拽改变。
+ * 特殊节点（AI / 提示词 / 分块 / 汇总）固定盒尺寸：用户 2026-11-23 要求尺寸固定、不可拖拽改变。
  * 视图层与命中检测都以 kind 为准，不写盘；CSS 侧由 `.node[data-node-type]` 同步钉死。
  */
 export const AI_NODE_WIDTH = 420;
@@ -36,9 +37,16 @@ export const AI_NODE_WIDTH = 420;
 export const AI_NODE_HEIGHT = 190;
 export const PROMPT_NODE_WIDTH = 320;
 export const PROMPT_NODE_HEIGHT = 136;
+/** 分块 / 汇总节点：模式与运行入口 + 说明的固定卡片。 */
+export const SPLIT_NODE_WIDTH = 320;
+export const SPLIT_NODE_HEIGHT = 180;
+export const MERGE_NODE_WIDTH = 320;
+export const MERGE_NODE_HEIGHT = 160;
 
-export function isFixedSizeNodeKind(kind: string | undefined): kind is 'ai' | 'prompt' {
-  return kind === 'ai' || kind === 'prompt';
+export type FixedSizeNodeKind = 'ai' | 'prompt' | 'split' | 'merge';
+
+export function isFixedSizeNodeKind(kind: string | undefined): kind is FixedSizeNodeKind {
+  return kind === 'ai' || kind === 'prompt' || kind === 'split' || kind === 'merge';
 }
 
 /**
@@ -70,10 +78,12 @@ export function nodeSizeOf(node: {
   readonly w?: number;
   readonly h?: number;
   readonly autoH?: number;
-  readonly kind?: 'ai' | 'prompt';
+  readonly kind?: FixedSizeNodeKind;
 }): NodeSize {
   if (node.kind === 'ai') return { w: AI_NODE_WIDTH, h: AI_NODE_HEIGHT };
   if (node.kind === 'prompt') return { w: PROMPT_NODE_WIDTH, h: PROMPT_NODE_HEIGHT };
+  if (node.kind === 'split') return { w: SPLIT_NODE_WIDTH, h: SPLIT_NODE_HEIGHT };
+  if (node.kind === 'merge') return { w: MERGE_NODE_WIDTH, h: MERGE_NODE_HEIGHT };
   return {
     w: validNodeDimension(node.w) ?? NODE_WIDTH,
     h: node.h !== undefined
@@ -107,16 +117,32 @@ export interface CanvasNodeView {
   };
   /** CR-20261119-05：文档节点关联路径；卡片元数据与正文预览的数据源。 */
   readonly docPath?: string;
-  /** CR-20261121-53：节点种类判别（ai/prompt 自 raw.type 提取；其余类型缺省）。 */
-  readonly kind?: 'ai' | 'prompt';
+  /** CR-20261121-53：节点种类判别（ai/prompt/split/merge 自 raw.type 提取；其余类型缺省）。 */
+  readonly kind?: FixedSizeNodeKind;
   /** CR-20261121-59：组节点标记（视图层与自由文本同形，卡片渲染需区分）。 */
   readonly group?: boolean;
-  /** CR-20261121-53：ai 节点已选模型；未选择时缺省字段。 */
+  /** ai/split/merge 节点已选模型；未选择时缺省字段。 */
   readonly aiModel?: string;
-  /** ai/prompt 节点提示词正文（可为空串）；其他节点缺省。 */
+  /** ai/prompt/split/merge 节点提示词正文（可为空串）；其他节点缺省。 */
   readonly promptText?: string;
+  /** split 节点分块方式；缺省视为 'split'。 */
+  readonly splitMode?: 'split' | 'refine';
+  /** split 节点目标块大小（字符）；缺省时按 provider 预算决定。 */
+  readonly chunkChars?: number;
+  /** 分块子块元数据：仅 split 生成的 text 块携带。 */
+  readonly chunkIndex?: number;
+  readonly sourceNodeId?: string;
   /** CR-20261119-12：document 节点自动测量高度（视图层，不序列化）。 */
   readonly autoH?: number;
+}
+
+/** merge 的出边是否指向 document 节点（卡片常驻提示，只读投影）。 */
+export function mergeOutputsToDocument(
+  nodes: readonly unknown[],
+  edges: readonly unknown[],
+  mergeId: string,
+): boolean {
+  return mergeOutputKind(nodes, edges, mergeId) === 'document';
 }
 
 /** CR-20261119-12：把 engine 测量结果合进渲染视图。不可变 `.map`，禁止 Object.assign。
@@ -232,12 +258,32 @@ export function extractNodeViews(rawNodes: readonly unknown[]): readonly CanvasN
       raw.type === 'document' && typeof raw.docPath === 'string' && raw.docPath !== ''
         ? raw.docPath
         : null;
-    // ai/prompt 节点视图字段（text 可为空串，占位由渲染层判定）。
-    const kind = raw.type === 'ai' || raw.type === 'prompt' ? raw.type : null;
+    // ai/prompt/split/merge 节点视图字段（text 可为空串，占位由渲染层判定）。
+    const kind =
+      raw.type === 'ai' || raw.type === 'prompt' || raw.type === 'split' || raw.type === 'merge'
+        ? raw.type
+        : null;
     const group = raw.type === 'group' ? true : null;
     const aiModel =
-      raw.type === 'ai' && typeof raw.model === 'string' && raw.model !== '' ? raw.model : null;
+      (raw.type === 'ai' || raw.type === 'split' || raw.type === 'merge') &&
+      typeof raw.model === 'string' &&
+      raw.model !== ''
+        ? raw.model
+        : null;
     const promptText = kind !== null && typeof raw.text === 'string' ? raw.text : null;
+    const splitMode = raw.type === 'split' && raw.mode === 'refine' ? 'refine' as const : null;
+    const chunkChars =
+      raw.type === 'split' && typeof raw.chunkChars === 'number' && Number.isFinite(raw.chunkChars)
+        ? raw.chunkChars
+        : null;
+    const chunkIndex =
+      raw.type === 'text' && typeof raw.chunkIndex === 'number' && Number.isInteger(raw.chunkIndex)
+        ? raw.chunkIndex
+        : null;
+    const sourceNodeId =
+      raw.type === 'text' && typeof raw.sourceNodeId === 'string' && raw.sourceNodeId !== ''
+        ? raw.sourceNodeId
+        : null;
     const extras: Partial<CanvasNodeView> = {
       ...(media === undefined ? {} : { media }),
       ...(docPath === null ? {} : { docPath }),
@@ -245,6 +291,10 @@ export function extractNodeViews(rawNodes: readonly unknown[]): readonly CanvasN
       ...(group === null ? {} : { group }),
       ...(aiModel === null ? {} : { aiModel }),
       ...(promptText === null ? {} : { promptText }),
+      ...(splitMode === null ? {} : { splitMode }),
+      ...(chunkChars === null ? {} : { chunkChars }),
+      ...(chunkIndex === null ? {} : { chunkIndex }),
+      ...(sourceNodeId === null ? {} : { sourceNodeId }),
     };
     if (Object.keys(extras).length === 0) nodes.push(view);
     else nodes.push({ ...view, ...extras });
