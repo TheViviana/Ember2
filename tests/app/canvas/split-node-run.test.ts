@@ -83,6 +83,46 @@ void test('纯布局：从右侧竖排，避开已有节点', () => {
   assert.ok((positions[2]?.y ?? 0) >= 240);
 });
 
+void test('纯布局：一列 8 块后向右换列，避免无限下坠', () => {
+  const positions = layoutChunkNodes({ x: 0, y: 0, w: 320, h: 180 }, 10, []);
+  assert.deepEqual(positions[7], { x: 400, y: 840 }, '第 8 块仍在第一列底部');
+  assert.deepEqual(positions[8], { x: 640, y: 0 }, '第 9 块回到顶部并向右换列');
+  assert.deepEqual(positions[9], { x: 640, y: 120 });
+});
+
+void test('纯布局：换列后仍避开该列已有节点', () => {
+  const positions = layoutChunkNodes(
+    { x: 0, y: 0, w: 320, h: 180 },
+    9,
+    [{ x: 640, y: 0, w: 160, h: 96 }],
+  );
+  assert.deepEqual(positions[8], { x: 640, y: 120 }, '新列顶部被占用时向下避让');
+});
+
+void test('纯布局：密集障碍下不与已有节点或已放块重叠', () => {
+  const occupied = [
+    { x: 400, y: 0, w: 160, h: 200 },
+    { x: 400, y: 300, w: 160, h: 300 },
+    { x: 640, y: 0, w: 160, h: 120 },
+    { x: 640, y: 240, w: 160, h: 360 },
+  ];
+  const rects = layoutChunkNodes({ x: 0, y: 0, w: 320, h: 180 }, 12, occupied).map((p) => ({
+    ...p,
+    w: 160,
+    h: 96,
+  }));
+  const all = [...occupied, ...rects];
+  for (const [i, a] of all.entries()) {
+    for (const [j, b] of all.entries()) {
+      if (j <= i) continue;
+      assert.ok(
+        a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y,
+        `rect ${i} 与 ${j} 不应重叠`,
+      );
+    }
+  }
+});
+
 void test('split 模式：按预算批量落块，不调用模型', async () => {
   const rec = recorder();
   let started = 0;

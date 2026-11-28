@@ -234,14 +234,19 @@ export const CHUNK_NODE_WIDTH = 160;
 export const CHUNK_NODE_HEIGHT = 96;
 const CHUNK_GAP_X = 80;
 const CHUNK_GAP_Y = 24;
+/** 单列最多 8 块；超出后向右换列，避免竖排无限下坠。 */
+const CHUNK_COLUMN_MAX_ROWS = 8;
+/** 网格上限：8 × 20 个槽位，超过后退化为顺序下排（仅极端块数）。 */
+const CHUNK_COLUMN_LIMIT = 20;
 
 function intersects(a: NodeRect, b: NodeRect): boolean {
   return !(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y);
 }
 
 /**
- * 子块竖排布局：从 split 右侧开始，向下排；与已有节点相交时整体下移，
- * 一列排不下时向右再开一列。只做有限次避让，保证一定返回。
+ * 子块网格排布：从 split 右侧开始向下排，一列最多 8 块；
+ * 超出列边界或槽位被占用时向右换列，换列后仍避开已有节点。
+ * 按列优先扫描，保证块之间、块与现有节点之间不重叠。
  */
 export function layoutChunkNodes(
   origin: NodeRect,
@@ -250,26 +255,40 @@ export function layoutChunkNodes(
 ): readonly ChunkPosition[] {
   const placed: NodeRect[] = [];
   const positions: ChunkPosition[] = [];
-  let columnX = origin.x + origin.w + CHUNK_GAP_X;
-  let y = origin.y;
+  const startX = origin.x + origin.w + CHUNK_GAP_X;
+  const blocked = (rect: NodeRect): boolean =>
+    occupied.some((item) => intersects(rect, item)) ||
+    placed.some((item) => intersects(rect, item));
 
+  let slot = 0;
   for (let index = 0; index < count; index += 1) {
-    let candidate: NodeRect = { x: columnX, y, w: CHUNK_NODE_WIDTH, h: CHUNK_NODE_HEIGHT };
-    let attempts = 0;
-    while (
-      attempts < 200 &&
-      [...occupied, ...placed].some((rect) => intersects(candidate, rect))
-    ) {
-      attempts += 1;
-      candidate = { ...candidate, y: candidate.y + CHUNK_NODE_HEIGHT + CHUNK_GAP_Y };
+    let chosen: NodeRect | null = null;
+    while (slot < CHUNK_COLUMN_MAX_ROWS * CHUNK_COLUMN_LIMIT) {
+      const column = Math.floor(slot / CHUNK_COLUMN_MAX_ROWS);
+      const row = slot % CHUNK_COLUMN_MAX_ROWS;
+      const candidate: NodeRect = {
+        x: startX + column * (CHUNK_NODE_WIDTH + CHUNK_GAP_X),
+        y: origin.y + row * (CHUNK_NODE_HEIGHT + CHUNK_GAP_Y),
+        w: CHUNK_NODE_WIDTH,
+        h: CHUNK_NODE_HEIGHT,
+      };
+      slot += 1;
+      if (!blocked(candidate)) {
+        chosen = candidate;
+        break;
+      }
     }
-    if (attempts >= 200) {
-      columnX += CHUNK_NODE_WIDTH + CHUNK_GAP_X;
-      candidate = { x: columnX, y: origin.y, w: CHUNK_NODE_WIDTH, h: CHUNK_NODE_HEIGHT };
+    if (chosen === null) {
+      const last = placed[placed.length - 1];
+      chosen = {
+        x: last?.x ?? startX,
+        y: (last?.y ?? origin.y) + CHUNK_NODE_HEIGHT + CHUNK_GAP_Y,
+        w: CHUNK_NODE_WIDTH,
+        h: CHUNK_NODE_HEIGHT,
+      };
     }
-    placed.push(candidate);
-    positions.push({ x: candidate.x, y: candidate.y });
-    y = candidate.y + CHUNK_NODE_HEIGHT + CHUNK_GAP_Y;
+    placed.push(chosen);
+    positions.push({ x: chosen.x, y: chosen.y });
   }
 
   return positions;
